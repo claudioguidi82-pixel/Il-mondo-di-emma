@@ -11,7 +11,9 @@ import {
   Brain,
   ShieldCheck,
   CheckCircle2,
-  Heart
+  Heart,
+  Music,
+  VolumeX
 } from 'lucide-react';
 
 interface PlayArenaProps {
@@ -34,6 +36,14 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
   const [itemCountClicked, setItemCountClicked] = useState<number>(0);
   const [showCelebration, setShowCelebration] = useState<boolean>(false);
   const [attemptCount, setAttemptCount] = useState<number>(0);
+  const [musicPlaying, setMusicPlaying] = useState<boolean>(soundManager.musicEnabled);
+
+  // Sync music state
+  useEffect(() => {
+    return soundManager.onMusicChange((enabled) => {
+      setMusicPlaying(enabled);
+    });
+  }, []);
 
   // Sync speaking state
   useEffect(() => {
@@ -194,6 +204,26 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
           <button
             onClick={() => {
               soundManager.playPop();
+              const nextMusic = soundManager.toggleMusic();
+              setMusicPlaying(nextMusic);
+            }}
+            className={`p-1.5 sm:p-2 rounded-xl border transition-all cursor-pointer shadow-xs active:scale-95 ${
+              musicPlaying
+                ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-amber-400/20'
+                : 'bg-white/10 hover:bg-white/20 text-slate-400 border-white/20'
+            }`}
+            title={musicPlaying ? 'Disattiva musica rilassante' : 'Attiva musica rilassante'}
+          >
+            {musicPlaying ? (
+              <Music className="w-4 h-4 text-slate-950 animate-bounce" />
+            ) : (
+              <VolumeX className="w-4 h-4" />
+            )}
+          </button>
+
+          <button
+            onClick={() => {
+              soundManager.playPop();
               onOpenParents();
             }}
             className="p-1.5 sm:p-2 bg-white/10 hover:bg-white/20 active:scale-95 text-slate-300 rounded-xl border border-white/20 cursor-pointer shadow-xs"
@@ -207,13 +237,13 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
       {/* ============================================================== */}
       {/* CHILD PROMPT CARD: COMPACT SPEECH CLOUD WITH ANIMAL AVATAR      */}
       {/* ============================================================== */}
-      <div className="relative z-10 px-2 sm:px-4 shrink-0 max-w-3xl w-full mx-auto my-1">
-        <div className="bg-gradient-to-b from-white via-white to-amber-50 rounded-3xl p-2.5 sm:p-3.5 border-3 sm:border-4 border-amber-300 shadow-xl flex items-center gap-2.5 sm:gap-4 text-slate-900 relative overflow-hidden">
+      <div className="relative z-10 px-2 sm:px-4 shrink-0 max-w-3xl w-full mx-auto my-1 landscape:my-0.5">
+        <div className="bg-gradient-to-b from-white via-white to-amber-50 rounded-2xl sm:rounded-3xl p-2 sm:p-3.5 landscape:p-1.5 landscape:py-1 border-2 sm:border-4 border-amber-300 shadow-xl flex items-center gap-2 sm:gap-4 text-slate-900 relative overflow-hidden">
           
           {/* Animated Mascot Guide Avatar */}
           <button 
             onClick={handleReplaySpeech}
-            className={`w-14 h-14 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-tr from-amber-400 via-pink-400 to-purple-500 p-0.5 border-2 border-amber-400 flex items-center justify-center text-3xl sm:text-4xl shrink-0 shadow-lg cursor-pointer transition-transform ${
+            className={`w-11 h-11 sm:w-16 sm:h-16 landscape:w-9 landscape:h-9 rounded-2xl bg-gradient-to-tr from-amber-400 via-pink-400 to-purple-500 p-0.5 border-2 border-amber-400 flex items-center justify-center text-2xl sm:text-4xl landscape:text-xl shrink-0 shadow-lg cursor-pointer transition-transform ${
               isSpeaking ? 'animate-bounce scale-105' : 'hover:scale-105 active:scale-95'
             }`}
             title="Tocca per ascoltare la voce!"
@@ -226,7 +256,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
           {/* Speech Prompt Text & Big Listen Button */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 mb-0.5">
-              <span className="font-kids font-bold text-xs sm:text-sm text-purple-700">
+              <span className="font-kids font-bold text-xs sm:text-sm landscape:text-[11px] text-purple-700">
                 {currentPuzzle.animalGuide.name}
               </span>
               {currentPuzzle.type === 'riddle' && (
@@ -236,7 +266,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
               )}
             </div>
 
-            <p className="text-sm sm:text-lg md:text-xl text-slate-900 font-kids font-bold leading-tight drop-shadow-xs line-clamp-2">
+            <p className="text-xs sm:text-lg md:text-xl landscape:text-xs text-slate-900 font-kids font-bold leading-tight drop-shadow-xs line-clamp-2">
               "{currentPuzzle.prompt}"
             </p>
           </div>
@@ -244,7 +274,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
           {/* Direct Speaker Button */}
           <button
             onClick={handleReplaySpeech}
-            className={`p-2.5 sm:px-4 sm:py-2 rounded-2xl font-kids font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer shrink-0 border-b-3 ${
+            className={`p-1.5 sm:px-4 sm:py-2 landscape:p-1 landscape:px-2 rounded-xl sm:rounded-2xl font-kids font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer shrink-0 border-b-3 ${
               isSpeaking
                 ? 'bg-gradient-to-r from-emerald-400 to-green-500 text-slate-950 border-emerald-700 animate-pulse'
                 : 'bg-gradient-to-r from-amber-300 to-yellow-400 text-slate-950 border-amber-600 btn-chunky'
@@ -252,7 +282,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
             title="Ascolta la voce"
           >
             <Volume2 className="w-4 h-4 text-slate-950 fill-current animate-bounce" />
-            <span className="hidden sm:inline">{isSpeaking ? 'Ascolta...' : 'VOCE 🔊'}</span>
+            <span className="hidden sm:inline landscape:inline">{isSpeaking ? 'Ascolta...' : 'VOCE 🔊'}</span>
           </button>
         </div>
       </div>
@@ -353,9 +383,9 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
           </div>
         )}
 
-        {/* 4. JUMBO TACTILE MULTIPLE CHOICE CARDS (FITS MOBILE & TABLETS) */}
+        {/* 4. JUMBO TACTILE MULTIPLE CHOICE CARDS (FITS MOBILE & TABLETS IN PORTRAIT & LANDSCAPE) */}
         {currentPuzzle.options && (
-          <div className={`grid gap-2.5 sm:gap-4 w-full max-h-[52vh] ${
+          <div className={`grid gap-2 sm:gap-4 landscape:gap-2 w-full max-h-[52vh] landscape:max-h-[58vh] ${
             currentPuzzle.options.length === 2
               ? 'grid-cols-2 max-w-md'
               : currentPuzzle.options.length === 4
@@ -368,7 +398,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                 <button
                   key={opt.id}
                   onClick={() => handleOptionSelect(opt.id, opt.isCorrect)}
-                  className={`p-2.5 sm:p-4 rounded-3xl border-3 border-b-6 transition-all duration-150 flex flex-col items-center justify-center gap-1 sm:gap-1.5 cursor-pointer shadow-xl btn-chunky select-none active:translate-y-1.5 ${
+                  className={`p-2 sm:p-4 landscape:p-1.5 landscape:py-1 rounded-2xl sm:rounded-3xl border-3 border-b-6 transition-all duration-150 flex flex-col items-center justify-center gap-0.5 sm:gap-1.5 cursor-pointer shadow-xl btn-chunky select-none active:translate-y-1.5 ${
                     isSelected && opt.isCorrect
                       ? 'bg-gradient-to-b from-emerald-100 to-emerald-200 border-emerald-500 border-b-4 border-b-emerald-700 translate-y-1 scale-102 ring-4 ring-emerald-400 shadow-[0_10px_20px_rgba(16,185,129,0.4)]'
                       : isSelected && !opt.isCorrect
@@ -377,11 +407,11 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                   }`}
                 >
                   {opt.emoji && (
-                    <span className="text-4xl sm:text-6xl md:text-7xl drop-shadow-sm text-center leading-none">
+                    <span className="text-3xl sm:text-6xl md:text-7xl landscape:text-2xl sm:landscape:text-4xl drop-shadow-sm text-center leading-none">
                       {opt.emoji}
                     </span>
                   )}
-                  <span className={`text-base sm:text-xl md:text-2xl font-kids font-bold tracking-wide text-center leading-tight ${
+                  <span className={`text-sm sm:text-xl md:text-2xl landscape:text-xs sm:landscape:text-base font-kids font-bold tracking-wide text-center leading-tight ${
                     isSelected && opt.isCorrect
                       ? 'text-emerald-950 font-extrabold'
                       : isSelected && !opt.isCorrect
@@ -391,7 +421,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                     {opt.label}
                   </span>
                   {opt.sublabel && (
-                    <span className="text-[10px] sm:text-xs font-fun text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full font-bold text-center border border-purple-200 truncate max-w-full">
+                    <span className="text-[10px] sm:text-xs landscape:text-[9px] font-fun text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full font-bold text-center border border-purple-200 truncate max-w-full">
                       {opt.sublabel}
                     </span>
                   )}

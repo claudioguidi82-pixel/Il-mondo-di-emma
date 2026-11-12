@@ -19,12 +19,13 @@ import {
   Download, 
   Heart,
   X,
-  BarChart3
+  BarChart3,
+  Music
 } from 'lucide-react';
 
 interface ParentModalProps {
   progress: UserProgress;
-  onUpdateAudio: (sound: boolean, voice: boolean) => void;
+  onUpdateAudio: (sound: boolean, voice: boolean, music?: boolean) => void;
   onResetProgress: () => void;
   onClose: () => void;
 }
@@ -38,6 +39,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
   const [activeTab, setActiveTab] = useState<'relazione' | 'grafici' | 'impostazioni'>('relazione');
   const [sound, setSound] = useState(progress.soundEnabled);
   const [voice, setVoice] = useState(progress.voiceEnabled);
+  const [music, setMusic] = useState(progress.musicEnabled);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [securityAnswer, setSecurityAnswer] = useState('');
   const [resetError, setResetError] = useState(false);
@@ -49,7 +51,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
     const val = !sound;
     setSound(val);
     soundManager.soundEnabled = val;
-    onUpdateAudio(val, voice);
+    onUpdateAudio(val, voice, music);
     if (val) soundManager.playPop();
   };
 
@@ -57,8 +59,20 @@ export const ParentModal: React.FC<ParentModalProps> = ({
     const val = !voice;
     setVoice(val);
     soundManager.voiceEnabled = val;
-    onUpdateAudio(sound, val);
+    onUpdateAudio(sound, val, music);
     if (val) soundManager.speak('Voce magica attivata!', 1.2);
+  };
+
+  const handleToggleMusic = () => {
+    const val = !music;
+    setMusic(val);
+    soundManager.musicEnabled = val;
+    if (val) {
+      soundManager.startMusic();
+    } else {
+      soundManager.stopMusic();
+    }
+    onUpdateAudio(sound, voice, val);
   };
 
   const handleConfirmReset = () => {
@@ -885,6 +899,23 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                     className={`w-12 h-7 rounded-full p-1 transition-colors cursor-pointer ${sound ? 'bg-pink-600' : 'bg-slate-700'}`}
                   >
                     <div className={`w-5 h-5 rounded-full bg-white transition-transform ${sound ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+
+                {/* Sottofondo Musicale Rilassante */}
+                <div className="flex items-center justify-between p-3.5 bg-slate-950/80 rounded-2xl border border-slate-800">
+                  <div className="flex items-center gap-2.5">
+                    {music ? <Music className="w-5 h-5 text-purple-400 animate-pulse" /> : <VolumeX className="w-5 h-5 text-slate-500" />}
+                    <div>
+                      <div className="text-sm font-fun font-bold text-white">Musica di Sottofondo Rilassante</div>
+                      <div className="text-xs text-slate-400">Melodie a 68 BPM calmanti che favoriscono la concentrazione</div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleToggleMusic}
+                    className={`w-12 h-7 rounded-full p-1 transition-colors cursor-pointer ${music ? 'bg-purple-600' : 'bg-slate-700'}`}
+                  >
+                    <div className={`w-5 h-5 rounded-full bg-white transition-transform ${music ? 'translate-x-5' : 'translate-x-0'}`} />
                   </button>
                 </div>
               </div>

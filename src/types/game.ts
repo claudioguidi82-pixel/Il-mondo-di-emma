@@ -138,6 +138,7 @@ export interface UserProgress {
   trisGamesWon: number;
   soundEnabled: boolean;
   voiceEnabled: boolean;
+  musicEnabled: boolean;
   totalPuzzlesSolved: number;
   totalAttempts: number;
 

@@ -13,7 +13,9 @@ import {
   Wand2,
   Sticker,
   Check,
-  Heart
+  Heart,
+  Music,
+  VolumeX
 } from 'lucide-react';
 
 interface StudioDisegnoProps {
@@ -53,6 +55,13 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
   const [selectedSticker, setSelectedSticker] = useState<string>('⭐');
   const [isStickerDrawerOpen, setIsStickerDrawerOpen] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+  const [musicPlaying, setMusicPlaying] = useState<boolean>(soundManager.musicEnabled);
+
+  useEffect(() => {
+    return soundManager.onMusicChange((enabled) => {
+      setMusicPlaying(enabled);
+    });
+  }, []);
 
   // Drawing state
   const isDrawingRef = useRef<boolean>(false);

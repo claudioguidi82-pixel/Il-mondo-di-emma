@@ -90,9 +90,9 @@ export const EmmaCharacter: React.FC<EmmaCharacterProps> = ({
 
         {/* The Authentic Photo of Emma stepping through the portal (100% natural, no fake overlays) */}
         <img
-          src="/assets/aistudio/Screenshot_20261108-070852_0ee217ac.png"
-          alt="Emma nel Mondo Magico"
-          className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
+          src="/assets/aistudio/file_00000000aaf47246b99b88d542f65591_02f69f18.png"
+          alt="Emma"
+          className="w-full h-full object-cover object-[60%_35%] transition-transform duration-500 group-hover:scale-105"
           referrerPolicy="no-referrer"
         />
 

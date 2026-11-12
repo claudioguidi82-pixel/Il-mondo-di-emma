@@ -90,6 +90,14 @@ class SoundManager {
   private ctx: AudioContext | null = null;
   public soundEnabled: boolean = true;
   public voiceEnabled: boolean = true;
+  public musicEnabled: boolean = true;
+  public isMusicPlaying: boolean = false;
+  private musicGainNode: GainNode | null = null;
+  private musicFilterNode: BiquadFilterNode | null = null;
+  private musicInterval: any = null;
+  private musicNextTime: number = 0;
+  private musicStep: number = 0;
+  private musicListeners: Set<(enabled: boolean, isPlaying: boolean) => void> = new Set();
   private voices: SpeechSynthesisVoice[] = [];
   private selectedVoice: SpeechSynthesisVoice | null = null;
   private currentUtterance: SpeechSynthesisUtterance | null = null;
@@ -115,7 +123,7 @@ class SoundManager {
         // ignore
       }
 
-      // Unlock audio on first user touch/click (Android / iOS / Desktop)
+      // Unlock audio and start music on first user touch/click (Android / iOS / Desktop)
       const unlockListener = () => {
         this.unlockAudio();
       };
@@ -135,8 +143,27 @@ class SoundManager {
     };
   }
 
+  // Subscribe to background music state changes
+  onMusicChange(listener: (enabled: boolean, isPlaying: boolean) => void) {
+    this.musicListeners.add(listener);
+    return () => {
+      this.musicListeners.delete(listener);
+    };
+  }
+
+  private notifyMusicListeners() {
+    this.musicListeners.forEach(fn => {
+      try {
+        fn(this.musicEnabled, this.isMusicPlaying);
+      } catch {
+        // ignore
+      }
+    });
+  }
+
   private setSpeaking(val: boolean) {
     this.isCurrentlySpeaking = val;
+    this.updateMusicDucking();
     this.speechListeners.forEach(fn => {
       try {
         fn(val);
@@ -144,6 +171,22 @@ class SoundManager {
         // ignore
       }
     });
+  }
+
+  private updateMusicDucking() {
+    if (!this.ctx || !this.musicGainNode) return;
+    try {
+      const now = this.ctx.currentTime;
+      const targetGain = !this.musicEnabled
+        ? 0
+        : this.isCurrentlySpeaking
+        ? 0.012
+        : 0.045;
+      this.musicGainNode.gain.cancelScheduledValues(now);
+      this.musicGainNode.gain.linearRampToValueAtTime(targetGain, now + 0.35);
+    } catch {
+      // ignore
+    }
   }
 
   private initVoices() {
@@ -215,6 +258,11 @@ class SoundManager {
           window.speechSynthesis.resume();
         }
       }
+
+      // Autostart soothing focus background music if enabled
+      if (this.musicEnabled && !this.isMusicPlaying) {
+        this.startMusic();
+      }
     } catch {
       // ignore
     }
@@ -231,6 +279,180 @@ class SoundManager {
     }
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume().catch(() => {});
+    }
+  }
+
+  // =========================================================================
+  // RELAXING FOCUS BACKGROUND MUSIC FOR CHILDREN (PROCEDURAL LULLABY CHIMES)
+  // Peaceful, focus-enhancing ambient celesta & Rhodes arpeggio at 68 BPM.
+  // 100% synthetic via Web Audio: zero network lag, zero buffering, 100% offline.
+  // Smoothly ducks when Emma speaks, restored when speech finishes.
+  // =========================================================================
+  startMusic() {
+    if (!this.musicEnabled) return;
+    try {
+      this.initCtx();
+      if (!this.ctx) return;
+      if (this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      }
+
+      if (!this.musicFilterNode) {
+        this.musicFilterNode = this.ctx.createBiquadFilter();
+        this.musicFilterNode.type = 'lowpass';
+        this.musicFilterNode.frequency.setValueAtTime(1100, this.ctx.currentTime);
+        this.musicFilterNode.Q.setValueAtTime(0.8, this.ctx.currentTime);
+      }
+
+      if (!this.musicGainNode) {
+        this.musicGainNode = this.ctx.createGain();
+        this.musicGainNode.gain.setValueAtTime(
+          this.isCurrentlySpeaking ? 0.012 : 0.045,
+          this.ctx.currentTime
+        );
+        this.musicFilterNode.connect(this.musicGainNode);
+        this.musicGainNode.connect(this.ctx.destination);
+      } else {
+        const now = this.ctx.currentTime;
+        this.musicGainNode.gain.cancelScheduledValues(now);
+        this.musicGainNode.gain.linearRampToValueAtTime(
+          this.isCurrentlySpeaking ? 0.012 : 0.045,
+          now + 0.3
+        );
+      }
+
+      if (this.isMusicPlaying && this.musicInterval) return;
+
+      this.isMusicPlaying = true;
+      this.musicNextTime = this.ctx.currentTime + 0.1;
+      this.musicStep = 0;
+
+      // Lookahead scheduler every 200ms
+      this.musicInterval = setInterval(() => {
+        this.scheduleMusicNotes();
+      }, 200);
+
+      this.notifyMusicListeners();
+    } catch {
+      // ignore
+    }
+  }
+
+  stopMusic() {
+    this.isMusicPlaying = false;
+    if (this.musicInterval) {
+      clearInterval(this.musicInterval);
+      this.musicInterval = null;
+    }
+    if (this.ctx && this.musicGainNode) {
+      try {
+        const now = this.ctx.currentTime;
+        this.musicGainNode.gain.cancelScheduledValues(now);
+        this.musicGainNode.gain.linearRampToValueAtTime(0, now + 0.3);
+      } catch {
+        // ignore
+      }
+    }
+    this.notifyMusicListeners();
+  }
+
+  toggleMusic(): boolean {
+    this.musicEnabled = !this.musicEnabled;
+    if (this.musicEnabled) {
+      this.startMusic();
+    } else {
+      this.stopMusic();
+    }
+    return this.musicEnabled;
+  }
+
+  private scheduleMusicNotes() {
+    if (!this.ctx || !this.isMusicPlaying || !this.musicFilterNode) return;
+    const stepDuration = 0.44; // ~68 BPM peaceful focus rhythm
+    const lookahead = 0.6; // schedule 600ms ahead
+
+    // 16-step soothing progression in C major pentatonic
+    const pattern: Array<Array<{ freq: number; dur: number; gain: number; type?: OscillatorType }>> = [
+      // Step 0: C3 bass + G4 chord + C5 chime
+      [
+        { freq: 130.81, dur: 1.8, gain: 0.16, type: 'sine' },
+        { freq: 392.00, dur: 1.4, gain: 0.10, type: 'triangle' },
+        { freq: 523.25, dur: 1.6, gain: 0.14, type: 'triangle' },
+      ],
+      // Step 1: E5
+      [{ freq: 659.25, dur: 1.2, gain: 0.11, type: 'sine' }],
+      // Step 2: E4 chord note
+      [{ freq: 329.63, dur: 1.2, gain: 0.09, type: 'triangle' }],
+      // Step 3: D5
+      [{ freq: 587.33, dur: 1.3, gain: 0.12, type: 'sine' }],
+      // Step 4: A2 bass + E4 chord + C5 chime
+      [
+        { freq: 110.00, dur: 1.8, gain: 0.16, type: 'sine' },
+        { freq: 329.63, dur: 1.4, gain: 0.10, type: 'triangle' },
+        { freq: 523.25, dur: 1.5, gain: 0.13, type: 'triangle' },
+      ],
+      // Step 5: B4
+      [{ freq: 493.88, dur: 1.2, gain: 0.11, type: 'sine' }],
+      // Step 6: C4 chord
+      [{ freq: 261.63, dur: 1.2, gain: 0.09, type: 'triangle' }],
+      // Step 7: A4
+      [{ freq: 440.00, dur: 1.4, gain: 0.12, type: 'sine' }],
+      // Step 8: F2 bass + C4 chord + G4 chime
+      [
+        { freq: 87.31, dur: 1.8, gain: 0.16, type: 'sine' },
+        { freq: 261.63, dur: 1.4, gain: 0.10, type: 'triangle' },
+        { freq: 392.00, dur: 1.5, gain: 0.13, type: 'triangle' },
+      ],
+      // Step 9: E5
+      [{ freq: 659.25, dur: 1.3, gain: 0.11, type: 'sine' }],
+      // Step 10: A3 chord
+      [{ freq: 220.00, dur: 1.2, gain: 0.09, type: 'triangle' }],
+      // Step 11: D5
+      [{ freq: 587.33, dur: 1.4, gain: 0.12, type: 'sine' }],
+      // Step 12: G2 bass + D4 chord + B4 chime
+      [
+        { freq: 98.00, dur: 1.8, gain: 0.16, type: 'sine' },
+        { freq: 293.66, dur: 1.4, gain: 0.10, type: 'triangle' },
+        { freq: 493.88, dur: 1.5, gain: 0.13, type: 'triangle' },
+      ],
+      // Step 13: D5
+      [{ freq: 587.33, dur: 1.2, gain: 0.10, type: 'sine' }],
+      // Step 14: B3 chord
+      [{ freq: 246.94, dur: 1.2, gain: 0.09, type: 'triangle' }],
+      // Step 15: C5 chime resolution
+      [{ freq: 523.25, dur: 1.7, gain: 0.14, type: 'triangle' }],
+    ];
+
+    while (this.musicNextTime < this.ctx.currentTime + lookahead) {
+      const notes = pattern[this.musicStep % pattern.length];
+      const noteTime = this.musicNextTime;
+
+      notes.forEach(n => {
+        try {
+          const osc = this.ctx!.createOscillator();
+          const gain = this.ctx!.createGain();
+
+          osc.type = n.type || 'sine';
+          osc.frequency.setValueAtTime(n.freq, noteTime);
+
+          // Attack: 0.03s
+          gain.gain.setValueAtTime(0.0001, noteTime);
+          gain.gain.linearRampToValueAtTime(n.gain, noteTime + 0.03);
+          // Smooth exponential decay
+          gain.gain.exponentialRampToValueAtTime(0.0001, noteTime + n.dur);
+
+          osc.connect(gain);
+          gain.connect(this.musicFilterNode!);
+
+          osc.start(noteTime);
+          osc.stop(noteTime + n.dur);
+        } catch {
+          // ignore
+        }
+      });
+
+      this.musicNextTime += stepDuration;
+      this.musicStep = (this.musicStep + 1) % pattern.length;
     }
   }
 
