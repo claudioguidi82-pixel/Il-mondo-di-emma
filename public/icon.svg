@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ec4899"/>
+      <stop offset="50%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+    <linearGradient id="rainbow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ef4444"/>
+      <stop offset="25%" stop-color="#f59e0b"/>
+      <stop offset="50%" stop-color="#10b981"/>
+      <stop offset="75%" stop-color="#06b6d4"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#bg)"/>
+  <!-- Rainbow arch -->
+  <path d="M 96 360 A 160 160 0 0 1 416 360" fill="none" stroke="url(#rainbow)" stroke-width="40" stroke-linecap="round"/>
+  <!-- Golden Star -->
+  <polygon points="256,130 274,185 332,185 285,219 303,274 256,240 209,274 227,219 180,185 238,185" fill="#fde047" stroke="#eab308" stroke-width="8"/>
+  <!-- Sparkles -->
+  <circle cx="160" cy="180" r="14" fill="#ffffff" opacity="0.9"/>
+  <circle cx="352" cy="180" r="14" fill="#ffffff" opacity="0.9"/>
+  <!-- Label -->
+  <text x="256" y="420" font-family="'Baloo 2', sans-serif" font-size="72" font-weight="bold" fill="#ffffff" text-anchor="middle" letter-spacing="2">EMMA</text>
+</svg>

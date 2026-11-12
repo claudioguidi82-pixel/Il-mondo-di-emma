@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Il Mondo di Emma - Gioco Educativo Magico</title>
+    <meta name="description" content="Un gioco magico ed educativo per Emma con lettere, numeri, animali parlanti, guardaroba ed evoluzione costumi, disegno e diario." />
+    <meta property="og:title" content="Il Mondo di Emma - Gioco Educativo Magico" />
+    <meta property="og:description" content="Un gioco magico ed educativo per Emma con lettere, numeri, animali parlanti, guardaroba ed evoluzione costumi, disegno e diario." />
+    <meta property="og:type" content="website" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/pwa-192x192.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=DynaPuff:wght@600;700&family=Fredoka:wght@500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+    <script>
+      // Safe guard against benign Vite HMR websocket disconnect in iframe
+      (function() {
+        var origError = console.error;
+        console.error = function() {
+          var msg = arguments[0];
+          if (msg && typeof msg === 'string' && (msg.indexOf('WebSocket') !== -1 || msg.indexOf('vite') !== -1 || msg.indexOf('ws') !== -1)) {
+            return;
+          }
+          if (arguments[1] && typeof arguments[1] === 'object' && String(arguments[1]).indexOf('WebSocket') !== -1) {
+            return;
+          }
+          origError.apply(console, arguments);
+        };
+        var origWarn = console.warn;
+        console.warn = function() {
+          var msg = arguments[0];
+          if (msg && typeof msg === 'string' && (msg.indexOf('WebSocket') !== -1 || msg.indexOf('vite') !== -1)) {
+            return;
+          }
+          origWarn.apply(console, arguments);
+        };
+      })();
+
+      window.addEventListener('error', function(e) {
+        if (e.message && (e.message.indexOf('WebSocket') !== -1 || e.message.indexOf('vite') !== -1)) {
+          e.stopImmediatePropagation();
+          e.preventDefault();
+          return true;
+        }
+      }, true);
+      window.addEventListener('unhandledrejection', function(e) {
+        if (e.reason && String(e.reason).indexOf('WebSocket') !== -1) {
+          e.stopImmediatePropagation();
+          e.preventDefault();
+        }
+      }, true);
+    </script>
+  </head>
+  <body class="bg-slate-900 text-slate-800 antialiased min-h-screen overflow-x-hidden select-none">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

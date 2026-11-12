@@ -1,0 +1,6 @@
+{
+  "name": "Il Mondo di Emma",
+  "description": "Un gioco magico ed educativo per Emma (5 anni) con lettere, numeri, animali parlanti, guardaroba evolutivo, studio di disegno e diario digitale.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
