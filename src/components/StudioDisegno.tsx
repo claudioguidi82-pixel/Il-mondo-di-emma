@@ -3,7 +3,6 @@ import { SavedDrawing, UserProgress } from '../types/game';
 import { soundManager } from '../utils/audio';
 import { confetti } from '../utils/confetti';
 import { 
-  Sparkles, 
   RotateCcw, 
   Trash2, 
   Download, 
@@ -11,11 +10,7 @@ import {
   ChevronLeft,
   Eraser,
   Wand2,
-  Sticker,
-  Check,
-  Heart,
-  Music,
-  VolumeX
+  Check
 } from 'lucide-react';
 
 interface StudioDisegnoProps {

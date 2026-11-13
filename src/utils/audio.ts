@@ -123,16 +123,20 @@ class SoundManager {
   private ctx: AudioContext | null = null;
   public soundEnabled: boolean = true;
   public voiceEnabled: boolean = true;
+  public musicEnabled: boolean = true;
   private voices: SpeechSynthesisVoice[] = [];
   private selectedVoice: SpeechSynthesisVoice | null = null;
   private currentUtterance: SpeechSynthesisUtterance | null = null;
   private isUnlocked: boolean = false;
   private unlockAudioEl: HTMLAudioElement | null = null;
   private speechListeners: Set<(isSpeaking: boolean) => void> = new Set();
+  private musicListeners: Set<(enabled: boolean) => void> = new Set();
   public isCurrentlySpeaking: boolean = false;
   private speechSequenceId: number = 0;
   private pendingTimer: ReturnType<typeof setTimeout> | null = null;
   private failsafeTimer: ReturnType<typeof setTimeout> | null = null;
+  private bgMusicInterval: ReturnType<typeof setInterval> | null = null;
+  private bgNoteStep: number = 0;
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -168,6 +172,83 @@ class SoundManager {
     return () => {
       this.speechListeners.delete(listener);
     };
+  }
+
+  onMusicChange(listener: (enabled: boolean) => void) {
+    this.musicListeners.add(listener);
+    return () => {
+      this.musicListeners.delete(listener);
+    };
+  }
+
+  toggleMusic(): boolean {
+    this.musicEnabled = !this.musicEnabled;
+    if (this.musicEnabled) {
+      this.startBackgroundMusic();
+    } else {
+      this.stopBackgroundMusic();
+    }
+    this.musicListeners.forEach(fn => {
+      try {
+        fn(this.musicEnabled);
+      } catch {
+        // ignore
+      }
+    });
+    return this.musicEnabled;
+  }
+
+  // Cheerful, gentle fairytale music-box melody that auto-ducks when voice speaks
+  startBackgroundMusic() {
+    if (!this.musicEnabled || !this.soundEnabled) return;
+    if (this.bgMusicInterval) return;
+
+    // Pentatonic C-major fairytale music box notes (C5, D5, E5, G5, A5, C6)
+    const melodyNotes = [
+      523.25, 659.25, 783.99, 659.25,
+      880.00, 783.99, 659.25, 587.33,
+      523.25, 587.33, 659.25, 783.99,
+      1046.50, 880.00, 783.99, 659.25,
+    ];
+
+    this.bgMusicInterval = setInterval(() => {
+      if (!this.musicEnabled || !this.soundEnabled) return;
+      try {
+        this.initCtx();
+        if (!this.ctx || this.ctx.state !== 'running') return;
+
+        const freq = melodyNotes[this.bgNoteStep % melodyNotes.length];
+        this.bgNoteStep++;
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
+
+        // Softly duck volume when speech is active so voice is always 100% clear
+        const targetVol = this.isCurrentlySpeaking ? 0.008 : 0.032;
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(targetVol, now + 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.42);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.44);
+      } catch {
+        // ignore
+      }
+    }, 480);
+  }
+
+  stopBackgroundMusic() {
+    if (this.bgMusicInterval) {
+      clearInterval(this.bgMusicInterval);
+      this.bgMusicInterval = null;
+    }
   }
 
   private setSpeaking(val: boolean) {

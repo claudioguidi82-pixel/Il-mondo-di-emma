@@ -1,813 +1,758 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  ArrowLeft,
+  RotateCcw,
+  Sparkles,
+  Trophy,
+  Gamepad2,
+  Star,
+  Music,
+  VolumeX,
+} from 'lucide-react';
 import { soundManager } from '../utils/audio';
 import { confetti } from '../utils/confetti';
-import { 
-  Sparkles, 
-  Star, 
-  RotateCcw, 
-  ArrowRight, 
-  Heart,
-  ChevronLeft
-} from 'lucide-react';
 
 interface SvagoArenaProps {
   levelNumber: number;
   onComplete: () => void;
-  onExitToTitle?: () => void;
+  onExitToTitle: () => void;
 }
 
-type BoardCell = 'X' | 'O' | null;
+type SvagoGameMode = 'tris' | 'bubbles' | 'memory' | 'stars';
+type CellValue = 'EMMA' | 'ORSETTO' | null;
+
+const WINNING_LINES = [
+  [0, 1, 2],
+  [3, 4, 5],
+  [6, 7, 8],
+  [0, 3, 6],
+  [1, 4, 7],
+  [2, 5, 8],
+  [0, 4, 8],
+  [2, 4, 6],
+];
+
+interface Bubble3DItem {
+  id: number;
+  emoji: string;
+  color: string;
+  size: number;
+  left: number;
+  top: number;
+  popped: boolean;
+}
+
+interface MemoryCard3D {
+  id: number;
+  emoji: string;
+  flipped: boolean;
+  matched: boolean;
+}
+
+interface FallingStar3D {
+  id: number;
+  emoji: string;
+  left: number;
+  top: number;
+  caught: boolean;
+}
+
+const BUBBLE_PALETTE = [
+  'from-pink-300/95 via-rose-400/85 to-fuchsia-600/90 border-white',
+  'from-cyan-200/95 via-sky-400/85 to-blue-600/90 border-white',
+  'from-amber-200/95 via-yellow-400/85 to-orange-500/90 border-white',
+  'from-emerald-200/95 via-teal-400/85 to-green-600/90 border-white',
+  'from-violet-200/95 via-purple-400/85 to-indigo-600/90 border-white',
+];
+
+const BUBBLE_EMOJIS = ['🦄', '🦋', '🍓', '👑', '🌈', '🐬', '🍭', '⭐', '🎀', '🐶'];
+const MEMORY_EMOJIS = ['🦄', '🍓', '👑', '🦋'];
 
 export const SvagoArena: React.FC<SvagoArenaProps> = ({
   levelNumber,
   onComplete,
   onExitToTitle,
 }) => {
-  // Determine svago game type based on level
-  // 10 -> Tris Classico
-  // 20 -> Scoppia le Bolle Magiche
-  // 30 -> Memory Express degli Animaletti
-  // 40 -> Tris della Volpina Furba (IA Strategica)
-  // 50 -> Acchiappa le Stelline Cadenti
-  // 60+ -> Ciclo con difficoltà aumentata
-  const cycle = Math.floor(levelNumber / 10);
-  const gameTypeIndex = ((cycle - 1) % 5); // 0, 1, 2, 3, 4
+  const initialMode: SvagoGameMode =
+    levelNumber % 40 === 0
+      ? 'stars'
+      : levelNumber % 30 === 0
+      ? 'memory'
+      : levelNumber % 20 === 0
+      ? 'bubbles'
+      : 'tris';
 
-  const isTrisEasy = gameTypeIndex === 0;       // Lv 10, 60, 110...
-  const isBubblePop = gameTypeIndex === 1;      // Lv 20, 70, 120...
-  const isMemoryExpress = gameTypeIndex === 2;  // Lv 30, 80, 130...
-  const isTrisSmart = gameTypeIndex === 3;      // Lv 40, 90, 140...
-  const isStarCatch = gameTypeIndex === 4;      // Lv 50, 100, 150...
+  const [gameMode, setGameMode] = useState<SvagoGameMode>(initialMode);
+  const [musicOn, setMusicOn] = useState<boolean>(soundManager.musicEnabled);
 
-  // ==========================================
-  // 1. TRIS STATE (USED FOR TYPE 0 & 3)
-  // ==========================================
-  const [board, setBoard] = useState<BoardCell[]>(Array(9).fill(null));
-  const [isPlayerTurn, setIsPlayerTurn] = useState<boolean>(true);
-  const [trisWinner, setTrisWinner] = useState<'player' | 'ai' | 'draw' | null>(null);
+  // --- TRIS 3D STATE ---
+  const [board, setBoard] = useState<CellValue[]>(Array(9).fill(null));
+  const [isEmmaTurn, setIsEmmaTurn] = useState(true);
+  const [trisWinner, setTrisWinner] = useState<'EMMA' | 'ORSETTO' | 'DRAW' | null>(
+    null
+  );
   const [winningLine, setWinningLine] = useState<number[] | null>(null);
 
-  const trisConfig = isTrisSmart
-    ? {
-        title: 'Tris della Volpina Furba 🦊',
-        subtitle: 'Fiamma la Volpina gioca con astuzia! Riesci a fare tris?',
-        opponentName: 'Fiamma la Volpina',
-        opponentEmoji: '🦊',
-        opponentPiece: '🍩',
-        playerPiece: '🧁',
-        speech: `Livello ${levelNumber}: momento di svago speciale! Sfida Fiamma la Volpina a Tris! Fai tris di dolcetti per vincere!`,
-      }
-    : {
-        title: 'Tris delle Fragoline 🍓',
-        subtitle: 'Fai tris con le tue fragoline dolci contro Leo lo Scoiattolo!',
-        opponentName: 'Leo lo Scoiattolo',
-        opponentEmoji: '🐿️',
-        opponentPiece: '🫐',
-        playerPiece: '🍓',
-        speech: `Livello ${levelNumber}: momento di svago! Giochiamo insieme a Tris con Leo lo Scoiattolo! Fai tris di fragoline!`,
-      };
+  // --- BUBBLES 3D STATE ---
+  const [bubbles, setBubbles] = useState<Bubble3DItem[]>([]);
+  const [bubblesPopped, setBubblesPopped] = useState(0);
+  const BUBBLE_TARGET = 10;
 
-  // ==========================================
-  // 2. BUBBLE POP STATE (USED FOR TYPE 1)
-  // ==========================================
-  interface Bubble {
-    id: number;
-    x: number;
-    y: number;
-    size: number;
-    emoji: string;
-    color: string;
-    speed: number;
-  }
-  const [poppedCount, setPoppedCount] = useState<number>(0);
-  const targetBubbles = 10 + Math.min(10, Math.floor(cycle / 2));
-  const [bubbles, setBubbles] = useState<Bubble[]>([]);
+  // --- MEMORY 3D STATE ---
+  const [memoryCards, setMemoryCards] = useState<MemoryCard3D[]>([]);
+  const [flippedIndices, setFlippedIndices] = useState<number[]>([]);
+  const [memoryComplete, setMemoryComplete] = useState(false);
 
-  // ==========================================
-  // 3. MEMORY EXPRESS STATE (USED FOR TYPE 2)
-  // ==========================================
-  interface MemoryCard {
-    id: number;
-    pairId: number;
-    emoji: string;
-    label: string;
-    isFlipped: boolean;
-    isMatched: boolean;
-  }
-  const [memoryCards, setMemoryCards] = useState<MemoryCard[]>([]);
-  const [flippedCardIds, setFlippedCardIds] = useState<number[]>([]);
-  const [memoryMatches, setMemoryMatches] = useState<number>(0);
-  const totalPairs = cycle >= 8 ? 4 : 3;
+  // --- FALLING STARS 3D STATE ---
+  const [starsList, setStarsList] = useState<FallingStar3D[]>([]);
+  const [starsCaught, setStarsCaught] = useState(0);
+  const STARS_TARGET = 8;
 
-  // ==========================================
-  // 4. STAR CATCH STATE (USED FOR TYPE 4)
-  // ==========================================
-  interface FallingItem {
-    id: number;
-    x: number;
-    y: number;
-    emoji: string;
-    points: number;
-    speed: number;
-  }
-  const [starsCaught, setStarsCaught] = useState<number>(0);
-  const targetStars = 12 + Math.min(8, cycle);
-  const [fallingStars, setFallingStars] = useState<FallingItem[]>([]);
-
-  // Victory common state
-  const [isVictoryCelebration, setIsVictoryCelebration] = useState<boolean>(false);
-  const hasCompletedRef = useRef<boolean>(false);
-
-  const safeComplete = () => {
-    if (hasCompletedRef.current) return;
-    hasCompletedRef.current = true;
-    soundManager.stopSpeech();
-    soundManager.playSuccess();
-    onComplete();
-  };
-
-  // Initialize selected svago game
   useEffect(() => {
-    setIsVictoryCelebration(false);
-    hasCompletedRef.current = false;
-
-    if (isTrisEasy || isTrisSmart) {
-      setBoard(Array(9).fill(null));
-      setIsPlayerTurn(true);
-      setTrisWinner(null);
-      setWinningLine(null);
-      soundManager.speakInstruction(trisConfig.speech);
-    } else if (isBubblePop) {
-      setPoppedCount(0);
-      soundManager.speakInstruction(
-        `Livello ${levelNumber}: momento di svago! Scoppia le bolle magiche toccandole prima che volino via!`
-      );
-      spawnInitialBubbles();
-    } else if (isMemoryExpress) {
-      initMemoryCards();
-      soundManager.speakInstruction(
-        `Livello ${levelNumber}: momento di svago! Trova le coppie di animaletti magici!`
-      );
-    } else if (isStarCatch) {
-      setStarsCaught(0);
-      soundManager.speakInstruction(
-        `Livello ${levelNumber}: momento di svago! Pioggia di stelline! Tocca le stelline che cadono dal cielo!`
-      );
-      spawnInitialStars();
-    }
-
+    soundManager.startBackgroundMusic();
+    const unsub = soundManager.onMusicChange((enabled) => setMusicOn(enabled));
     return () => {
-      soundManager.stopSpeech();
+      unsub();
+      soundManager.stopBackgroundMusic();
     };
+  }, []);
+
+  const initBubblesGame = useCallback(() => {
+    const generated: Bubble3DItem[] = Array.from({ length: BUBBLE_TARGET }).map(
+      (_, idx) => ({
+        id: idx,
+        emoji: BUBBLE_EMOJIS[idx % BUBBLE_EMOJIS.length],
+        color: BUBBLE_PALETTE[idx % BUBBLE_PALETTE.length],
+        size: idx % 2 === 0 ? 78 : 70,
+        left: 8 + (idx % 3) * 30 + ((idx * 7) % 9),
+        top: 8 + Math.floor(idx / 3) * 23 + ((idx * 5) % 6),
+        popped: false,
+      })
+    );
+    setBubbles(generated);
+    setBubblesPopped(0);
+  }, []);
+
+  const initMemoryGame = useCallback(() => {
+    const pairs = [...MEMORY_EMOJIS, ...MEMORY_EMOJIS];
+    const shuffled = pairs
+      .map((emoji, idx) => ({
+        id: idx,
+        emoji,
+        sortKey: ((idx * 37 + levelNumber * 13) % 100) + Math.random(),
+      }))
+      .sort((a, b) => a.sortKey - b.sortKey)
+      .map((item, index) => ({
+        id: index,
+        emoji: item.emoji,
+        flipped: false,
+        matched: false,
+      }));
+    setMemoryCards(shuffled);
+    setFlippedIndices([]);
+    setMemoryComplete(false);
   }, [levelNumber]);
 
-  // ==========================================
-  // BUBBLE POP LOGIC
-  // ==========================================
-  const spawnInitialBubbles = () => {
-    const emojis = ['⭐', '💖', '🎈', '🍓', '🦄', '💎', '🌸', '🍭'];
-    const colors = [
-      'from-pink-400 to-rose-500',
-      'from-cyan-400 to-blue-500',
-      'from-amber-400 to-yellow-500',
-      'from-purple-400 to-indigo-500',
-      'from-emerald-400 to-teal-500',
-    ];
-
-    const initial: Bubble[] = Array.from({ length: 6 }).map((_, i) => ({
-      id: Date.now() + i,
-      x: 10 + Math.random() * 75,
-      y: 20 + Math.random() * 60,
-      size: 70 + Math.random() * 30,
-      emoji: emojis[i % emojis.length],
-      color: colors[i % colors.length],
-      speed: 1 + Math.random() * 1.5,
-    }));
-    setBubbles(initial);
-  };
-
-  const handlePopBubble = (bubbleId: number) => {
-    if (isVictoryCelebration) return;
-    soundManager.playPop();
-    confetti.burst(undefined, undefined, 12);
-
-    setPoppedCount(prev => {
-      const next = prev + 1;
-      if (next >= targetBubbles) {
-        handleGameWin('Fantastico! Hai scoppiato tutte le bolle magiche!');
-      }
-      return next;
-    });
-
-    // Replace popped bubble with a new one
-    setBubbles(prev => {
-      const remaining = prev.filter(b => b.id !== bubbleId);
-      const emojis = ['⭐', '💖', '🎈', '🍓', '🦄', '💎', '🌸', '🍭', '🦋'];
-      const colors = [
-        'from-pink-400 to-rose-500',
-        'from-cyan-400 to-blue-500',
-        'from-amber-400 to-yellow-500',
-        'from-purple-400 to-indigo-500',
-        'from-emerald-400 to-teal-500',
-      ];
-      const newBubble: Bubble = {
-        id: Date.now() + Math.random(),
-        x: 10 + Math.random() * 75,
-        y: 15 + Math.random() * 65,
-        size: 70 + Math.random() * 30,
-        emoji: emojis[Math.floor(Math.random() * emojis.length)],
-        color: colors[Math.floor(Math.random() * colors.length)],
-        speed: 1 + Math.random() * 1.5,
-      };
-      return [...remaining, newBubble];
-    });
-  };
-
-  // ==========================================
-  // MEMORY EXPRESS LOGIC
-  // ==========================================
-  const initMemoryCards = () => {
-    const animalPool = [
-      { emoji: '🐿️', label: 'Leo' },
-      { emoji: '🕊️', label: 'Piuma' },
-      { emoji: '🐬', label: 'Brio' },
-      { emoji: '🦊', label: 'Fiamma' },
-      { emoji: '🧸', label: 'Miele' },
-      { emoji: '🦉', label: 'Barnaba' },
-    ];
-    const selected = animalPool.slice(0, totalPairs);
-    const deck: MemoryCard[] = [];
-
-    selected.forEach((item, idx) => {
-      deck.push({
-        id: idx * 2,
-        pairId: idx,
-        emoji: item.emoji,
-        label: item.label,
-        isFlipped: false,
-        isMatched: false,
-      });
-      deck.push({
-        id: idx * 2 + 1,
-        pairId: idx,
-        emoji: item.emoji,
-        label: item.label,
-        isFlipped: false,
-        isMatched: false,
-      });
-    });
-
-    setMemoryCards(deck.sort(() => Math.random() - 0.5));
-    setFlippedCardIds([]);
-    setMemoryMatches(0);
-  };
-
-  const handleMemoryCardTap = (cardId: number) => {
-    if (flippedCardIds.length >= 2) return;
-    const clicked = memoryCards.find(c => c.id === cardId);
-    if (!clicked || clicked.isFlipped || clicked.isMatched) return;
-
-    soundManager.playPop();
-
-    const newFlipped = [...flippedCardIds, cardId];
-    setFlippedCardIds(newFlipped);
-    setMemoryCards(prev =>
-      prev.map(c => (c.id === cardId ? { ...c, isFlipped: true } : c))
+  const initStarsGame = useCallback(() => {
+    const generated: FallingStar3D[] = Array.from({ length: STARS_TARGET }).map(
+      (_, idx) => ({
+        id: idx,
+        emoji: ['⭐', '🌟', '💖', '👑', '🦄', '🌈', '✨', '🎈'][idx % 8],
+        left: 10 + (idx % 4) * 22 + ((idx * 3) % 6),
+        top: 10 + Math.floor(idx / 4) * 42 + ((idx * 9) % 12),
+        caught: false,
+      })
     );
+    setStarsList(generated);
+    setStarsCaught(0);
+  }, []);
 
-    if (newFlipped.length === 2) {
-      const cardA = memoryCards.find(c => c.id === newFlipped[0]);
-      const cardB = clicked;
+  const resetTris = useCallback(() => {
+    setBoard(Array(9).fill(null));
+    setIsEmmaTurn(true);
+    setTrisWinner(null);
+    setWinningLine(null);
+  }, []);
 
-      if (cardA && cardA.pairId === cardB.pairId) {
-        // Match!
-        soundManager.playSuccess();
-        confetti.burst();
-        soundManager.speak(`Coppia di ${cardA.label}!`, 1.3);
+  useEffect(() => {
+    soundManager.speakPraise(
+      `Evviva Emma! Livello ${levelNumber}: sei nel Parco Giochi Arcobaleno 3D! Scegli il tuo gioco preferito!`
+    );
+    initBubblesGame();
+    initMemoryGame();
+    initStarsGame();
+  }, [levelNumber, initBubblesGame, initMemoryGame, initStarsGame]);
 
-        setTimeout(() => {
-          setMemoryCards(prev =>
-            prev.map(c =>
-              c.pairId === cardA.pairId ? { ...c, isMatched: true } : c
-            )
-          );
-          setFlippedCardIds([]);
-          setMemoryMatches(m => {
-            const next = m + 1;
-            if (next >= totalPairs) {
-              handleGameWin(`Che memoria formidabile! Hai trovato tutti gli animaletti!`);
-            }
-            return next;
-          });
-        }, 500);
-      } else {
-        // No match
-        setTimeout(() => {
-          setMemoryCards(prev =>
-            prev.map(c =>
-              newFlipped.includes(c.id) ? { ...c, isFlipped: false } : c
-            )
-          );
-          setFlippedCardIds([]);
-        }, 900);
+  const checkTrisWinner = useCallback((currentBoard: CellValue[]) => {
+    for (const line of WINNING_LINES) {
+      const [a, b, c] = line;
+      if (
+        currentBoard[a] &&
+        currentBoard[a] === currentBoard[b] &&
+        currentBoard[a] === currentBoard[c]
+      ) {
+        return { winner: currentBoard[a], line };
       }
     }
-  };
-
-  // ==========================================
-  // STAR CATCH LOGIC
-  // ==========================================
-  const spawnInitialStars = () => {
-    const starEmojis = ['⭐', '🌟', '✨', '💖', '💎', '🌈'];
-    const initial: FallingItem[] = Array.from({ length: 5 }).map((_, i) => ({
-      id: Date.now() + i,
-      x: 10 + Math.random() * 75,
-      y: 10 + Math.random() * 50,
-      emoji: starEmojis[i % starEmojis.length],
-      points: 1,
-      speed: 1,
-    }));
-    setFallingStars(initial);
-  };
-
-  const handleCatchStar = (starId: number) => {
-    if (isVictoryCelebration) return;
-    soundManager.playSuccess();
-    confetti.burst(undefined, undefined, 10);
-
-    setStarsCaught(prev => {
-      const next = prev + 1;
-      if (next >= targetStars) {
-        handleGameWin('Meraviglioso! Il tuo cestino è pieno di stelline magiche!');
-      }
-      return next;
-    });
-
-    setFallingStars(prev => {
-      const remaining = prev.filter(s => s.id !== starId);
-      const starEmojis = ['⭐', '🌟', '✨', '💖', '💎', '🌈', '🍭'];
-      const newStar: FallingItem = {
-        id: Date.now() + Math.random(),
-        x: 10 + Math.random() * 80,
-        y: 10 + Math.random() * 60,
-        emoji: starEmojis[Math.floor(Math.random() * starEmojis.length)],
-        points: 1,
-        speed: 1,
-      };
-      return [...remaining, newStar];
-    });
-  };
-
-  // ==========================================
-  // TRIS LOGIC (WITH EASY VS SMART AI)
-  // ==========================================
-  const checkWinner = (squares: BoardCell[]) => {
-    const lines = [
-      [0, 1, 2],
-      [3, 4, 5],
-      [6, 7, 8],
-      [0, 3, 6],
-      [1, 4, 7],
-      [2, 5, 8],
-      [0, 4, 8],
-      [2, 4, 6],
-    ];
-
-    for (const [a, b, c] of lines) {
-      if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
-        return {
-          winner: squares[a] === 'X' ? 'player' : 'ai',
-          line: [a, b, c],
-        };
-      }
+    if (currentBoard.every((cell) => cell !== null)) {
+      return { winner: 'DRAW' as const, line: null };
     }
-
-    if (squares.every(s => s !== null)) {
-      return { winner: 'draw', line: null };
-    }
-
     return null;
+  }, []);
+
+  // Friendly Orsetto AI move
+  useEffect(() => {
+    if (gameMode !== 'tris' || isEmmaTurn || trisWinner) return;
+
+    const timer = setTimeout(() => {
+      const emptyIndices = board
+        .map((val, idx) => (val === null ? idx : null))
+        .filter((val): val is number => val !== null);
+
+      if (emptyIndices.length === 0) return;
+
+      const chosenIdx =
+        emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+
+      const nextBoard = [...board];
+      nextBoard[chosenIdx] = 'ORSETTO';
+      soundManager.playPop();
+      setBoard(nextBoard);
+
+      const result = checkTrisWinner(nextBoard);
+      if (result) {
+        setTrisWinner(result.winner);
+        setWinningLine(result.line);
+        if (result.winner === 'ORSETTO') {
+          soundManager.speak(
+            'Ha vinto Orsetto! Riproviamo subito Emma, fai vedere chi è la campionessa!'
+          );
+        } else if (result.winner === 'DRAW') {
+          soundManager.playSuccess();
+          soundManager.speak('Pareggio! Giochiamo un altra partita!');
+        }
+      } else {
+        setIsEmmaTurn(true);
+      }
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [board, isEmmaTurn, trisWinner, checkTrisWinner, gameMode]);
+
+  const handleTrisCellClick = (idx: number) => {
+    if (!isEmmaTurn || board[idx] !== null || trisWinner) return;
+
+    soundManager.playTwinkle();
+    const nextBoard = [...board];
+    nextBoard[idx] = 'EMMA';
+    setBoard(nextBoard);
+
+    const result = checkTrisWinner(nextBoard);
+    if (result) {
+      setTrisWinner(result.winner);
+      setWinningLine(result.line);
+      if (result.winner === 'EMMA') {
+        soundManager.playFanfare();
+        confetti.burst();
+        soundManager.speakPraise(
+          'Tris! Bravissima Emma! Hai vinto 3 stelline d oro!'
+        );
+      } else if (result.winner === 'DRAW') {
+        soundManager.playSuccess();
+        soundManager.speak('Pareggio! Riprova o passa al prossimo livello!');
+      }
+    } else {
+      setIsEmmaTurn(false);
+    }
   };
 
-  const handleCellClick = (idx: number) => {
-    if (board[idx] !== null || !isPlayerTurn || trisWinner !== null) return;
+  const handlePopBubble = (id: number) => {
+    setBubbles((prev) =>
+      prev.map((b) => (b.id === id ? { ...b, popped: true } : b))
+    );
+    soundManager.playTwinkle();
+    const nextCount = bubblesPopped + 1;
+    setBubblesPopped(nextCount);
+    if (nextCount >= BUBBLE_TARGET) {
+      soundManager.playFanfare();
+      confetti.burst();
+      soundManager.speakPraise(
+        'Fantastico Emma! Hai scoppiato tutte le bolle magiche 3D!'
+      );
+    }
+  };
 
-    soundManager.playPop();
-    const newBoard = [...board];
-    newBoard[idx] = 'X';
-    setBoard(newBoard);
-
-    const outcome = checkWinner(newBoard);
-    if (outcome) {
-      handleTrisGameEnd(outcome.winner as any, outcome.line);
+  const handleMemoryCardClick = (index: number) => {
+    if (
+      flippedIndices.length >= 2 ||
+      memoryCards[index].flipped ||
+      memoryCards[index].matched
+    ) {
       return;
     }
 
-    setIsPlayerTurn(false);
+    soundManager.playPop();
+    const updated = memoryCards.map((c, idx) =>
+      idx === index ? { ...c, flipped: true } : c
+    );
+    setMemoryCards(updated);
 
-    // AI Turn delay
-    setTimeout(() => {
-      makeAiMove(newBoard);
-    }, 700);
-  };
+    const nextFlipped = [...flippedIndices, index];
+    setFlippedIndices(nextFlipped);
 
-  const makeAiMove = (currentBoard: BoardCell[]) => {
-    const emptyIndices = currentBoard
-      .map((val, idx) => (val === null ? idx : null))
-      .filter((val): val is number => val !== null);
-
-    if (emptyIndices.length === 0) return;
-
-    let chosenIdx: number;
-
-    if (isTrisSmart) {
-      // Smart AI:
-      // 1. Check if AI can win in 1 move
-      let winningMove: number | null = null;
-      for (const idx of emptyIndices) {
-        const test = [...currentBoard];
-        test[idx] = 'O';
-        const res = checkWinner(test);
-        if (res && res.winner === 'ai') {
-          winningMove = idx;
-          break;
-        }
-      }
-
-      // 2. Check if need to block player from winning
-      let blockingMove: number | null = null;
-      if (winningMove === null) {
-        for (const idx of emptyIndices) {
-          const test = [...currentBoard];
-          test[idx] = 'X';
-          const res = checkWinner(test);
-          if (res && res.winner === 'player') {
-            blockingMove = idx;
-            break;
-          }
-        }
-      }
-
-      if (winningMove !== null) {
-        chosenIdx = winningMove;
-      } else if (blockingMove !== null) {
-        chosenIdx = blockingMove;
-      } else if (currentBoard[4] === null) {
-        chosenIdx = 4; // Center
+    if (nextFlipped.length === 2) {
+      const [firstIdx, secondIdx] = nextFlipped;
+      if (updated[firstIdx].emoji === updated[secondIdx].emoji) {
+        setTimeout(() => {
+          soundManager.playTwinkle();
+          setMemoryCards((prev) => {
+            const matchedCards = prev.map((c, idx) =>
+              idx === firstIdx || idx === secondIdx
+                ? { ...c, matched: true }
+                : c
+            );
+            if (matchedCards.every((c) => c.matched)) {
+              setMemoryComplete(true);
+              soundManager.playFanfare();
+              confetti.burst();
+              soundManager.speakPraise(
+                'Super Memoria Emma! Hai trovato tutte le coppie 3D!'
+              );
+            }
+            return matchedCards;
+          });
+          setFlippedIndices([]);
+        }, 350);
       } else {
-        chosenIdx = emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+        setTimeout(() => {
+          setMemoryCards((prev) =>
+            prev.map((c, idx) =>
+              idx === firstIdx || idx === secondIdx
+                ? { ...c, flipped: false }
+                : c
+            )
+          );
+          setFlippedIndices([]);
+        }, 750);
       }
-    } else {
-      // Easy / Gentle Preschool AI: picks friendly random or non-blocking
-      chosenIdx = emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
-    }
-
-    const updated = [...currentBoard];
-    updated[chosenIdx] = 'O';
-    setBoard(updated);
-    soundManager.playPop();
-
-    const outcome = checkWinner(updated);
-    if (outcome) {
-      handleTrisGameEnd(outcome.winner as any, outcome.line);
-    } else {
-      setIsPlayerTurn(true);
     }
   };
 
-  const handleTrisGameEnd = (result: 'player' | 'ai' | 'draw', line: number[] | null) => {
-    setTrisWinner(result);
-    setWinningLine(line);
-
-    if (result === 'player') {
-      handleGameWin(`TRIS! Bravissima! Tre in fila perfetto!`);
-    } else if (result === 'draw') {
-      soundManager.playEncouragement();
-      soundManager.speak(`Pareggio tra veri campioni! Ottima partita!`, 1.25);
-    } else {
-      soundManager.playEncouragement();
-      soundManager.speak(`${trisConfig.opponentName} ha fatto tris! Bella sfida, riproviamo!`, 1.2);
+  const handleCatchStar = (id: number) => {
+    setStarsList((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, caught: true } : s))
+    );
+    soundManager.playTwinkle();
+    const nextCaught = starsCaught + 1;
+    setStarsCaught(nextCaught);
+    if (nextCaught >= STARS_TARGET) {
+      soundManager.playFanfare();
+      confetti.burst();
+      soundManager.speakPraise(
+        'Bravissima Emma! Hai preso tutti i tesori magici 3D!'
+      );
     }
   };
 
-  const resetTris = () => {
-    soundManager.playPop();
-    setBoard(Array(9).fill(null));
-    setIsPlayerTurn(true);
-    setTrisWinner(null);
-    setWinningLine(null);
-  };
-
-  // Common win handler
-  const handleGameWin = (speechPhrase: string) => {
-    soundManager.playFanfare();
-    confetti.burst();
-    setIsVictoryCelebration(true);
-    soundManager.speakPraise(speechPhrase);
-  };
+  const isCurrentGameWon =
+    (gameMode === 'tris' && (trisWinner === 'EMMA' || trisWinner === 'DRAW')) ||
+    (gameMode === 'bubbles' && bubblesPopped >= BUBBLE_TARGET) ||
+    (gameMode === 'memory' && memoryComplete) ||
+    (gameMode === 'stars' && starsCaught >= STARS_TARGET);
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col justify-between bg-gradient-to-b from-[#1c0f3d]/90 via-[#2a1359]/85 to-[#110726]/90 backdrop-blur-xs text-white select-none overflow-hidden h-[100dvh] max-h-[100dvh] w-screen">
-      {/* Top Banner Header */}
-      <div className="flex items-center justify-between px-3 sm:px-5 py-2 bg-slate-950/80 border-b border-white/10 backdrop-blur-md shrink-0 gap-2">
-        <div className="flex items-center gap-2">
-          {onExitToTitle && (
-            <button
-              onClick={() => {
-                soundManager.playPop();
-                soundManager.stopSpeech();
-                onExitToTitle();
-              }}
-              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 active:scale-95 rounded-2xl text-white font-fun font-bold text-xs sm:text-sm border border-white/20 flex items-center gap-1 cursor-pointer transition-all shadow-sm"
-            >
-              <ChevronLeft className="w-4 h-4 text-pink-300" />
-              <span>Esci</span>
-            </button>
-          )}
-          <span className="text-xl sm:text-2xl animate-bounce">🎈</span>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="px-2 py-0.5 rounded-full bg-pink-500/30 text-pink-200 border border-pink-400 font-kids text-[10px] sm:text-xs font-bold">
-                Livello {levelNumber} · Svago
-              </span>
-              <span className="text-xs text-amber-300 font-fun font-bold hidden sm:inline">
-                +3 ⭐ & +5 💎
-              </span>
-            </div>
-            <h1 className="text-sm sm:text-base font-kids font-bold text-white truncate">
-              {isTrisEasy && 'Tris delle Fragoline 🍓'}
-              {isBubblePop && 'Scoppia le Bolle Magiche 🫧'}
-              {isMemoryExpress && 'Memory degli Animaletti 🎴'}
-              {isTrisSmart && 'Tris della Volpina Furba 🦊'}
-              {isStarCatch && 'Pioggia di Stelline Cadenti ✨'}
-            </h1>
-          </div>
+    <div className="relative w-full h-full flex flex-col justify-between overflow-hidden bg-gradient-to-b from-[#38bdf8] via-[#a5f3fc] to-[#fde68a] select-none">
+      {/* SUNNY 3D AMUSEMENT PARK SKY & HILLS */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden z-0">
+        <div className="absolute -top-6 -right-6 w-32 h-32 rounded-full bg-gradient-to-br from-yellow-200 via-amber-300 to-orange-400 shadow-[0_0_55px_rgba(251,191,36,0.9)] border-4 border-yellow-100 flex items-center justify-center animate-float-3d">
+          <span className="text-4xl">🌞</span>
+        </div>
+
+        <svg
+          viewBox="0 0 600 220"
+          className="w-[115%] max-w-none -left-[7%] top-6 absolute opacity-65"
+          fill="none"
+        >
+          <path
+            d="M 20 210 Q 300 -30 580 210"
+            stroke="#fb7185"
+            strokeWidth="14"
+            strokeLinecap="round"
+          />
+          <path
+            d="M 32 215 Q 300 -12 568 215"
+            stroke="#fbbf24"
+            strokeWidth="14"
+            strokeLinecap="round"
+          />
+          <path
+            d="M 44 220 Q 300 6 556 220"
+            stroke="#34d399"
+            strokeWidth="14"
+            strokeLinecap="round"
+          />
+          <path
+            d="M 56 225 Q 300 24 544 225"
+            stroke="#38bdf8"
+            strokeWidth="14"
+            strokeLinecap="round"
+          />
+        </svg>
+
+        <div className="absolute top-12 left-4 w-28 h-11 bg-white/90 rounded-full shadow-md animate-cloud-drift" />
+        <div
+          className="absolute top-20 right-14 w-24 h-10 bg-white/85 rounded-full shadow-md animate-cloud-drift"
+          style={{ animationDelay: '1.3s' }}
+        />
+
+        <div className="absolute -bottom-10 -left-16 w-[75%] h-28 rounded-[100%] bg-gradient-to-t from-emerald-500 via-emerald-400 to-lime-300 border-t-4 border-lime-100/80" />
+        <div className="absolute -bottom-12 -right-16 w-[75%] h-32 rounded-[100%] bg-gradient-to-t from-green-500 via-emerald-400 to-teal-300 border-t-4 border-emerald-100/80" />
+      </div>
+
+      {/* TOP BAR */}
+      <header className="relative z-10 flex items-center justify-between px-3 pt-2.5 pb-1 shrink-0 gap-1.5">
+        <button
+          onClick={() => {
+            soundManager.playPop();
+            onExitToTitle();
+          }}
+          className="toy-button-3d bg-white/95 text-slate-900 px-3 py-2 rounded-2xl border-2 border-white shadow-lg flex items-center gap-1.5 active:scale-95 cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4 text-pink-500 stroke-[3]" />
+          <span className="font-kids font-extrabold text-xs">Home</span>
+        </button>
+
+        <div className="bg-gradient-to-r from-pink-500 via-fuchsia-500 to-amber-500 px-3.5 py-1.5 rounded-full border-2 border-white shadow-lg flex items-center gap-1.5">
+          <Gamepad2 className="w-4 h-4 text-white" />
+          <span className="font-kids font-extrabold text-xs sm:text-sm text-white uppercase tracking-wide drop-shadow">
+            🎡 Premio Liv. {levelNumber} · Parco 3D
+          </span>
         </div>
 
         <button
-          onClick={safeComplete}
-          className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-kids font-bold text-xs sm:text-sm rounded-2xl shadow-md border-b-3 border-emerald-700 active:translate-y-1 transition-all flex items-center gap-1 cursor-pointer shrink-0"
+          onClick={() => {
+            const nextState = soundManager.toggleMusic();
+            setMusicOn(nextState);
+          }}
+          className={`toy-button-3d p-2 sm:px-3 sm:py-2 rounded-2xl border-2 shadow-lg flex items-center gap-1 active:scale-95 cursor-pointer ${
+            musicOn
+              ? 'bg-gradient-to-b from-yellow-300 to-amber-500 text-slate-950 border-white'
+              : 'bg-white/90 text-slate-600 border-white'
+          }`}
         >
-          <span>Continua</span>
-          <ArrowRight className="w-3.5 h-3.5" />
+          {musicOn ? (
+            <Music className="w-4 h-4 stroke-[2.8] animate-bounce" />
+          ) : (
+            <VolumeX className="w-4 h-4 stroke-[2.8]" />
+          )}
+          <span className="font-kids font-extrabold text-xs hidden sm:inline">
+            Musica
+          </span>
         </button>
+      </header>
+
+      {/* 4 MINI-GAME 3D SELECTOR TABS */}
+      <div className="relative z-10 px-3 py-1 max-w-md mx-auto w-full shrink-0">
+        <div className="grid grid-cols-4 gap-1.5 bg-white/85 backdrop-blur-md p-1.5 rounded-2xl border-2 border-white shadow-lg">
+          {[
+            { id: 'tris', label: 'Tris 3D', emoji: '👑' },
+            { id: 'bubbles', label: 'Bolle 3D', emoji: '🫧' },
+            { id: 'memory', label: 'Memory 3D', emoji: '🃏' },
+            { id: 'stars', label: 'Stelline 3D', emoji: '🌟' },
+          ].map((tab) => {
+            const active = gameMode === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  soundManager.playPop();
+                  setGameMode(tab.id as SvagoGameMode);
+                }}
+                className={`py-1.5 px-1 rounded-xl font-kids font-extrabold text-[11px] flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer ${
+                  active
+                    ? 'bg-gradient-to-b from-pink-400 via-fuchsia-500 to-purple-600 text-white shadow-md scale-[1.03] border-2 border-white'
+                    : 'bg-sky-50 text-slate-700 hover:bg-sky-100 border border-sky-200'
+                }`}
+              >
+                <span className="text-base leading-none">{tab.emoji}</span>
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Main Interactive Stage */}
-      <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-2 sm:p-4 max-w-3xl mx-auto w-full relative overflow-hidden">
-        
-        {/* ==================================================== */}
-        {/* GAME TYPE 1 & 4: TRIS (CLASSIC OR SMART FOX) */}
-        {/* ==================================================== */}
-        {(isTrisEasy || isTrisSmart) && (
-          <div className="w-full flex flex-col items-center">
-            {/* Opponent & Player Header */}
-            <div className="flex items-center justify-between w-full max-w-md bg-slate-900/90 rounded-3xl p-3 sm:p-4 border-2 border-pink-400/40 mb-4 shadow-xl">
-              <div className="flex items-center gap-2.5">
-                <div className="w-12 h-12 rounded-2xl bg-pink-500/20 border-2 border-pink-400 flex items-center justify-center text-3xl">
-                  {trisConfig.playerPiece}
-                </div>
+      {/* MAIN 3D ARENA CONTENT */}
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-between px-4 py-1.5 max-w-md mx-auto w-full min-h-0">
+        {/* MODE 1: 3D TRIS */}
+        {gameMode === 'tris' && (
+          <>
+            <div className="w-full board-3d-tabletop rounded-3xl p-2.5 flex items-center justify-between shrink-0">
+              <div
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl transition-all ${
+                  isEmmaTurn && !trisWinner
+                    ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white border-2 border-white scale-105 shadow-md'
+                    : 'bg-white/80 text-slate-700'
+                }`}
+              >
+                <span className="text-2xl">👑</span>
                 <div>
-                  <span className="text-sm font-kids font-bold text-pink-300 block">Tu (Emma)</span>
-                  <span className="text-xs text-slate-300 font-fun">
-                    {isPlayerTurn && trisWinner === null ? '👉 Tocca a te!' : 'In attesa'}
-                  </span>
+                  <p className="font-kids font-extrabold text-xs leading-tight">
+                    Emma
+                  </p>
+                  <p className="text-[10px] font-bold opacity-90">Turno Tuo</p>
                 </div>
               </div>
 
-              <span className="font-kids text-xl font-bold text-amber-300">VS</span>
+              <div className="text-center px-2">
+                <span className="font-kids font-extrabold text-xs uppercase tracking-wider text-pink-600">
+                  {trisWinner === 'EMMA'
+                    ? '🎉 Vittoria!'
+                    : trisWinner === 'ORSETTO'
+                    ? '🧸 Orsetto!'
+                    : trisWinner === 'DRAW'
+                    ? '🤝 Pareggio!'
+                    : isEmmaTurn
+                    ? 'Tocca a Emma!'
+                    : 'Pensa Orsetto...'}
+                </span>
+              </div>
 
-              <div className="flex items-center gap-2.5 text-right">
+              <div
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl transition-all ${
+                  !isEmmaTurn && !trisWinner
+                    ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white border-2 border-white scale-105 shadow-md'
+                    : 'bg-white/80 text-slate-700'
+                }`}
+              >
+                <span className="text-2xl">🧸</span>
                 <div>
-                  <span className="text-sm font-kids font-bold text-cyan-300 block">{trisConfig.opponentName}</span>
-                  <span className="text-xs text-slate-300 font-fun">
-                    {!isPlayerTurn && trisWinner === null ? 'Pensa... 🤔' : 'In attesa'}
-                  </span>
-                </div>
-                <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 border-2 border-cyan-400 flex items-center justify-center text-3xl">
-                  {trisConfig.opponentPiece}
+                  <p className="font-kids font-extrabold text-xs leading-tight">
+                    Orsetto
+                  </p>
+                  <p className="text-[10px] font-bold opacity-90">Amico 3D</p>
                 </div>
               </div>
             </div>
 
-            {/* 3x3 Grid */}
-            <div className="grid grid-cols-3 gap-2 sm:gap-3 p-2.5 sm:p-4 bg-slate-900/95 rounded-3xl border-3 border-pink-500/40 shadow-xl max-w-[270px] sm:max-w-[340px] w-full aspect-square">
+            <div className="w-full max-w-[310px] aspect-square grid grid-cols-3 gap-2.5 p-3.5 rounded-[32px] board-3d-tabletop my-auto">
               {board.map((cell, idx) => {
                 const isWinningCell = winningLine?.includes(idx);
                 return (
                   <button
                     key={idx}
-                    onClick={() => handleCellClick(idx)}
-                    disabled={cell !== null || !isPlayerTurn || trisWinner !== null}
-                    className={`rounded-3xl border-4 transition-all duration-200 flex items-center justify-center text-5xl sm:text-6xl cursor-pointer select-none shadow-md ${
+                    onClick={() => handleTrisCellClick(idx)}
+                    disabled={!!cell || !isEmmaTurn || !!trisWinner}
+                    className={`tris-slot-3d rounded-2xl flex items-center justify-center transition-all p-1.5 cursor-pointer ${
                       isWinningCell
-                        ? 'bg-amber-400 border-yellow-200 animate-bounce scale-105'
-                        : cell === 'X'
-                        ? 'bg-pink-600/30 border-pink-400'
-                        : cell === 'O'
-                        ? 'bg-cyan-600/30 border-cyan-400'
-                        : 'bg-slate-800/80 hover:bg-slate-700/90 border-slate-700 active:scale-95'
+                        ? 'bg-gradient-to-b from-yellow-200 to-amber-400 border-white scale-105 shadow-[0_0_24px_rgba(250,204,21,0.9)]'
+                        : cell === 'EMMA'
+                        ? 'bg-gradient-to-b from-pink-100 to-rose-200 border-pink-300'
+                        : cell === 'ORSETTO'
+                        ? 'bg-gradient-to-b from-cyan-100 to-sky-200 border-cyan-300'
+                        : 'hover:scale-[1.03] active:scale-95'
                     }`}
                   >
-                    {cell === 'X' ? trisConfig.playerPiece : cell === 'O' ? trisConfig.opponentPiece : ''}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Controls when draw or opponent won */}
-            {trisWinner !== null && (
-              <div className="mt-4 flex items-center gap-3">
-                <button
-                  onClick={resetTris}
-                  className="px-5 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-fun font-bold border-2 border-slate-600 flex items-center gap-2 cursor-pointer shadow active:scale-95"
-                >
-                  <RotateCcw className="w-5 h-5 text-amber-400" />
-                  <span>Gioca Ancora</span>
-                </button>
-                <button
-                  onClick={() => {
-                    soundManager.playSuccess();
-                    onComplete();
-                  }}
-                  className="px-6 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-kids font-bold border-b-4 border-emerald-700 shadow-xl flex items-center gap-2 cursor-pointer active:scale-95"
-                >
-                  <span>Prossimo Livello</span>
-                  <ArrowRight className="w-5 h-5" />
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ==================================================== */}
-        {/* GAME TYPE 2: BUBBLE POP */}
-        {/* ==================================================== */}
-        {isBubblePop && (
-          <div className="w-full h-full flex flex-col items-center justify-between">
-            {/* Counter */}
-            <div className="bg-slate-900/90 px-6 py-2 rounded-full border-2 border-cyan-400 text-base sm:text-lg font-kids font-bold flex items-center gap-3 shadow-xl mb-4">
-              <span>Bolle Scoppiate:</span>
-              <span className="text-amber-400 text-xl font-bold">{poppedCount} / {targetBubbles}</span>
-              <Sparkles className="w-5 h-5 text-yellow-300 animate-spin" />
-            </div>
-
-            {/* Interactive Bubble Pond */}
-            <div className="relative w-full max-w-lg h-[46vh] max-h-[340px] min-h-[220px] bg-slate-950/60 rounded-3xl border-3 border-cyan-500/30 overflow-hidden shadow-xl backdrop-blur-md">
-              <div className="absolute inset-0 bg-gradient-to-t from-cyan-950/40 to-transparent pointer-events-none"></div>
-
-              {bubbles.map(bubble => (
-                <button
-                  key={bubble.id}
-                  onClick={() => handlePopBubble(bubble.id)}
-                  style={{
-                    left: `${bubble.x}%`,
-                    top: `${bubble.y}%`,
-                    width: `${bubble.size}px`,
-                    height: `${bubble.size}px`,
-                  }}
-                  className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-tr ${bubble.color} p-1 shadow-2xl border-2 border-white/60 flex items-center justify-center text-3xl sm:text-4xl cursor-pointer hover:scale-115 active:scale-90 transition-transform animate-gentle-bounce`}
-                >
-                  <span className="drop-shadow">{bubble.emoji}</span>
-                  {/* Bubble reflection highlight */}
-                  <span className="absolute top-2 left-2 w-3 h-3 rounded-full bg-white/70"></span>
-                </button>
-              ))}
-            </div>
-
-            <p className="mt-3 text-xs sm:text-sm font-fun text-cyan-200">
-              Tocca le bolle colorate con il dito per farle scoppiare tutte!
-            </p>
-          </div>
-        )}
-
-        {/* ==================================================== */}
-        {/* GAME TYPE 3: MEMORY EXPRESS */}
-        {/* ==================================================== */}
-        {isMemoryExpress && (
-          <div className="w-full flex flex-col items-center">
-            {/* Matches counter */}
-            <div className="bg-slate-900/90 px-6 py-2 rounded-full border-2 border-purple-400 text-base sm:text-lg font-kids font-bold flex items-center gap-3 shadow-xl mb-4">
-              <span>Coppie Trovate:</span>
-              <span className="text-yellow-300 text-xl font-bold">{memoryMatches} / {totalPairs}</span>
-              <Heart className="w-5 h-5 text-pink-400 fill-current animate-pulse" />
-            </div>
-
-            {/* Memory Card Grid */}
-            <div className={`grid gap-3 sm:gap-4 p-4 bg-slate-900/90 rounded-4xl border-4 border-purple-500/40 shadow-2xl max-w-xl w-full ${
-              totalPairs === 4 ? 'grid-cols-4' : 'grid-cols-3'
-            }`}>
-              {memoryCards.map(card => {
-                const isOpen = card.isFlipped || card.isMatched;
-                return (
-                  <button
-                    key={card.id}
-                    onClick={() => handleMemoryCardTap(card.id)}
-                    disabled={isOpen}
-                    className={`aspect-square rounded-3xl border-4 transition-all duration-300 flex flex-col items-center justify-center cursor-pointer shadow-lg select-none ${
-                      card.isMatched
-                        ? 'bg-emerald-600/40 border-emerald-400 scale-95 opacity-80'
-                        : isOpen
-                        ? 'bg-purple-600/60 border-yellow-300 scale-102 ring-4 ring-yellow-400/50'
-                        : 'bg-gradient-to-tr from-purple-800 to-indigo-900 hover:from-purple-700 hover:to-indigo-800 border-purple-400 active:scale-95'
-                    }`}
-                  >
-                    {isOpen ? (
-                      <div className="flex flex-col items-center animate-fade-in">
-                        <span className="text-4xl sm:text-5xl drop-shadow">{card.emoji}</span>
-                        <span className="text-xs font-kids font-bold text-yellow-200 mt-1">{card.label}</span>
+                    {cell === 'EMMA' && (
+                      <div className="w-14 h-14 rounded-full bg-gradient-to-b from-pink-400 to-rose-600 border-2 border-white shadow-md flex items-center justify-center text-3xl animate-pop-in">
+                        👑
                       </div>
-                    ) : (
-                      <span className="text-3xl text-purple-300 animate-pulse">❓</span>
+                    )}
+                    {cell === 'ORSETTO' && (
+                      <div className="w-14 h-14 rounded-full bg-gradient-to-b from-amber-300 to-orange-500 border-2 border-white shadow-md flex items-center justify-center text-3xl animate-pop-in">
+                        🧸
+                      </div>
                     )}
                   </button>
                 );
               })}
             </div>
+          </>
+        )}
 
-            <p className="mt-3 text-xs sm:text-sm font-fun text-purple-200">
-              Gira le carte e trova gli amici animali uguali!
-            </p>
+        {/* MODE 2: BOLLE 3D */}
+        {gameMode === 'bubbles' && (
+          <div className="w-full flex-1 flex flex-col justify-between my-1 min-h-0">
+            <div className="bg-white/95 rounded-2xl px-4 py-2 border-2 border-white flex items-center justify-between mb-2 shrink-0 shadow-md">
+              <span className="font-kids font-extrabold text-xs sm:text-sm text-pink-600">
+                🫧 Scoppia tutte le Bolle 3D!
+              </span>
+              <span className="px-3 py-0.5 rounded-full bg-gradient-to-r from-pink-500 to-amber-500 text-white font-kids font-extrabold text-xs shadow">
+                {bubblesPopped} / {BUBBLE_TARGET}
+              </span>
+            </div>
+
+            <div className="relative flex-1 rounded-[32px] board-3d-tabletop overflow-hidden">
+              {bubbles.map((b) =>
+                b.popped ? null : (
+                  <button
+                    key={b.id}
+                    onClick={() => handlePopBubble(b.id)}
+                    style={{
+                      width: `${b.size}px`,
+                      height: `${b.size}px`,
+                      left: `${b.left}%`,
+                      top: `${b.top}%`,
+                    }}
+                    className={`absolute rounded-full bg-gradient-to-br ${b.color} border-3 shadow-[0_10px_20px_rgba(0,0,0,0.2),inset_0_6px_12px_rgba(255,255,255,0.85)] flex items-center justify-center animate-float-3d active:scale-125 transition-transform cursor-pointer`}
+                  >
+                    <div className="absolute top-2 left-3 w-4 h-2.5 rounded-full bg-white/90 -rotate-25" />
+                    <span className="text-3xl drop-shadow-md select-none">
+                      {b.emoji}
+                    </span>
+                  </button>
+                )
+              )}
+
+              {bubblesPopped >= BUBBLE_TARGET && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/85 backdrop-blur-sm p-4 text-center">
+                  <span className="text-6xl mb-2 animate-bounce">🏆</span>
+                  <h3 className="font-kids font-extrabold text-2xl text-pink-600">
+                    Tutte Scoppiate! 🎉
+                  </h3>
+                  <p className="text-xs font-fun font-extrabold text-slate-700 mt-1">
+                    Hai guadagnato +3 Stelline Magiche!
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
-        {/* ==================================================== */}
-        {/* GAME TYPE 5: STAR CATCH */}
-        {/* ==================================================== */}
-        {isStarCatch && (
-          <div className="w-full h-full flex flex-col items-center justify-between">
-            {/* Counter */}
-            <div className="bg-slate-900/90 px-6 py-2 rounded-full border-2 border-amber-400 text-base sm:text-lg font-kids font-bold flex items-center gap-3 shadow-xl mb-4">
-              <span>Stelline Raccolte:</span>
-              <span className="text-yellow-300 text-xl font-bold">{starsCaught} / {targetStars}</span>
-              <Star className="w-5 h-5 text-amber-400 fill-current animate-bounce" />
+        {/* MODE 3: MEMORY 3D */}
+        {gameMode === 'memory' && (
+          <div className="w-full flex-1 flex flex-col justify-between my-1 min-h-0">
+            <div className="bg-white/95 rounded-2xl px-4 py-2 border-2 border-white flex items-center justify-between mb-2 shrink-0 shadow-md">
+              <span className="font-kids font-extrabold text-xs sm:text-sm text-violet-700">
+                🃏 Trova le Coppie Magiche 3D!
+              </span>
+              <button
+                onClick={initMemoryGame}
+                className="px-2.5 py-1 rounded-xl bg-pink-500 text-white font-kids font-extrabold text-[11px] flex items-center gap-1 shadow cursor-pointer"
+              >
+                <RotateCcw className="w-3 h-3" /> Mescola
+              </button>
             </div>
 
-            {/* Falling sky playground */}
-            <div className="relative w-full max-w-lg h-[46vh] max-h-[340px] min-h-[220px] bg-slate-950/70 rounded-3xl border-3 border-amber-500/30 overflow-hidden shadow-xl backdrop-blur-md">
-              <div className="absolute inset-0 bg-radial-gradient from-amber-500/10 to-transparent pointer-events-none"></div>
-
-              {fallingStars.map(item => (
-                <button
-                  key={item.id}
-                  onClick={() => handleCatchStar(item.id)}
-                  style={{
-                    left: `${item.x}%`,
-                    top: `${item.y}%`,
-                  }}
-                  className="absolute -translate-x-1/2 -translate-y-1/2 w-18 h-18 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-amber-400 via-yellow-300 to-amber-500 p-2 shadow-2xl border-4 border-white flex items-center justify-center text-4xl sm:text-5xl cursor-pointer hover:scale-120 active:scale-90 transition-transform animate-bounce"
-                >
-                  <span className="drop-shadow">{item.emoji}</span>
-                </button>
-              ))}
+            <div className="grid grid-cols-4 gap-2.5 my-auto p-3.5 rounded-[30px] board-3d-tabletop">
+              {memoryCards.map((card, index) => {
+                const isRevealed = card.flipped || card.matched;
+                return (
+                  <button
+                    key={card.id}
+                    onClick={() => handleMemoryCardClick(index)}
+                    className={`aspect-square rounded-2xl border-3 transition-all flex items-center justify-center p-1.5 cursor-pointer ${
+                      card.matched
+                        ? 'bg-gradient-to-b from-emerald-300 to-teal-500 border-white shadow-[0_5px_0_#0f766e] scale-105'
+                        : isRevealed
+                        ? 'bg-white border-amber-300 shadow-[0_5px_0_#d97706]'
+                        : 'toy-candy-pink hover:scale-105 active:scale-95'
+                    }`}
+                  >
+                    {isRevealed ? (
+                      <span className="text-3xl sm:text-4xl animate-pop-in">
+                        {card.emoji}
+                      </span>
+                    ) : (
+                      <span className="text-2xl sm:text-3xl drop-shadow">
+                        🌟
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
-
-            <p className="mt-3 text-xs sm:text-sm font-fun text-amber-200">
-              Tocca le stelline d'oro per raccoglierle nel tuo sacchetto magico!
-            </p>
           </div>
         )}
 
-        {/* ==================================================== */}
-        {/* VICTORY CELEBRATION MODAL OVERLAY */}
-        {/* ==================================================== */}
-        {isVictoryCelebration && (
-          <div className="absolute inset-0 bg-slate-950/90 rounded-4xl backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-50 animate-fade-in border-4 border-yellow-400/60 shadow-2xl">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-amber-400 to-yellow-300 flex items-center justify-center text-6xl shadow-2xl border-4 border-white mb-4 animate-bounce">
-              🏆
+        {/* MODE 4: STELLINE 3D */}
+        {gameMode === 'stars' && (
+          <div className="w-full flex-1 flex flex-col justify-between my-1 min-h-0">
+            <div className="bg-white/95 rounded-2xl px-4 py-2 border-2 border-white flex items-center justify-between mb-2 shrink-0 shadow-md">
+              <span className="font-kids font-extrabold text-xs sm:text-sm text-amber-600">
+                🌟 Acchiappa i Tesori 3D!
+              </span>
+              <span className="px-3 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-kids font-extrabold text-xs shadow">
+                {starsCaught} / {STARS_TARGET}
+              </span>
             </div>
 
-            <h2 className="text-2xl sm:text-3xl font-kids font-bold text-yellow-300 mb-2">
-              Bravissima Emma! Sfida Vinta!
-            </h2>
+            <div className="relative flex-1 rounded-[32px] board-3d-tabletop overflow-hidden">
+              {starsList.map((st) =>
+                st.caught ? null : (
+                  <button
+                    key={st.id}
+                    onClick={() => handleCatchStar(st.id)}
+                    style={{
+                      left: `${st.left}%`,
+                      top: `${st.top}%`,
+                    }}
+                    className="absolute w-16 h-16 rounded-full bg-gradient-to-b from-yellow-200 via-amber-300 to-orange-400 border-3 border-white shadow-lg flex items-center justify-center text-3xl animate-float-3d active:scale-125 transition-transform cursor-pointer"
+                  >
+                    {st.emoji}
+                  </button>
+                )
+              )}
 
-            <p className="text-base sm:text-lg text-slate-200 font-fun max-w-md mb-6">
-              Hai completato il livello di svago con successo! Hai guadagnato 3 stelle splendenti e 5 gemme luccicanti!
-            </p>
+              {starsCaught >= STARS_TARGET && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/85 backdrop-blur-sm p-4 text-center">
+                  <span className="text-6xl mb-2 animate-bounce">👑</span>
+                  <h3 className="font-kids font-extrabold text-2xl text-amber-600">
+                    Super Campionessa! 🌟
+                  </h3>
+                  <p className="text-xs font-fun font-extrabold text-slate-700 mt-1">
+                    Hai raccolto tutti i tesori magici 3D!
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
-            <div className="flex items-center gap-4 mb-6">
-              <div className="flex items-center gap-1.5 px-4 py-2 bg-amber-500/30 rounded-2xl border-2 border-amber-400 text-amber-300 font-kids text-lg">
-                <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
-                <span>+3 Stelle</span>
-              </div>
-              <div className="flex items-center gap-1.5 px-4 py-2 bg-pink-500/30 rounded-2xl border-2 border-pink-400 text-pink-300 font-kids text-lg">
-                <Sparkles className="w-5 h-5 text-pink-400" />
-                <span>+5 Gemme</span>
+        {/* BOTTOM ACTION CONTROLS */}
+        <div className="w-full flex flex-col gap-2 shrink-0 mt-2">
+          {isCurrentGameWon && (
+            <div className="bg-gradient-to-r from-amber-300 via-yellow-300 to-amber-400 border-2 border-white rounded-2xl p-2 text-center shadow-lg flex items-center justify-center gap-2">
+              <Trophy className="w-5 h-5 text-amber-900 shrink-0" />
+              <span className="font-kids font-extrabold text-xs sm:text-sm text-slate-950">
+                Bravissima Emma! +3 Stelline d'Oro vinte!
+              </span>
+              <div className="flex items-center">
+                <Star className="w-4 h-4 text-amber-700 fill-amber-700" />
+                <Star className="w-4 h-4 text-amber-700 fill-amber-700" />
+                <Star className="w-4 h-4 text-amber-700 fill-amber-700" />
               </div>
             </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <button
+              onClick={() => {
+                soundManager.playPop();
+                if (gameMode === 'tris') resetTris();
+                if (gameMode === 'bubbles') initBubblesGame();
+                if (gameMode === 'memory') initMemoryGame();
+                if (gameMode === 'stars') initStarsGame();
+              }}
+              className="toy-button-3d py-2.5 px-4 rounded-2xl bg-white hover:bg-sky-50 text-slate-900 font-kids font-extrabold text-xs sm:text-sm border-2 border-white shadow-lg flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <RotateCcw className="w-4 h-4 text-pink-500" />
+              <span>Gioca Ancora</span>
+            </button>
 
             <button
               onClick={() => {
                 soundManager.playSuccess();
                 onComplete();
               }}
-              className="px-8 py-4 rounded-3xl bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-kids font-bold text-xl shadow-2xl border-b-6 border-emerald-800 active:translate-y-1 transition-all cursor-pointer flex items-center gap-3 animate-pulse"
+              className="toy-button-3d py-2.5 px-4 rounded-2xl bg-gradient-to-b from-emerald-400 via-green-500 to-teal-600 text-white font-kids font-extrabold text-xs sm:text-sm border-2 border-white shadow-lg flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              <span>VAI AL PROSSIMO LIVELLO ➔</span>
+              <Sparkles className="w-4 h-4" />
+              <span>Vai al Livello {levelNumber + 1}</span>
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      </main>
     </div>
   );
 };

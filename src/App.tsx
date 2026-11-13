@@ -156,7 +156,7 @@ export default function App() {
         {currentView === 'title' ? (
           <>
             <div className="absolute top-0 inset-x-0 h-24 bg-gradient-to-b from-black/55 via-black/20 to-transparent pointer-events-none" />
-            <div className="absolute bottom-0 inset-x-0 h-44 bg-gradient-to-t from-black/75 via-black/30 to-transparent pointer-events-none" />
+            <div className="absolute bottom-0 inset-x-0 h-40 bg-gradient-to-t from-black/75 via-black/25 to-transparent pointer-events-none" />
           </>
         ) : (
           <div className="absolute inset-0 bg-gradient-to-b from-[#080212]/90 via-[#14062c]/85 to-[#070112]/90" />
@@ -165,10 +165,10 @@ export default function App() {
 
       {/* ========================================================================= */}
       {/* VIEW 1: HOME VIEW - CLEAN TOP TITLE, UNIFIED TAB (LIVELLO STELLINE ANNI   */}
-      {/* DATA), EMMA PHOTO 100% VISIBLE, AND BOTTOM PARENTS TAB                    */}
+      {/* DATA), TWO COMPACT 3D CLOUDS UNITED BY A RAINBOW, AND BOTTOM PARENTS TAB  */}
       {/* ========================================================================= */}
       {currentView === 'title' && (
-        <div className="relative z-10 h-full w-full flex flex-col justify-between p-3 sm:p-5 max-w-lg mx-auto overflow-hidden">
+        <div className="relative z-10 h-full w-full flex flex-col justify-between p-3 sm:p-5 max-w-md mx-auto overflow-hidden">
           
           {/* 1. TOP FLOATING TITLE & UNIFIED MILESTONE TAB (LIVELLO · STELLINE · ANNI · DATA) */}
           <div className="flex flex-col items-center text-center pt-1 shrink-0">
@@ -202,25 +202,75 @@ export default function App() {
             {/* Open center area - Emma's photo is 100% visible and unblocked */}
           </div>
 
-          {/* 3. BOTTOM ACTION CONTROLS + TAB GENITORI AT THE VERY BOTTOM */}
+          {/* 3. BOTTOM DOCK: TWO COMPACT 3D CLOUDS UNITED BY A RAINBOW + TAB GENITORI */}
           <div className="w-full flex flex-col items-center shrink-0 space-y-2.5">
-            {/* PRIMARY BUTTON 1: VOLUMETRIC 3D TOY "INIZIA A GIOCARE!" */}
-            <button
-              onClick={handleStartGame}
-              className="btn-3d-emerald btn-chunky w-full py-4 sm:py-4.5 px-6 active:scale-95 text-slate-950 font-kids font-extrabold text-xl sm:text-2xl rounded-3xl flex items-center justify-center gap-3 cursor-pointer tracking-wide shadow-2xl"
-            >
-              <Play className="w-7 h-7 fill-slate-950 shrink-0 animate-pulse" />
-              <span>INIZIA A GIOCARE! ➔</span>
-            </button>
+            
+            {/* TWO 3D FLUFFY CLOUDS UNITED BY AN ENCHANTED 3D RAINBOW BRIDGE */}
+            <div className="relative w-full max-w-[360px] pt-6 pb-1 flex items-center justify-between gap-4">
+              
+              {/* 3D SVG Rainbow Arch connecting Cloud 1 and Cloud 2 */}
+              <svg
+                viewBox="0 0 280 95"
+                className="absolute top-0 left-1/2 -translate-x-1/2 w-[82%] h-20 pointer-events-none z-0 drop-shadow-[0_6px_14px_rgba(0,0,0,0.55)] animate-rainbow-glow"
+                fill="none"
+              >
+                {/* 6 Vivid Rainbow Bands Arching from Left Cloud to Right Cloud */}
+                <path d="M 28 84 A 112 72 0 0 1 252 84" stroke="#ef4444" strokeWidth="6.5" strokeLinecap="round" />
+                <path d="M 34 84 A 106 66 0 0 1 246 84" stroke="#f97316" strokeWidth="6.5" strokeLinecap="round" />
+                <path d="M 40 84 A 100 60 0 0 1 240 84" stroke="#facc15" strokeWidth="6.5" strokeLinecap="round" />
+                <path d="M 46 84 A 94 54 0 0 1 234 84" stroke="#22c55e" strokeWidth="6.5" strokeLinecap="round" />
+                <path d="M 52 84 A 88 48 0 0 1 228 84" stroke="#38bdf8" strokeWidth="6.5" strokeLinecap="round" />
+                <path d="M 58 84 A 82 42 0 0 1 222 84" stroke="#a855f7" strokeWidth="6.5" strokeLinecap="round" />
+                {/* Little Golden Sparkles on the Rainbow Bridge */}
+                <circle cx="140" cy="14" r="3.5" fill="#fef08a" />
+                <circle cx="90" cy="26" r="2.5" fill="#ffffff" />
+                <circle cx="190" cy="26" r="2.5" fill="#ffffff" />
+              </svg>
 
-            {/* PRIMARY BUTTON 2: VOLUMETRIC 3D TOY "STUDIO DISEGNO" */}
-            <button
-              onClick={handleOpenStudio}
-              className="btn-3d-purple btn-chunky w-full py-3 sm:py-3.5 px-5 active:scale-95 text-white font-kids font-bold text-sm sm:text-base rounded-2xl flex items-center justify-center gap-2 cursor-pointer shadow-xl"
-            >
-              <Palette className="w-5 h-5 text-yellow-300 shrink-0" />
-              <span>🎨 STUDIO DISEGNO MAGICO ✨</span>
-            </button>
+              {/* LEFT 3D CLOUD: "INIZIA A GIOCARE" */}
+              <button
+                onClick={handleStartGame}
+                className="cloud-3d-btn cloud-3d-play relative z-10 flex-1 py-2.5 px-3 flex flex-col items-center justify-center cursor-pointer group"
+                title="Inizia a Giocare!"
+              >
+                {/* Sculpted Fluffy Cloud Puffs on Top */}
+                <span className="absolute -top-3 left-4 w-8 h-6 rounded-full bg-white border-t-2 border-white shadow-inner pointer-events-none" />
+                <span className="absolute -top-4 left-1/2 -translate-x-1/2 w-11 h-8 rounded-full bg-white border-t-2 border-white shadow-inner pointer-events-none" />
+                <span className="absolute -top-2.5 right-4 w-7 h-5 rounded-full bg-white border-t-2 border-white pointer-events-none" />
+
+                <div className="relative z-10 w-10 h-10 rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600 border-2 border-white shadow-md flex items-center justify-center mb-0.5 group-hover:scale-110 transition-transform">
+                  <Play className="w-5 h-5 fill-white text-white ml-0.5" />
+                </div>
+                <span className="relative z-10 font-kids font-extrabold text-xs sm:text-sm text-emerald-950 tracking-tight leading-tight drop-shadow-xs">
+                  Inizia Gioco
+                </span>
+                <span className="relative z-10 text-[10px] font-fun font-bold text-emerald-800">
+                  Livello {progress.currentLevel} ✨
+                </span>
+              </button>
+
+              {/* RIGHT 3D CLOUD: "STUDIO DISEGNO" */}
+              <button
+                onClick={handleOpenStudio}
+                className="cloud-3d-btn cloud-3d-draw relative z-10 flex-1 py-2.5 px-3 flex flex-col items-center justify-center cursor-pointer group"
+                title="Apri Studio Disegno!"
+              >
+                {/* Sculpted Fluffy Cloud Puffs on Top */}
+                <span className="absolute -top-2.5 left-4 w-7 h-5 rounded-full bg-white border-t-2 border-white pointer-events-none" />
+                <span className="absolute -top-4 left-1/2 -translate-x-1/2 w-11 h-8 rounded-full bg-white border-t-2 border-white shadow-inner pointer-events-none" />
+                <span className="absolute -top-3 right-4 w-8 h-6 rounded-full bg-white border-t-2 border-white shadow-inner pointer-events-none" />
+
+                <div className="relative z-10 w-10 h-10 rounded-full bg-gradient-to-b from-purple-400 to-fuchsia-600 border-2 border-white shadow-md flex items-center justify-center mb-0.5 group-hover:scale-110 transition-transform">
+                  <Palette className="w-5 h-5 text-yellow-200" />
+                </div>
+                <span className="relative z-10 font-kids font-extrabold text-xs sm:text-sm text-purple-950 tracking-tight leading-tight drop-shadow-xs">
+                  Studio Disegno
+                </span>
+                <span className="relative z-10 text-[10px] font-fun font-bold text-purple-800">
+                  Colora & Crea 🎨
+                </span>
+              </button>
+            </div>
 
             {/* BOTTOM-MOST TAB: TAB GENITORI (RELAZIONE PEDAGOGICA, QI & REPORT PDF) */}
             <button
@@ -228,11 +278,11 @@ export default function App() {
                 soundManager.playPop();
                 setIsParentsOpen(true);
               }}
-              className="w-full flex items-center justify-center gap-2.5 py-2.5 px-4 bg-black/65 hover:bg-black/80 active:scale-98 backdrop-blur-md rounded-2xl border border-pink-300/45 text-xs sm:text-sm font-kids font-bold text-white shadow-xl cursor-pointer transition-all"
+              className="w-full max-w-[360px] flex items-center justify-center gap-2 py-2 px-4 bg-black/65 hover:bg-black/80 active:scale-98 backdrop-blur-md rounded-full border border-pink-300/45 text-[11px] sm:text-xs font-kids font-bold text-white shadow-xl cursor-pointer transition-all"
               title="Apri Area Genitori, Valutazione QI e Scarica Report PDF"
             >
               <ShieldCheck className="w-4 h-4 text-pink-400 shrink-0" />
-              <span className="text-pink-100">AREA GENITORI · RELAZIONE, QI & REPORT PDF</span>
+              <span className="text-pink-100 truncate">AREA GENITORI · RELAZIONE, QI & REPORT PDF</span>
               <FileDown className="w-4 h-4 text-yellow-300 shrink-0" />
             </button>
           </div>
