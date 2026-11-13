@@ -238,6 +238,27 @@ function drawWrappedText(
 }
 
 /**
+ * Draws single-line text strictly within maxWidth, truncating cleanly with ellipsis if ever needed.
+ */
+function drawFittedText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number
+) {
+  if (ctx.measureText(text).width <= maxWidth) {
+    ctx.fillText(text, x, y);
+    return;
+  }
+  let trimmed = text;
+  while (trimmed.length > 3 && ctx.measureText(trimmed + '…').width > maxWidth) {
+    trimmed = trimmed.slice(0, -1);
+  }
+  ctx.fillText(trimmed.trimEnd() + '…', x, y);
+}
+
+/**
  * Draws an isometric 3D horizontal bar (front face, top 3D bevel, right 3D side cap).
  */
 function draw3DHorizontalBar(
@@ -620,27 +641,33 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       fillStrokeRoundRect(ctx1, 48, 36, 1144, 118, 22, headerGrad, '#f472b6', 2);
 
       ctx1.fillStyle = '#fde047';
-      ctx1.font = '900 24px sans-serif';
-      ctx1.fillText(
+      ctx1.font = '900 23px sans-serif';
+      drawFittedText(
+        ctx1,
         'Il Mondo di Emma — Profilo Cognitivo CHC (0–100) & Relazione Competenze',
         76,
-        74
+        74,
+        874
       );
 
       ctx1.fillStyle = '#ffffff';
-      ctx1.font = 'bold 14.5px sans-serif';
-      ctx1.fillText(
+      ctx1.font = 'bold 14px sans-serif';
+      drawFittedText(
+        ctx1,
         `Allieva: EMMA GUIDI   |   Nata il: 22/08/2021 (${ageInfo.displayText})   |   Livello: ${progress.currentLevel} (${evalReport.currentDifficultyLabel}, peso w=${evalReport.currentWeight})`,
         76,
-        104
+        104,
+        874
       );
 
       ctx1.fillStyle = '#e2e8f0';
-      ctx1.font = '12.5px sans-serif';
-      ctx1.fillText(
-        `Data: ${dateStr}  ·  Aggiornamento Mensile: ${evalReport.currentMonthStartLabel}  ·  Formule: IP = Σ(wᵢ·cᵢ)/Σwᵢ×100  |  IC = 0,50·IP + 0,20·IA + 0,15·IR + 0,15·IT`,
+      ctx1.font = '12px sans-serif';
+      drawFittedText(
+        ctx1,
+        `Data: ${dateStr}  ·  Aggiornamento Mensile: ${evalReport.currentMonthStartLabel}  ·  IP = Σ(wᵢ·cᵢ)/Σwᵢ×100  |  IC = 0,50·IP + 0,20·IA + 0,15·IR + 0,15·IT`,
         76,
-        132
+        132,
+        874
       );
 
       // Right Header Telemetry Pill
@@ -676,52 +703,51 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       ctx1.textAlign = 'left';
 
       // 2. QUADRO SINTETICO DI VALUTAZIONE: COMPETENZA GENERALE, EVOLUZIONE, 4 INDICATORI & PROFILO CHC
-      //    Card Box: x: 48, y: 168, w: 1144, h: 256
+      //    Card Box: x: 48, y: 168, w: 1144, h: 258
       fillStrokeRoundRect(
         ctx1,
         48,
         168,
         1144,
-        256,
+        258,
         22,
         '#fdf4ff',
         '#c084fc',
         2
       );
 
-      ctx1.save();
-      ctx1.beginPath();
-      ctx1.rect(72, 174, 650, 104);
-      ctx1.clip();
-
+      // Left column strictly constrained to width 640px (x: 74 .. 714) before Badges (x: 734)
       ctx1.fillStyle = '#4c1d95';
-      ctx1.font = '900 18px sans-serif';
-      ctx1.fillText(
-        'PROFILO DELLE ABILITÀ COGNITIVE (TEORIA CHC 0–100) & 4 INDICATORI — EMMA GUIDI',
-        76,
-        200
+      ctx1.font = '900 17px sans-serif';
+      drawFittedText(
+        ctx1,
+        'PROFILO COGNITIVO CHC (0–100) & 4 INDICATORI — EMMA GUIDI',
+        74,
+        198,
+        642
       );
 
       ctx1.fillStyle = '#6b21a8';
-      ctx1.font = 'bold 13.5px sans-serif';
-      ctx1.fillText(
-        `Prestazione IP: ${evalReport.ip}/100   |   Competenza IC: ${evalReport.ic}/100   |   Autonomia IA: ${evalReport.ia}/100   |   Ritenzione IR: ${evalReport.ir}/100   |   Trasferimento IT: ${evalReport.it}/100`,
-        76,
-        225
+      ctx1.font = 'bold 12.5px sans-serif';
+      drawFittedText(
+        ctx1,
+        `Prestazione IP: ${evalReport.ip}/100  ·  Competenza IC: ${evalReport.ic}/100  ·  Autonomia IA: ${evalReport.ia}/100  ·  IR: ${evalReport.ir}  ·  IT: ${evalReport.it}`,
+        74,
+        222,
+        642
       );
 
       ctx1.fillStyle = '#475569';
-      ctx1.font = '12px sans-serif';
+      ctx1.font = '11.5px sans-serif';
       drawWrappedText(
         ctx1,
-        `Confronto Inizio Mese (${evalReport.activeAgeRow.ageLabel}): Punto di partenza IC ${evalReport.activeAgeRow.startIc}/100 (Liv. ${evalReport.activeAgeRow.startLevel}) → Attuale IC ${evalReport.activeAgeRow.currentIc}/100 (Liv. ${evalReport.activeAgeRow.currentLevel}, Progresso +${evalReport.activeAgeRow.deltaIc} pt). Profilo cognitivo interno basato sul modello CHC (non sostituisce un test QI clinico standardizzato).`,
-        76,
-        246,
-        635,
-        16,
+        `Confronto Inizio Mese (${evalReport.activeAgeRow.ageLabel}): Partenza IC ${evalReport.activeAgeRow.startIc}/100 (Liv. ${evalReport.activeAgeRow.startLevel}) → Attuale IC ${evalReport.activeAgeRow.currentIc}/100 (Liv. ${evalReport.activeAgeRow.currentLevel}, Δ +${evalReport.activeAgeRow.deltaIc} pt). Profilo cognitivo interno CHC (non è un test di QI standardizzato).`,
+        74,
+        243,
+        642,
+        15.5,
         2
       );
-      ctx1.restore();
 
       // Badge 1: COMPETENZA GENERALE (x: 734, y: 182, w: 224, h: 88)
       fillStrokeRoundRect(ctx1, 738, 188, 224, 88, 18, '#3b0764');
@@ -784,13 +810,20 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       );
       ctx1.textAlign = 'left';
 
-      // BOTTOM SUB-ROW: 5 CHC ABILITY BOXES (0-100) (y: 286, h: 122)
+      // BOTTOM SUB-ROW: 5 CHC ABILITY BOXES (0-100) (y: 286, h: 124)
+      const chcShortDesc: Record<string, string> = {
+        Gf: 'Logica, sequenze e analogie',
+        Gwm: 'Memoria visiva e uditiva',
+        Gc: 'Linguaggio, fonetica e lessico',
+        Gv: 'Forme, colori e spazio',
+        Gs: 'Rapidità e precisione visiva',
+      };
       const boxGap = 14;
       const boxW = (1144 - 56 - boxGap * 4) / 5;
       evalReport.chcAbilities.forEach((ab, i) => {
         const bx = 76 + i * (boxW + boxGap);
         const by = 286;
-        const bh = 122;
+        const bh = 124;
 
         fillStrokeRoundRect(ctx1, bx + 3, by + 4, boxW, bh, 14, '#e9d5ff');
         fillStrokeRoundRect(
@@ -806,20 +839,22 @@ export const ParentModal: React.FC<ParentModalProps> = ({
         );
 
         ctx1.fillStyle = ab.colorHex;
-        ctx1.font = '900 26px sans-serif';
+        ctx1.font = '900 25px sans-serif';
         ctx1.textAlign = 'center';
-        ctx1.fillText(`${ab.score}/100`, bx + boxW / 2, by + 36);
+        ctx1.fillText(`${ab.score}/100`, bx + boxW / 2, by + 34);
 
         ctx1.fillStyle = '#0f172a';
-        ctx1.font = 'bold 13px sans-serif';
-        ctx1.fillText(
+        ctx1.font = 'bold 12.5px sans-serif';
+        drawFittedText(
+          ctx1,
           `${ab.shortTitle} (${ab.code})`,
           bx + boxW / 2,
-          by + 58
+          by + 56,
+          boxW - 14
         );
 
         const miniBarX = bx + 16;
-        const miniBarY = by + 70;
+        const miniBarY = by + 68;
         const miniBarW = boxW - 32;
         fillStrokeRoundRect(
           ctx1,
@@ -844,19 +879,23 @@ export const ParentModal: React.FC<ParentModalProps> = ({
         }
 
         ctx1.fillStyle = '#475569';
-        ctx1.font = 'bold 10.5px sans-serif';
-        ctx1.fillText(
+        ctx1.font = 'bold 10px sans-serif';
+        drawFittedText(
+          ctx1,
           `${ab.bandLabel} · IP ${ab.ip} · IA ${ab.ia}`,
           bx + boxW / 2,
-          by + 98
+          by + 96,
+          boxW - 12
         );
 
         ctx1.fillStyle = '#64748b';
         ctx1.font = '10px sans-serif';
-        ctx1.fillText(
-          ab.description.slice(0, 34),
+        drawFittedText(
+          ctx1,
+          chcShortDesc[ab.code] || ab.description,
           bx + boxW / 2,
-          by + 114
+          by + 113,
+          boxW - 12
         );
         ctx1.textAlign = 'left';
       });
@@ -1025,26 +1064,26 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       );
 
       domainMetrics.forEach((m, idx) => {
-        const rowY = chartsY + 64 + idx * 59;
+        const rowY = chartsY + 66 + idx * 59;
         const barTrackW = 610;
         const fillW = Math.round((barTrackW * m.ic) / 100);
 
         ctx1.fillStyle = '#0f172a';
-        ctx1.font = 'bold 13.5px sans-serif';
-        ctx1.fillText(m.title, 552, rowY);
+        ctx1.font = 'bold 13px sans-serif';
+        drawFittedText(ctx1, m.title, 552, rowY, 315);
 
         ctx1.fillStyle = '#64748b';
-        ctx1.font = 'bold 11.5px sans-serif';
+        ctx1.font = 'bold 11px sans-serif';
         ctx1.textAlign = 'right';
         ctx1.fillText(
-          `IP: ${m.ip}/100 · IA: ${m.ia}/100 · Autonomi: ${m.correctFirstTry}/${m.completed}`,
-          1090,
+          `IP ${m.ip} · IA ${m.ia} · Auton. ${m.correctFirstTry}/${m.completed}`,
+          1098,
           rowY
         );
 
         ctx1.fillStyle = m.hexColor;
         ctx1.font = '900 14.5px sans-serif';
-        ctx1.fillText(`${m.ic}/100`, 1162, rowY);
+        ctx1.fillText(`${m.ic}/100`, 1166, rowY);
         ctx1.textAlign = 'left';
 
         draw3DHorizontalBar(
@@ -1063,18 +1102,20 @@ export const ParentModal: React.FC<ParentModalProps> = ({
 
       // 4. RELAZIONE PEDAGOGICA DETTAGLIATA PER EMMA GUIDI (6 SUBJECT CARDS 2x3)
       ctx1.fillStyle = '#0f172a';
-      ctx1.font = '900 18px sans-serif';
-      ctx1.fillText(
+      ctx1.font = '900 17.5px sans-serif';
+      drawFittedText(
+        ctx1,
         `RELAZIONE PEDAGOGICA DETTAGLIATA PER MATERIA — EMMA GUIDI (Competenza Generale: ${evalReport.ic}/100 · ${evalReport.assignedBandLabel})`,
         48,
-        896
+        894,
+        1144
       );
 
-      const gridStartY = 912;
+      const gridStartY = 910;
       const cardW = 560;
-      const cardH = 238;
+      const cardH = 242;
       const colGap = 24;
-      const rowGap = 16;
+      const rowGap = 14;
 
       domainMetrics.forEach((m, idx) => {
         const col = idx % 2;
@@ -1104,91 +1145,105 @@ export const ParentModal: React.FC<ParentModalProps> = ({
           1.6
         );
 
-        fillStrokeRoundRect(ctx1, cx + 16, cy + 12, 6, cardH - 24, 3, m.hexColor);
+        // Left colored bar
+        fillStrokeRoundRect(ctx1, cx + 14, cy + 14, 6, cardH - 28, 3, m.hexColor);
 
+        // Left Donut Column (cx + 24 .. cx + 114, centered at cx + 68)
         draw3DDonutGauge(
           ctx1,
           cx + 68,
-          cy + 114,
-          36,
-          11,
+          cy + 88,
+          34,
+          10.5,
           m.ic,
           m.hexColor,
           m.hexDark
         );
+        ctx1.fillStyle = '#334155';
+        ctx1.font = 'bold 10px sans-serif';
+        ctx1.textAlign = 'center';
+        ctx1.fillText(`IP ${m.ip} · IA ${m.ia}`, cx + 68, cy + 142);
         ctx1.fillStyle = '#64748b';
         ctx1.font = 'bold 9.5px sans-serif';
-        ctx1.textAlign = 'center';
-        ctx1.fillText(`IP: ${m.ip}/100 · IA: ${m.ia}/100`, cx + 68, cy + 168);
-        ctx1.fillText(`Auton.: ${m.correctFirstTry}/${m.completed}`, cx + 68, cy + 182);
+        ctx1.fillText(`IR ${m.ir} · IT ${m.it}`, cx + 68, cy + 157);
+        ctx1.fillText(`Auton. ${m.correctFirstTry}/${m.completed}`, cx + 68, cy + 172);
+        ctx1.fillText(`Assist. ${m.assistedCount}`, cx + 68, cy + 187);
         ctx1.textAlign = 'left';
 
-        const tx = cx + 118;
-        const tw = cardW - 136;
-
-        ctx1.save();
+        // Subtle vertical column divider between donut gauge and text column
+        ctx1.strokeStyle = '#e2e8f0';
+        ctx1.lineWidth = 1.2;
         ctx1.beginPath();
-        ctx1.rect(tx - 2, cy + 10, tw + 6, cardH - 20);
-        ctx1.clip();
+        ctx1.moveTo(cx + 118, cy + 18);
+        ctx1.lineTo(cx + 118, cy + cardH - 18);
+        ctx1.stroke();
+
+        // Right Text Column (tx: cx + 130 .. cx + cardW - 14 => tw: 416px)
+        const tx = cx + 130;
+        const tw = cardW - 144;
 
         ctx1.fillStyle = '#0f172a';
-        ctx1.font = '900 14.5px sans-serif';
-        ctx1.fillText(m.clinicalName, tx, cy + 32);
+        ctx1.font = '900 13.5px sans-serif';
+        drawFittedText(ctx1, m.clinicalName, tx, cy + 29, tw);
 
-        const statusStr = `${m.levelLabel} (${m.ic}/100)`;
-        ctx1.font = 'bold 11px sans-serif';
-        const stW = ctx1.measureText(statusStr).width + 16;
+        // Clean dedicated badge sub-row so title NEVER collides with status pill
+        const dStr = m.ieDelta >= 0 ? `+${m.ieDelta}` : `${m.ieDelta}`;
+        const statusStr = `${m.levelLabel} · IC ${m.ic}/100 (${dStr})`;
+        ctx1.font = 'bold 10.5px sans-serif';
+        const stW = Math.min(tw, ctx1.measureText(statusStr).width + 18);
         fillStrokeRoundRect(
           ctx1,
-          cx + cardW - stW - 14,
-          cy + 15,
+          tx,
+          cy + 38,
           stW,
-          22,
-          8,
-          '#f1f5f9',
+          20,
+          7,
+          '#f8fafc',
           m.hexColor,
           1
         );
         ctx1.fillStyle = m.hexDark;
-        ctx1.fillText(statusStr, cx + cardW - stW - 6, cy + 30);
+        drawFittedText(ctx1, statusStr, tx + 9, cy + 52, stW - 16);
 
         ctx1.fillStyle = '#334155';
-        ctx1.font = 'bold 12px sans-serif';
+        ctx1.font = 'bold 11.5px sans-serif';
         let nextY = drawWrappedText(
           ctx1,
           `Traguardo: ${m.milestoneGoal}`,
           tx,
-          cy + 56,
+          cy + 75,
           tw,
-          16.5,
+          15.5,
           2
         );
 
         ctx1.fillStyle = '#1e293b';
-        ctx1.font = '12px sans-serif';
+        ctx1.font = '11.5px sans-serif';
         nextY = drawWrappedText(
           ctx1,
-          `Analisi Indicatori: ${m.pedagogicalNote}`,
+          `Analisi: ${m.pedagogicalNote}`,
           tx,
-          nextY + 6,
+          nextY + 5,
           tw,
-          16.5,
-          3
+          15.5,
+          4
         );
 
+        const remainingAdviceLines = Math.max(
+          2,
+          Math.min(3, Math.floor((cy + cardH - 12 - (nextY + 5)) / 15))
+        );
         ctx1.fillStyle = '#475569';
-        ctx1.font = 'italic 11.5px sans-serif';
+        ctx1.font = 'italic 11px sans-serif';
         drawWrappedText(
           ctx1,
-          `Consiglio Famiglia Guidi: ${m.familyAdvice}`,
+          `Consiglio: ${m.familyAdvice}`,
           tx,
-          nextY + 6,
+          nextY + 5,
           tw,
-          16,
-          2
+          15,
+          remainingAdviceLines
         );
-
-        ctx1.restore();
       });
 
       // Page 1 Footer Pill
@@ -1250,13 +1305,15 @@ export const ParentModal: React.FC<ParentModalProps> = ({
 
       // SECTION A: TABELLA PROGRESSI OTTENUTI GRAZIE ALL'UTILIZZO DELL'APP
       //            (Confronto Punto di Partenza vs Attuale + Righe Fisse ad ogni compleanno)
-      //            (x: 48, y: 164, w: 1144, h: 356)
+      //            (x: 48, y: 164, w: 1144, h: 318)
+      const visibleAnnualRows = evalReport.annualProgressRows.slice(-3);
+      const secAHeight = 166 + visibleAnnualRows.length * 60 + 52;
       fillStrokeRoundRect(
         ctx2,
         48,
         164,
         1144,
-        356,
+        secAHeight,
         22,
         '#ffffff',
         '#10b981',
@@ -1264,41 +1321,51 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       );
 
       ctx2.fillStyle = '#065f46';
-      ctx2.font = '900 18px sans-serif';
-      ctx2.fillText(
+      ctx2.font = '900 17.5px sans-serif';
+      drawFittedText(
+        ctx2,
         'REGISTRO DEI PROGRESSI OTTENUTI GRAZIE ALL’UTILIZZO DELL’APP (CONFRONTO PARTENZA VS ATTUALE)',
         76,
-        198
+        196,
+        1088
       );
       ctx2.fillStyle = '#475569';
-      ctx2.font = '12.5px sans-serif';
-      ctx2.fillText(
+      ctx2.font = '12px sans-serif';
+      drawFittedText(
+        ctx2,
         `Si aggiorna ogni inizio mese (${evalReport.currentMonthStartLabel}, prossimo: ${evalReport.nextMonthlyUpdateLabel}). Ogni anno compiuto da Emma (22/08) diventa una riga fissa e se ne aggiunge una nuova.`,
         76,
-        220
+        218,
+        1088
       );
 
-      // Annual Table Header
+      // Annual Table Header — clean fixed column geometry (total width 1088)
       const atX = 76;
-      const atY = 236;
+      const atY = 234;
       const atW = 1088;
-      fillStrokeRoundRect(ctx2, atX, atY, atW, 38, 10, '#064e3b');
-      ctx2.fillStyle = '#ffffff';
-      ctx2.font = 'bold 12px sans-serif';
-      ctx2.fillText('ETÀ & PERIODO', atX + 14, atY + 24);
-      ctx2.fillText('STATO RIGA', atX + 220, atY + 24);
-      ctx2.fillText('PUNTO DI PARTENZA', atX + 395, atY + 24);
-      ctx2.fillText('VALORE ATTUALE / FINALE', atX + 635, atY + 24);
-      ctx2.fillText('PROGRESSO APP (Δ)', atX + 890, atY + 24);
+      const col1X = atX + 12;  // w: 238
+      const col2X = atX + 264; // w: 186
+      const col3X = atX + 462; // w: 212
+      const col4X = atX + 686; // w: 212
+      const col5X = atX + 910; // w: 168
 
-      evalReport.annualProgressRows.forEach((row, idx) => {
-        const ry = atY + 46 + idx * 62;
+      fillStrokeRoundRect(ctx2, atX, atY, atW, 36, 10, '#064e3b');
+      ctx2.fillStyle = '#ffffff';
+      ctx2.font = 'bold 11.5px sans-serif';
+      ctx2.fillText('ETÀ & PERIODO', col1X, atY + 23);
+      ctx2.fillText('STATO RIGA', col2X, atY + 23);
+      ctx2.fillText('PUNTO DI PARTENZA', col3X, atY + 23);
+      ctx2.fillText('VALORE ATTUALE / FINALE', col4X, atY + 23);
+      ctx2.fillText('PROGRESSO APP (Δ)', col5X, atY + 23);
+
+      visibleAnnualRows.forEach((row, idx) => {
+        const ry = atY + 44 + idx * 60;
         fillStrokeRoundRect(
           ctx2,
           atX,
           ry,
           atW,
-          54,
+          52,
           10,
           row.isLockedFixedRow ? '#f8fafc' : '#ecfdf5',
           row.isLockedFixedRow ? '#cbd5e1' : '#10b981',
@@ -1306,111 +1373,143 @@ export const ParentModal: React.FC<ParentModalProps> = ({
         );
 
         ctx2.fillStyle = '#0f172a';
-        ctx2.font = '900 13.5px sans-serif';
-        ctx2.fillText(`${row.ageLabel} (${row.periodLabel})`, atX + 14, ry + 23);
+        ctx2.font = '900 12.5px sans-serif';
+        drawFittedText(
+          ctx2,
+          `${row.ageLabel} (${row.periodLabel})`,
+          col1X,
+          ry + 22,
+          240
+        );
         ctx2.fillStyle = '#64748b';
-        ctx2.font = 'bold 11px sans-serif';
-        ctx2.fillText(`Agg. Mese: ${row.lastMonthlyUpdateLabel}`, atX + 14, ry + 42);
+        ctx2.font = 'bold 10.5px sans-serif';
+        drawFittedText(
+          ctx2,
+          `Agg. Mese: ${row.lastMonthlyUpdateLabel}`,
+          col1X,
+          ry + 40,
+          240
+        );
 
         // Status badge
         ctx2.fillStyle = row.isLockedFixedRow ? '#475569' : '#047857';
-        ctx2.font = '900 12px sans-serif';
-        ctx2.fillText(
+        ctx2.font = '900 11.5px sans-serif';
+        drawFittedText(
+          ctx2,
           row.isLockedFixedRow
-            ? `RIGA FISSA CONSOLIDATA`
-            : `RIGA ATTIVA (IN CORSO)`,
-          atX + 220,
-          ry + 24
+            ? 'RIGA FISSA CONSOLIDATA'
+            : 'RIGA ATTIVA (IN CORSO)',
+          col2X,
+          ry + 22,
+          186
         );
         ctx2.fillStyle = '#64748b';
-        ctx2.font = '11px sans-serif';
-        ctx2.fillText(
+        ctx2.font = '10.5px sans-serif';
+        drawFittedText(
+          ctx2,
           row.isLockedFixedRow
             ? `Fissata il ${row.lockedAtDate}`
-            : `Si aggiorna ogni 1° del mese`,
-          atX + 220,
-          ry + 42
+            : 'Si aggiorna ogni 1° del mese',
+          col2X,
+          ry + 40,
+          186
         );
 
         // Punto di partenza
         ctx2.fillStyle = '#334155';
-        ctx2.font = 'bold 12.5px sans-serif';
-        ctx2.fillText(
-          `IC ${row.startIc}/100 · IP ${row.startIp}/100 · IA ${row.startIa}/100`,
-          atX + 395,
-          ry + 23
+        ctx2.font = 'bold 12px sans-serif';
+        drawFittedText(
+          ctx2,
+          `IC ${row.startIc}/100 · IP ${row.startIp} · IA ${row.startIa}`,
+          col3X,
+          ry + 22,
+          214
         );
         ctx2.fillStyle = '#64748b';
-        ctx2.font = '11px sans-serif';
-        ctx2.fillText(
+        ctx2.font = '10.5px sans-serif';
+        drawFittedText(
+          ctx2,
           `Liv. ${row.startLevel} (${row.startBand})`,
-          atX + 395,
-          ry + 42
+          col3X,
+          ry + 40,
+          214
         );
 
         // Valore attuale / finale
         ctx2.fillStyle = '#0f172a';
-        ctx2.font = '900 12.5px sans-serif';
-        ctx2.fillText(
-          `IC ${row.currentIc}/100 · IP ${row.currentIp}/100 · IA ${row.currentIa}/100`,
-          atX + 635,
-          ry + 23
+        ctx2.font = '900 12px sans-serif';
+        drawFittedText(
+          ctx2,
+          `IC ${row.currentIc}/100 · IP ${row.currentIp} · IA ${row.currentIa}`,
+          col4X,
+          ry + 22,
+          214
         );
         ctx2.fillStyle = '#047857';
-        ctx2.font = 'bold 11px sans-serif';
-        ctx2.fillText(
+        ctx2.font = 'bold 10.5px sans-serif';
+        drawFittedText(
+          ctx2,
           `Liv. ${row.currentLevel} (${row.currentBand})`,
-          atX + 635,
-          ry + 42
+          col4X,
+          ry + 40,
+          214
         );
 
         // Progresso ottenuto grazie all'App (Delta)
         const dIcSign = row.deltaIc >= 0 ? '+' : '';
         const dIpSign = row.deltaIp >= 0 ? '+' : '';
         ctx2.fillStyle = '#047857';
-        ctx2.font = '900 13.5px sans-serif';
-        ctx2.fillText(
+        ctx2.font = '900 12.5px sans-serif';
+        drawFittedText(
+          ctx2,
           `ΔIC ${dIcSign}${row.deltaIc} pt · ΔIP ${dIpSign}${row.deltaIp} pt`,
-          atX + 890,
-          ry + 23
+          col5X,
+          ry + 22,
+          168
         );
         ctx2.fillStyle = '#0f172a';
-        ctx2.font = 'bold 11px sans-serif';
-        ctx2.fillText(
+        ctx2.font = 'bold 10.5px sans-serif';
+        drawFittedText(
+          ctx2,
           `+${row.deltaLevels} Livelli superati`,
-          atX + 890,
-          ry + 42
+          col5X,
+          ry + 40,
+          168
         );
       });
 
       // Next Birthday Future Row Preview inside Section A
-      const nextPreviewY = atY + 46 + evalReport.annualProgressRows.length * 62;
+      const nextPreviewY = atY + 44 + visibleAnnualRows.length * 60;
       fillStrokeRoundRect(
         ctx2,
         atX,
         nextPreviewY,
         atW,
-        46,
+        42,
         10,
         '#f8fafc',
         '#94a3b8',
         1.2
       );
       ctx2.fillStyle = '#475569';
-      ctx2.font = 'bold 12px sans-serif';
-      ctx2.fillText(
+      ctx2.font = 'bold 11.5px sans-serif';
+      drawFittedText(
+        ctx2,
         `PROSSIMA NUOVA RIGA AUTOMATICA (${evalReport.emmaCurrentAgeYears + 1} Anni): Al compleanno del ${evalReport.nextBirthdayDateLabel}, la riga "${evalReport.emmaCurrentAgeYears} Anni" diventerà fissa e si aggiungerà la nuova riga.`,
-        atX + 16,
-        nextPreviewY + 28
+        atX + 14,
+        nextPreviewY + 26,
+        atW - 28
       );
 
-      // SECTION B: 3D ISOMETRIC VERTICAL COLUMN CHART (x: 48, y: 536, w: 1144, h: 430)
+      // SECTION B: 3D ISOMETRIC VERTICAL COLUMN CHART
+      const secBY = 164 + secAHeight + 18;
+      const secBH = 970 - secBY;
       fillStrokeRoundRect(
         ctx2,
         48,
-        536,
+        secBY,
         1144,
-        430,
+        secBH,
         22,
         '#ffffff',
         '#cbd5e1',
@@ -1418,27 +1517,38 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       );
 
       ctx2.fillStyle = '#0f172a';
-      ctx2.font = '900 18px sans-serif';
-      ctx2.fillText(
-        'ISTOGRAMMA ISOMETRICO 3D: INDICE DI COMPETENZA (IC) VS INDICE DI PRESTAZIONE (IP)',
-        78,
-        570
+      ctx2.font = '900 17px sans-serif';
+      drawFittedText(
+        ctx2,
+        'ISTOGRAMMA ISOMETRICO 3D: COMPETENZA (IC) VS PRESTAZIONE (IP)',
+        76,
+        secBY + 34,
+        640
       );
 
+      // Clean non-overlapping Legend right-aligned on header row
       ctx2.fillStyle = '#7c3aed';
-      ctx2.fillRect(810, 554, 16, 16);
+      ctx2.fillRect(748, secBY + 20, 15, 15);
       ctx2.fillStyle = '#0f172a';
       ctx2.font = 'bold 11.5px sans-serif';
-      ctx2.fillText('Colonna 1: Competenza IC (0–100)', 834, 567);
+      ctx2.fillText('Colonna 1: Competenza IC (0–100)', 770, secBY + 32);
 
       ctx2.fillStyle = '#0ea5e9';
-      ctx2.fillRect(1035, 554, 16, 16);
+      ctx2.fillRect(990, secBY + 20, 15, 15);
       ctx2.fillStyle = '#0f172a';
-      ctx2.fillText('Colonna 2: Prestazione IP', 1058, 567);
+      ctx2.fillText('Colonna 2: Prestazione IP', 1012, secBY + 32);
+
+      ctx2.fillStyle = '#64748b';
+      ctx2.font = '11.5px sans-serif';
+      ctx2.fillText(
+        'Confronto per ciascuna materia tra competenza acquisita nel tempo (IC) e accuratezza ponderata al primo tentativo (IP).',
+        76,
+        secBY + 55
+      );
 
       const cLeft = 110;
-      const cBottom = 895;
-      const cHeight = 250;
+      const cBottom = secBY + secBH - 66;
+      const cHeight = Math.max(195, secBH - 154);
       const cWidth = 1030;
 
       [0, 25, 50, 75, 100].forEach((val) => {
@@ -1542,16 +1652,24 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       const tX = 76;
       const tY = 1032;
       const tW = 1088;
+      const tCol1 = tX + 26;
+      const tCol2 = tX + 372;
+      const tCol3 = tX + 518;
+      const tCol4 = tX + 626;
+      const tCol5 = tX + 732;
+      const tCol6 = tX + 826;
+      const tCol7 = tX + 948;
+
       fillStrokeRoundRect(ctx2, tX, tY, tW, 38, 10, '#1e293b');
       ctx2.fillStyle = '#ffffff';
-      ctx2.font = 'bold 12px sans-serif';
+      ctx2.font = 'bold 11.5px sans-serif';
       ctx2.fillText('MATERIA / AREA COGNITIVA', tX + 16, tY + 24);
-      ctx2.fillText('AUTONOMI / ASSIST.', tX + 355, tY + 24);
-      ctx2.fillText('PREST. (IP)', tX + 515, tY + 24);
-      ctx2.fillText('AUTON. (IA)', tX + 625, tY + 24);
-      ctx2.fillText('IR / IT', tX + 735, tY + 24);
-      ctx2.fillText('COMPET. (IC)', tX + 835, tY + 24);
-      ctx2.fillText('LIVELLO ASSEGNATO', tX + 950, tY + 24);
+      ctx2.fillText('AUTONOMI / ASSIST.', tCol2, tY + 24);
+      ctx2.fillText('PREST. (IP)', tCol3, tY + 24);
+      ctx2.fillText('AUTON. (IA)', tCol4, tY + 24);
+      ctx2.fillText('IR / IT', tCol5, tY + 24);
+      ctx2.fillText('COMPET. (IC)', tCol6, tY + 24);
+      ctx2.fillText('LIVELLO ASSEGNATO', tCol7, tY + 24);
 
       domainMetrics.forEach((m, idx) => {
         const ry = tY + 46 + idx * 50;
@@ -1571,27 +1689,27 @@ export const ParentModal: React.FC<ParentModalProps> = ({
         ctx2.fillRect(tX + 12, ry + 10, 8, 24);
 
         ctx2.fillStyle = '#0f172a';
-        ctx2.font = 'bold 13px sans-serif';
-        ctx2.fillText(m.clinicalName, tX + 28, ry + 27);
-
         ctx2.font = 'bold 12.5px sans-serif';
+        drawFittedText(ctx2, m.clinicalName, tCol1, ry + 27, 336);
+
+        ctx2.font = 'bold 12px sans-serif';
         ctx2.fillText(
           `${m.correctFirstTry} aut. · ${m.assistedCount} ass.`,
-          tX + 355,
+          tCol2,
           ry + 27
         );
-        ctx2.fillText(`${m.ip}/100`, tX + 525, ry + 27);
-        ctx2.fillText(`${m.ia}/100`, tX + 635, ry + 27);
-        ctx2.fillText(`${m.ir} / ${m.it}`, tX + 735, ry + 27);
+        ctx2.fillText(`${m.ip}/100`, tCol3 + 6, ry + 27);
+        ctx2.fillText(`${m.ia}/100`, tCol4 + 6, ry + 27);
+        ctx2.fillText(`${m.ir} / ${m.it}`, tCol5, ry + 27);
 
         ctx2.fillStyle = m.hexDark;
-        ctx2.font = '900 14px sans-serif';
+        ctx2.font = '900 13.5px sans-serif';
         const dStr = m.ieDelta >= 0 ? `+${m.ieDelta}` : `${m.ieDelta}`;
-        ctx2.fillText(`${m.ic}/100 (${dStr})`, tX + 835, ry + 27);
+        ctx2.fillText(`${m.ic}/100 (${dStr})`, tCol6, ry + 27);
 
         ctx2.fillStyle = '#334155';
-        ctx2.font = 'bold 11.5px sans-serif';
-        ctx2.fillText(m.levelLabel, tX + 950, ry + 27);
+        ctx2.font = 'bold 11px sans-serif';
+        drawFittedText(ctx2, m.levelLabel, tCol7, ry + 27, 132);
       });
 
       // 5 STABILITY CRITERIA BOX AT BOTTOM OF PAGE 2
@@ -1609,32 +1727,36 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       );
 
       ctx2.fillStyle = '#4c1d95';
-      ctx2.font = '900 16px sans-serif';
-      ctx2.fillText(
+      ctx2.font = '900 15.5px sans-serif';
+      drawFittedText(
+        ctx2,
         'VERIFICA DEI 5 CRITERI DI STABILITÀ PER IL PASSAGGIO AL LIVELLO DI PADRONANZA SUCCESSIVO',
         96,
-        critBoxY + 30
+        critBoxY + 30,
+        1048
       );
       ctx2.fillStyle = '#6b21a8';
-      ctx2.font = 'bold 12.5px sans-serif';
-      ctx2.fillText(evalReport.stabilitySummaryNote, 96, critBoxY + 52);
+      ctx2.font = 'bold 12px sans-serif';
+      drawFittedText(ctx2, evalReport.stabilitySummaryNote, 96, critBoxY + 52, 1048);
 
       evalReport.stabilityCriteria.forEach((crit, i) => {
         const cy = critBoxY + 80 + i * 33;
         ctx2.fillStyle = crit.met ? '#059669' : '#d97706';
-        ctx2.font = '900 13px sans-serif';
+        ctx2.font = '900 12.5px sans-serif';
         ctx2.fillText(crit.met ? '✓ SODDISFATTO' : '• IN CORSO', 96, cy);
 
         ctx2.fillStyle = '#0f172a';
-        ctx2.font = 'bold 13px sans-serif';
-        ctx2.fillText(crit.label, 230, cy);
+        ctx2.font = 'bold 12.5px sans-serif';
+        drawFittedText(ctx2, crit.label, 232, cy, 380);
 
         ctx2.fillStyle = '#475569';
-        ctx2.font = '12.5px sans-serif';
-        ctx2.fillText(
+        ctx2.font = '12px sans-serif';
+        drawFittedText(
+          ctx2,
           `Obiettivo: ${crit.targetText}   |   Rilevato: ${crit.currentText}`,
-          640,
-          cy
+          628,
+          cy,
+          518
         );
       });
 
