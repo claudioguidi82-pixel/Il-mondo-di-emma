@@ -379,6 +379,60 @@ function draw3DDonutGauge(
   ctx.textAlign = 'left';
 }
 
+/**
+ * Computes exact Wechsler normative percentile from an IQ score (Mean = 100, SD = 15).
+ */
+function iqToPercentile(iq: number): number {
+  const z = (iq - 100) / 15;
+  const sign = z < 0 ? -1 : 1;
+  const x = Math.abs(z) / Math.SQRT2;
+  const t = 1 / (1 + 0.3275911 * x);
+  const erf =
+    1 -
+    (((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t) *
+      Math.exp(-x * x);
+  const cdf = 0.5 * (1 + sign * erf);
+  return Math.max(1, Math.min(99, Math.round(cdf * 100)));
+}
+
+/**
+ * Computes a realistic, non-inflated Wechsler index score (Mean 100, SD 15)
+ * weighted by Bayesian-shrunk accuracy, total sample size confidence, and Tier difficulty.
+ */
+function computeCalibratedIndexIQ(
+  correct: number,
+  total: number,
+  totalGlobalSolved: number,
+  currentTier: number,
+  extraBonus: number = 0
+): { iq: number; pct: number } {
+  // Expected normative 1st-try accuracy for age-calibrated preschool exercises is ~75%
+  const priorWeight = 3.5;
+  const priorAcc = 0.75;
+  const shrunkAcc =
+    total > 0
+      ? (correct + priorWeight * priorAcc) / (total + priorWeight)
+      : priorAcc;
+
+  // Sample-size confidence grows gradually from ~0.28 at 10 puzzles toward 0.85+ after 100+ puzzles
+  const sampleConfidence =
+    totalGlobalSolved > 0 ? totalGlobalSolved / (totalGlobalSolved + 26) : 0;
+
+  // Difficulty complexity factor: Tier 1-2 is age-5 baseline (cannot jump into gifted/Einstein range)
+  const difficultyScale = Math.min(1.0, 0.42 + Math.max(0, currentTier - 1) * 0.13);
+
+  // Max positive deviation scales strictly with both difficulty and statistical sample confidence
+  const maxGain = 26 * difficultyScale * (0.4 + 0.6 * sampleConfidence);
+  const maxDrop = 22 * (0.5 + 0.5 * sampleConfidence);
+
+  const zDiff = (shrunkAcc - priorAcc) / 0.25; // +1.0 at 100% shrunkAcc, -1.0 at 50% shrunkAcc
+  const delta = zDiff >= 0 ? zDiff * maxGain : zDiff * maxDrop;
+
+  const iq = Math.round(Math.max(75, Math.min(132, 100 + delta + extraBonus)));
+  const pct = Math.round(Math.max(0, Math.min(100, shrunkAcc * 100)));
+  return { iq, pct };
+}
+
 export const ParentModal: React.FC<ParentModalProps> = ({
   progress,
   onUpdateAudio,
@@ -396,21 +450,39 @@ export const ParentModal: React.FC<ParentModalProps> = ({
   const isMeasurementUnlocked = completedLevelsCount >= 10;
   const currentTier = Math.floor((progress.currentLevel - 1) / 10) + 1;
 
-  const levelStepFactor = useMemo(() => {
-    if (!isMeasurementUnlocked) return 0;
-    const stepsAfterTen = completedLevelsCount - 10; // Level 11 -> 0, Level 12 -> 1...
-    return Math.min(1, 0.48 + stepsAfterTen * 0.025);
-  }, [isMeasurementUnlocked, completedLevelsCount]);
+  // Consistent Global Accuracy derived directly from tangible per-category first-try telemetry
+  const { totalCatCorrect, totalCatAttempts } = useMemo(() => {
+    const cats: GameCategory[] = ['logic', 'letters', 'numbers', 'shapes', 'music', 'english'];
+    return cats.reduce(
+      (acc, id) => {
+        const st = progress.categoryStats[id] || { correct: 0, total: 0 };
+        return {
+          totalCatCorrect: acc.totalCatCorrect + st.correct,
+          totalCatAttempts: acc.totalCatAttempts + st.total,
+        };
+      },
+      { totalCatCorrect: 0, totalCatAttempts: 0 }
+    );
+  }, [progress.categoryStats]);
 
   const overallAccuracy = useMemo(() => {
     if (!isMeasurementUnlocked) return 0;
-    if (progress.totalPuzzlesSolved === 0) return 50;
-    const rawRatio = Math.min(
-      1,
-      progress.totalPuzzlesSolved / Math.max(1, progress.totalAttempts)
+    if (totalCatAttempts > 0) {
+      return Math.round((totalCatCorrect / totalCatAttempts) * 100);
+    }
+    if (progress.totalPuzzlesSolved === 0) return 0;
+    const effectiveAttempts = Math.max(
+      progress.totalPuzzlesSolved,
+      progress.totalAttempts || 0
     );
-    return Math.round(rawRatio * 100);
-  }, [isMeasurementUnlocked, progress.totalPuzzlesSolved, progress.totalAttempts]);
+    return Math.round((progress.totalPuzzlesSolved / effectiveAttempts) * 100);
+  }, [
+    isMeasurementUnlocked,
+    totalCatCorrect,
+    totalCatAttempts,
+    progress.totalPuzzlesSolved,
+    progress.totalAttempts,
+  ]);
 
   const domainMetrics: DomainMetric[] = useMemo(() => {
     const domainDefinitions: {
@@ -512,7 +584,10 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       },
     ];
 
-    return domainDefinitions.map((def, idx) => {
+    // Tier difficulty ceiling for mastery index (0.78 at Tier 2 -> 1.00 at Tier 6+)
+    const tierFactor = Math.min(1, 0.72 + (currentTier - 1) * 0.06);
+
+    return domainDefinitions.map((def) => {
       const catStat = progress.categoryStats[def.id] || {
         correct: 0,
         total: 0,
@@ -531,31 +606,48 @@ export const ParentModal: React.FC<ParentModalProps> = ({
         };
       }
 
-      const rawAcc =
-        catStat.total > 0
-          ? Math.round((catStat.correct / catStat.total) * 100)
-          : 92;
+      if (catStat.total === 0) {
+        return {
+          ...def,
+          completed: 0,
+          correctFirstTry: 0,
+          accuracy: 0,
+          masteryIndex: 0,
+          levelLabel: 'Da Iniziare',
+          pedagogicalNote: `Nessuna prova ancora registrata in questo ambito al Livello ${progress.currentLevel}. Completa una sfida dedicata per iniziare la rilevazione.`,
+        };
+      }
 
-      const baseMastery = Math.round(
-        (rawAcc * 0.7 + Math.min(100, (catStat.total + 2) * 14) * 0.3) *
-          levelStepFactor
-      );
-      const masteryIndex = Math.min(
-        100,
-        Math.max(46, baseMastery + ((idx % 3) === 0 ? 3 : 0))
+      const rawAcc = Math.round((catStat.correct / catStat.total) * 100);
+      // Bayesian smoothed accuracy (3 virtual 50% trials) so 1/1 doesn't jump unrealistically to 100%
+      const smoothedAcc = (catStat.correct + 1.5) / (catStat.total + 3.0);
+      // Experience confidence factor (N / (N + 2.5))
+      const volumeFactor = catStat.total / (catStat.total + 2.5);
+
+      const masteryIndex = Math.round(
+        Math.min(100, Math.max(8, (smoothedAcc * 80 + volumeFactor * 20) * tierFactor))
       );
 
-      let levelLabel = 'In Sviluppo';
+      let levelLabel = 'In Avvio';
       if (masteryIndex >= 80) levelLabel = 'Eccellente';
-      else if (masteryIndex >= 65) levelLabel = 'Buono';
+      else if (masteryIndex >= 62) levelLabel = 'Buono';
+      else if (masteryIndex >= 45) levelLabel = 'Nella Norma';
+      else if (masteryIndex >= 28) levelLabel = 'In Consolidamento';
+
+      const perfTone =
+        rawAcc >= 80
+          ? 'con sicurezza al primo tentativo'
+          : rawAcc >= 55
+          ? 'con discreta continuità e qualche tentativo di verifica'
+          : 'con esplorazione graduale per tentativi ed errori';
 
       const notesByDomain: Record<GameCategory, string> = {
-        logic: `Al Livello ${progress.currentLevel}, risolve con prontezza le matrici analogiche del QI e gli indovinelli logici (${catStat.correct}/${catStat.total} prove al 1° tentativo).`,
-        letters: `Al Livello ${progress.currentLevel}, mostra spiccata sensibilità uditiva nel riconoscere la lettera E e i fonemi iniziali (${catStat.correct}/${catStat.total} al 1° tentativo).`,
-        numbers: `Al Livello ${progress.currentLevel}, ottima padronanza del conteggio tattile e delle prime operazioni visive con corretta concordanza M/F (${catStat.correct}/${catStat.total}).`,
-        shapes: `Al Livello ${progress.currentLevel}, discrimina forme geometriche, sagome e colori secondari con sicurezza e rapidità visiva (${catStat.correct}/${catStat.total}).`,
-        music: `Al Livello ${progress.currentLevel}, segue con gioia le sequenze ritmiche e riconosce il timbro di pianoforte, tamburo e chitarra (${catStat.correct}/${catStat.total}).`,
-        english: `Al Livello ${progress.currentLevel}, associa con naturalezza e curiosità le prime paroline inglesi ad animali, colori ed elementi (${catStat.correct}/${catStat.total}).`,
+        logic: `Al Livello ${progress.currentLevel}, affronta matrici analogiche e indovinelli logici ${perfTone} (${catStat.correct}/${catStat.total} al 1° tocco, Indice ${masteryIndex}%).`,
+        letters: `Al Livello ${progress.currentLevel}, riconosce la lettera E di Emma, fonemi iniziali e rime ${perfTone} (${catStat.correct}/${catStat.total} al 1° tocco, Indice ${masteryIndex}%).`,
+        numbers: `Al Livello ${progress.currentLevel}, esegue il conteggio tattile e le prime operazioni visive ${perfTone} (${catStat.correct}/${catStat.total} al 1° tocco, Indice ${masteryIndex}%).`,
+        shapes: `Al Livello ${progress.currentLevel}, discrimina forme geometriche, sagome e colori ${perfTone} (${catStat.correct}/${catStat.total} al 1° tocco, Indice ${masteryIndex}%).`,
+        music: `Al Livello ${progress.currentLevel}, segue sequenze ritmiche e riconosce gli strumenti ${perfTone} (${catStat.correct}/${catStat.total} al 1° tocco, Indice ${masteryIndex}%).`,
+        english: `Al Livello ${progress.currentLevel}, associa le prime paroline inglesi a figure e suoni ${perfTone} (${catStat.correct}/${catStat.total} al 1° tocco, Indice ${masteryIndex}%).`,
       };
 
       return {
@@ -573,10 +665,10 @@ export const ParentModal: React.FC<ParentModalProps> = ({
     progress.currentLevel,
     currentTier,
     isMeasurementUnlocked,
-    levelStepFactor,
   ]);
 
-  // WPPSI-IV INSPIRED IQ VALUATION ENGINE (0% on Levels 1-10; active from Level 11+ updating level by level)
+  // WPPSI-IV INSPIRED REALISTIC IQ ENGINE (Mean = 100, SD = 15; 0% on Levels 1-10)
+  // Calibrated with Bayesian sample shrinkage + Tier difficulty scaling (prevents Einstein-level inflation on early levels)
   const iqAnalysis: IQAnalysisResult = useMemo(() => {
     if (!isMeasurementUnlocked) {
       return {
@@ -633,61 +725,78 @@ export const ParentModal: React.FC<ParentModalProps> = ({
           },
         ],
         clinicalNote:
-          'Regola Misurazione Attiva: Partenza 0% nei Livelli 1–10. Il primo step di misurazione si sblocca dopo il Livello 10 e si aggiorna livello per livello.',
+          'Regola Misurazione Attiva: Partenza 0% nei Livelli 1–10. Il primo step di misurazione si sblocca dopo il Livello 10 e cresce realisticamente con la difficoltà dei Tier (media normativa: 100, DS: 15).',
       };
     }
 
-    const logicM = domainMetrics.find((d) => d.id === 'logic')?.masteryIndex || 50;
-    const lettersM =
-      domainMetrics.find((d) => d.id === 'letters')?.masteryIndex || 48;
-    const numbersM =
-      domainMetrics.find((d) => d.id === 'numbers')?.masteryIndex || 48;
-    const shapesM =
-      domainMetrics.find((d) => d.id === 'shapes')?.masteryIndex || 48;
-    const musicM = domainMetrics.find((d) => d.id === 'music')?.masteryIndex || 48;
-    const englishM =
-      domainMetrics.find((d) => d.id === 'english')?.masteryIndex || 48;
+    const stLogic = progress.categoryStats.logic || { correct: 0, total: 0 };
+    const stLetters = progress.categoryStats.letters || { correct: 0, total: 0 };
+    const stNumbers = progress.categoryStats.numbers || { correct: 0, total: 0 };
+    const stShapes = progress.categoryStats.shapes || { correct: 0, total: 0 };
+    const stMusic = progress.categoryStats.music || { correct: 0, total: 0 };
+    const stEnglish = progress.categoryStats.english || { correct: 0, total: 0 };
 
-    const stepBonus = Math.min(22, (completedLevelsCount - 10) * 1.2);
+    const totalSolved = Math.max(1, totalCatAttempts || progress.totalPuzzlesSolved);
 
-    const gfScore = Math.min(140, Math.round(98 + logicM * 0.22 + stepBonus));
-    const gwmScore = Math.min(
-      140,
-      Math.round(97 + (musicM * 0.5 + numbersM * 0.5) * 0.24 + stepBonus)
+    const gf = computeCalibratedIndexIQ(
+      stLogic.correct,
+      stLogic.total,
+      totalSolved,
+      currentTier
     );
-    const gcScore = Math.min(
-      140,
-      Math.round(97 + (lettersM * 0.5 + englishM * 0.5) * 0.23 + stepBonus)
+    const gwm = computeCalibratedIndexIQ(
+      stMusic.correct + stNumbers.correct,
+      stMusic.total + stNumbers.total,
+      totalSolved,
+      currentTier
     );
-    const gvScore = Math.min(
-      140,
-      Math.round(
-        97 + shapesM * 0.23 + Math.min(6, progress.trisGamesWon * 1.5) + stepBonus
-      )
+    const gc = computeCalibratedIndexIQ(
+      stLetters.correct + stEnglish.correct,
+      stLetters.total + stEnglish.total,
+      totalSolved,
+      currentTier
     );
-    const gsScore = Math.min(
-      142,
-      Math.round(98 + overallAccuracy * 0.23 + stepBonus)
+    const gv = computeCalibratedIndexIQ(
+      stShapes.correct,
+      stShapes.total,
+      totalSolved,
+      currentTier,
+      Math.min(2, Math.floor(progress.trisGamesWon / 2))
+    );
+    const gs = computeCalibratedIndexIQ(
+      totalCatCorrect,
+      totalCatAttempts,
+      totalSolved,
+      currentTier
     );
 
     const compositeIQ = Math.round(
-      (gfScore + gwmScore + gcScore + gvScore + gsScore) / 5
+      (gf.iq + gwm.iq + gc.iq + gv.iq + gs.iq) / 5
     );
+    const pctNum = iqToPercentile(compositeIQ);
+    const percentile = `${pctNum}° percentile`;
 
-    let classification = 'Medio-Superiore / Ottimo Potenziale Evolutivo';
-    let percentile = '79° percentile';
-    if (compositeIQ >= 125) {
-      classification = 'Profilo Superiore / Alto Potenziale Cognitivo';
-      percentile = '95° percentile';
-    } else if (compositeIQ >= 115) {
-      classification = 'Profilo Cognitivo Brillante per Età (5 Anni)';
-      percentile = '86° percentile';
+    // Standard Wechsler / WPPSI-IV clinical classification bands (Mean 100, SD 15)
+    let classification = 'Nella Norma per Età (5 Anni — Sviluppo Armonico)';
+    if (compositeIQ >= 130) {
+      classification = 'Molto Superiore (Alto Potenziale Cognitivo)';
+    } else if (compositeIQ >= 120) {
+      classification = 'Superiore (Spiccata Prontezza Cognitiva)';
+    } else if (compositeIQ >= 110) {
+      classification = 'Medio-Superiore (Buon Potenziale Evolutivo)';
+    } else if (compositeIQ < 85) {
+      classification = 'In Consolidamento (Allenamento Graduale Consigliato)';
+    } else if (compositeIQ < 90) {
+      classification = 'Medio-Inferiore (Sviluppo Regolare in Rafforzamento)';
     }
+
+    // Confidence interval narrows as more puzzles are completed
+    const ciHalf = totalSolved >= 60 ? 3 : totalSolved >= 25 ? 4 : 5;
 
     return {
       unlocked: true,
       iqScore: compositeIQ,
-      iqRange: `${compositeIQ - 3}–${compositeIQ + 3}`,
+      iqRange: `${compositeIQ - ciHalf}–${compositeIQ + ciHalf}`,
       percentile,
       classification,
       indices: [
@@ -695,8 +804,8 @@ export const ParentModal: React.FC<ParentModalProps> = ({
           code: 'Gf',
           shortTitle: '1. Ragionamento (Gf)',
           label: '1. Matrici Logiche & Ragionamento Fluido (Gf)',
-          scaledScore: gfScore,
-          percentScore: logicM,
+          scaledScore: gf.iq,
+          percentScore: gf.pct,
           colorHex: '#7c3aed',
           desc: 'Deduzione di pattern, matrici analogiche e problem solving.',
         },
@@ -704,8 +813,8 @@ export const ParentModal: React.FC<ParentModalProps> = ({
           code: 'Gwm',
           shortTitle: '2. Memoria/Ritmo (Gwm)',
           label: '2. Memoria di Lavoro & Ritmo Sonoro (Gwm)',
-          scaledScore: gwmScore,
-          percentScore: Math.round((musicM + numbersM) / 2),
+          scaledScore: gwm.iq,
+          percentScore: gwm.pct,
           colorHex: '#0284c7',
           desc: 'Tenuta sequenziale di note musicali, ritmi e quantità numeriche.',
         },
@@ -713,8 +822,8 @@ export const ParentModal: React.FC<ParentModalProps> = ({
           code: 'Gc',
           shortTitle: '3. Verbale/Inglese (Gc)',
           label: '3. Comprensione Verbale & Inglese L2 (Gc)',
-          scaledScore: gcScore,
-          percentScore: Math.round((lettersM + englishM) / 2),
+          scaledScore: gc.iq,
+          percentScore: gc.pct,
           colorHex: '#10b981',
           desc: 'Consapevolezza fonologica italiana e acquisizione vocaboli inglesi.',
         },
@@ -722,8 +831,8 @@ export const ParentModal: React.FC<ParentModalProps> = ({
           code: 'Gv',
           shortTitle: '4. Visuo-Spazio (Gv)',
           label: '4. Elaborazione Visuo-Spaziale & Forme (Gv)',
-          scaledScore: gvScore,
-          percentScore: shapesM,
+          scaledScore: gv.iq,
+          percentScore: gv.pct,
           colorHex: '#db2777',
           desc: 'Riconoscimento sagome, geometria piana e strategia Tris 3D.',
         },
@@ -731,21 +840,22 @@ export const ParentModal: React.FC<ParentModalProps> = ({
           code: 'Gs',
           shortTitle: '5. Velocità/Precis. (Gs)',
           label: '5. Velocità Esecutiva & Precisione (Gs)',
-          scaledScore: gsScore,
-          percentScore: overallAccuracy,
+          scaledScore: gs.iq,
+          percentScore: gs.pct,
           colorHex: '#d97706',
           desc: 'Accuratezza al primo tentativo e costanza attentiva.',
         },
       ],
-      clinicalNote: `Parametri Psicometrici Calibrati (WPPSI-IV 5 Anni) rilevati al Livello ${progress.currentLevel}: 1. Matrici Logiche (Gf) · 2. Memoria & Ritmo (Gwm) · 3. Verbale & Inglese (Gc) · 4. Visuo-Spazio (Gv) · 5. Velocità/Precisione (Gs).`,
+      clinicalNote: `Stima Psicometrica Tarata (Scala Wechsler: media 100, DS 15) su ${totalSolved} prove al Tier ${currentTier}. Le prove iniziali pesano verso la media normativa (100) e si differenziano progressivamente con la difficoltà e l'accuratezza reale.`,
     };
   }, [
     isMeasurementUnlocked,
-    domainMetrics,
-    completedLevelsCount,
+    progress.categoryStats,
+    progress.totalPuzzlesSolved,
     progress.trisGamesWon,
-    progress.currentLevel,
-    overallAccuracy,
+    currentTier,
+    totalCatCorrect,
+    totalCatAttempts,
   ]);
 
   // In-App SVG Radar Coordinates

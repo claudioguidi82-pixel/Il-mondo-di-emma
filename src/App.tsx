@@ -78,10 +78,23 @@ export default function App() {
     isFirstTry: boolean,
     attemptsCount: number = 1
   ) => {
+    const cleanAttempts = Math.max(1, attemptsCount);
     updateProgress(prev => {
       const nextLevel = prev.currentLevel + 1;
       const highest = Math.max(prev.highestLevelReached, nextLevel);
-      const prevCat = prev.categoryStats[category] || { correct: 0, total: 0 };
+      const prevCat = prev.categoryStats[category] || { correct: 0, total: 0, attempts: 0 };
+      const prevAttempts = prevCat.attempts ?? (prevCat.correct + Math.max(0, prevCat.total - prevCat.correct) * 2);
+      const nextHistory = [
+        ...(prev.levelHistory || []),
+        {
+          level: prev.currentLevel,
+          category,
+          firstTry: isFirstTry,
+          attempts: cleanAttempts,
+          starsEarned: stars,
+          timestamp: new Date().toISOString(),
+        },
+      ].slice(-60);
 
       return {
         ...prev,
@@ -90,14 +103,16 @@ export default function App() {
         stars: prev.stars + stars,
         gems: prev.gems + gems,
         totalPuzzlesSolved: prev.totalPuzzlesSolved + 1,
-        totalAttempts: prev.totalAttempts + Math.max(1, attemptsCount),
+        totalAttempts: prev.totalAttempts + cleanAttempts,
         categoryStats: {
           ...prev.categoryStats,
           [category]: {
             correct: prevCat.correct + (isFirstTry ? 1 : 0),
             total: prevCat.total + 1,
+            attempts: prevAttempts + cleanAttempts,
           },
         },
+        levelHistory: nextHistory,
       };
     });
   };
@@ -129,12 +144,12 @@ export default function App() {
       streakDays: 1,
       lastPlayedDate: new Date().toISOString().split('T')[0],
       categoryStats: {
-        logic: { correct: 0, total: 0 },
-        letters: { correct: 0, total: 0 },
-        numbers: { correct: 0, total: 0 },
-        shapes: { correct: 0, total: 0 },
-        music: { correct: 0, total: 0 },
-        english: { correct: 0, total: 0 },
+        logic: { correct: 0, total: 0, attempts: 0 },
+        letters: { correct: 0, total: 0, attempts: 0 },
+        numbers: { correct: 0, total: 0, attempts: 0 },
+        shapes: { correct: 0, total: 0, attempts: 0 },
+        music: { correct: 0, total: 0, attempts: 0 },
+        english: { correct: 0, total: 0, attempts: 0 },
       },
       trisGamesPlayed: 0,
       trisGamesWon: 0,
@@ -146,6 +161,7 @@ export default function App() {
       dailyRewardClaimed: false,
       savedDrawings: [],
       completedPuzzleIds: [],
+      levelHistory: [],
     };
     setProgress(fresh);
     saveUserProgress(fresh);

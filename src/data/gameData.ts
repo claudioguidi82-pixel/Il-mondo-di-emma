@@ -478,12 +478,12 @@ export function loadUserProgress(): UserProgress {
         streakDays: parsed.streakDays ?? 1,
         lastPlayedDate: parsed.lastPlayedDate ?? new Date().toISOString().split('T')[0],
         categoryStats: {
-          logic: parsed.categoryStats?.logic ?? { correct: 0, total: 0 },
-          letters: parsed.categoryStats?.letters ?? { correct: 0, total: 0 },
-          numbers: parsed.categoryStats?.numbers ?? { correct: 0, total: 0 },
-          shapes: parsed.categoryStats?.shapes ?? { correct: 0, total: 0 },
-          music: parsed.categoryStats?.music ?? { correct: 0, total: 0 },
-          english: parsed.categoryStats?.english ?? { correct: 0, total: 0 },
+          logic: parsed.categoryStats?.logic ?? { correct: 0, total: 0, attempts: 0 },
+          letters: parsed.categoryStats?.letters ?? { correct: 0, total: 0, attempts: 0 },
+          numbers: parsed.categoryStats?.numbers ?? { correct: 0, total: 0, attempts: 0 },
+          shapes: parsed.categoryStats?.shapes ?? { correct: 0, total: 0, attempts: 0 },
+          music: parsed.categoryStats?.music ?? { correct: 0, total: 0, attempts: 0 },
+          english: parsed.categoryStats?.english ?? { correct: 0, total: 0, attempts: 0 },
         },
         trisGamesPlayed: parsed.trisGamesPlayed ?? 0,
         trisGamesWon: parsed.trisGamesWon ?? 0,
@@ -495,6 +495,7 @@ export function loadUserProgress(): UserProgress {
         dailyRewardClaimed: parsed.dailyRewardClaimed ?? false,
         savedDrawings: parsed.savedDrawings ?? [],
         completedPuzzleIds: parsed.completedPuzzleIds ?? [],
+        levelHistory: Array.isArray(parsed.levelHistory) ? parsed.levelHistory : [],
       };
     }
   } catch {
@@ -509,12 +510,12 @@ export function loadUserProgress(): UserProgress {
     streakDays: 1,
     lastPlayedDate: new Date().toISOString().split('T')[0],
     categoryStats: {
-      logic: { correct: 0, total: 0 },
-      letters: { correct: 0, total: 0 },
-      numbers: { correct: 0, total: 0 },
-      shapes: { correct: 0, total: 0 },
-      music: { correct: 0, total: 0 },
-      english: { correct: 0, total: 0 },
+      logic: { correct: 0, total: 0, attempts: 0 },
+      letters: { correct: 0, total: 0, attempts: 0 },
+      numbers: { correct: 0, total: 0, attempts: 0 },
+      shapes: { correct: 0, total: 0, attempts: 0 },
+      music: { correct: 0, total: 0, attempts: 0 },
+      english: { correct: 0, total: 0, attempts: 0 },
     },
     trisGamesPlayed: 0,
     trisGamesWon: 0,
@@ -526,6 +527,7 @@ export function loadUserProgress(): UserProgress {
     dailyRewardClaimed: false,
     savedDrawings: [],
     completedPuzzleIds: [],
+    levelHistory: [],
   };
 }
 

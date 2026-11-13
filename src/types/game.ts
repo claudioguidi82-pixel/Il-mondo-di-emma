@@ -135,6 +135,16 @@ export interface SavedDrawing {
 export interface CategoryPerformance {
   correct: number;
   total: number;
+  attempts?: number;
+}
+
+export interface LevelPerformanceEntry {
+  level: number;
+  category: GameCategory;
+  firstTry: boolean;
+  attempts: number;
+  starsEarned: number;
+  timestamp: string;
 }
 
 export interface PedagogicalDomainReport {
@@ -175,4 +185,5 @@ export interface UserProgress {
   dailyRewardClaimed: boolean;
   savedDrawings: SavedDrawing[];
   completedPuzzleIds: string[];
+  levelHistory?: LevelPerformanceEntry[];
 }
