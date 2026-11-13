@@ -453,12 +453,12 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
 
       {/* 4 MINI-GAME 3D SELECTOR TABS */}
       <div className="relative z-10 px-3 py-1 max-w-md mx-auto w-full shrink-0">
-        <div className="grid grid-cols-4 gap-1.5 bg-white/85 backdrop-blur-md p-1.5 rounded-2xl border-2 border-white shadow-lg">
+        <div className="grid grid-cols-4 gap-1.5 bg-white/90 backdrop-blur-md p-1.5 rounded-2xl border-2 border-white shadow-lg">
           {[
             { id: 'tris', label: 'Tris 3D', emoji: '👑' },
             { id: 'bubbles', label: 'Bolle 3D', emoji: '🫧' },
-            { id: 'memory', label: 'Memory 3D', emoji: '🃏' },
-            { id: 'stars', label: 'Stelline 3D', emoji: '🌟' },
+            { id: 'memory', label: 'Memory', emoji: '🃏' },
+            { id: 'stars', label: 'Stelline', emoji: '🌟' },
           ].map((tab) => {
             const active = gameMode === tab.id;
             return (
@@ -468,13 +468,13 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
                   soundManager.playPop();
                   setGameMode(tab.id as SvagoGameMode);
                 }}
-                className={`py-1.5 px-1 rounded-xl font-kids font-extrabold text-[11px] flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer ${
+                className={`py-2 px-1 rounded-xl font-kids font-extrabold text-xs flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
                   active
                     ? 'bg-gradient-to-b from-pink-400 via-fuchsia-500 to-purple-600 text-white shadow-md scale-[1.03] border-2 border-white'
                     : 'bg-sky-50 text-slate-700 hover:bg-sky-100 border border-sky-200'
                 }`}
               >
-                <span className="text-base leading-none">{tab.emoji}</span>
+                <span className="text-xl leading-none">{tab.emoji}</span>
                 <span>{tab.label}</span>
               </button>
             );

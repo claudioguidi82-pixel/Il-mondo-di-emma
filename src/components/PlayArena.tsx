@@ -46,37 +46,37 @@ const CATEGORY_THEMES: Record<
   logic: {
     bgGradient: 'from-[#38bdf8] via-[#93c5fd] to-[#fde68a]',
     badgeGradient: 'from-violet-500 to-purple-600 border-violet-200',
-    title: 'Castello Logica & QI 3D',
+    title: 'Logica & QI',
     emoji: '🧠',
   },
   letters: {
     bgGradient: 'from-[#38bdf8] via-[#a5f3fc] to-[#fbcfe8]',
     badgeGradient: 'from-pink-500 to-rose-500 border-pink-200',
-    title: 'Bosco delle Lettere 3D',
+    title: 'Lettere 3D',
     emoji: '🔤',
   },
   numbers: {
     bgGradient: 'from-[#2dd4bf] via-[#99f6e4] to-[#fef08a]',
     badgeGradient: 'from-amber-400 to-orange-500 border-amber-100',
-    title: 'Isola dei Numeri 3D',
+    title: 'Numeri 3D',
     emoji: '🔢',
   },
   shapes: {
     bgGradient: 'from-[#60a5fa] via-[#bae6fd] to-[#bbf7d0]',
     badgeGradient: 'from-emerald-500 to-teal-600 border-emerald-200',
-    title: 'Giardino delle Forme 3D',
+    title: 'Forme & Colori',
     emoji: '🔷',
   },
   music: {
     bgGradient: 'from-[#f472b6] via-[#fbcfe8] to-[#fef08a]',
     badgeGradient: 'from-fuchsia-500 to-pink-600 border-pink-200',
-    title: 'Palco Musica & Ritmo 3D',
+    title: 'Musica & Ritmo',
     emoji: '🎵',
   },
   english: {
     bgGradient: 'from-[#38bdf8] via-[#bae6fd] to-[#fed7aa]',
     badgeGradient: 'from-cyan-500 to-blue-600 border-cyan-200',
-    title: 'Wonderland English 3D',
+    title: 'Inglese 3D',
     emoji: '🇬🇧',
   },
 };
@@ -106,7 +106,6 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
   const [activeNoteIdx, setActiveNoteIdx] = useState<number | null>(null);
   const [musicOn, setMusicOn] = useState<boolean>(soundManager.musicEnabled);
 
-  // Start cheerful fairytale background music box when entering PlayArena
   useEffect(() => {
     soundManager.startBackgroundMusic();
     const unsub = soundManager.onMusicChange((enabled) => setMusicOn(enabled));
@@ -116,7 +115,6 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
     };
   }, []);
 
-  // Load new procedural puzzle whenever level changes
   useEffect(() => {
     const nextPuzzle = generateProceduralPuzzle(currentLevel);
     setPuzzle(nextPuzzle);
@@ -168,14 +166,12 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
     setTappedCountIndices(nextTapped);
     const currentNum = nextTapped.length;
 
-    // Play rising musical note for each counted 3D object
     const scaleFreqs = [523.25, 587.33, 659.25, 698.46, 783.99, 880.0, 987.77, 1046.5];
     soundManager.playMusicalNote(
       scaleFreqs[(currentNum - 1) % scaleFreqs.length],
       0.28
     );
 
-    // Speak Italian gender-accurate count ("una mela", "due mele"...)
     const itemCatalog =
       MATH_ITEM_CATALOG.find((m) => m.emoji === puzzle.itemEmoji) ||
       MATH_ITEM_CATALOG[0];
@@ -215,6 +211,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
   };
 
   const theme = CATEGORY_THEMES[puzzle.category] || CATEGORY_THEMES.logic;
+  const optionsList = puzzle.options || [];
 
   return (
     <div
@@ -232,48 +229,23 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
         {/* Enchanted Rainbow Arch */}
         <svg
           viewBox="0 0 600 220"
-          className="w-[115%] max-w-none -left-[7%] top-6 absolute opacity-65"
+          className="w-[115%] max-w-none -left-[7%] top-8 absolute opacity-65"
           fill="none"
         >
-          <path
-            d="M 20 210 Q 300 -30 580 210"
-            stroke="#fb7185"
-            strokeWidth="14"
-            strokeLinecap="round"
-          />
-          <path
-            d="M 32 215 Q 300 -12 568 215"
-            stroke="#fbbf24"
-            strokeWidth="14"
-            strokeLinecap="round"
-          />
-          <path
-            d="M 44 220 Q 300 6 556 220"
-            stroke="#34d399"
-            strokeWidth="14"
-            strokeLinecap="round"
-          />
-          <path
-            d="M 56 225 Q 300 24 544 225"
-            stroke="#38bdf8"
-            strokeWidth="14"
-            strokeLinecap="round"
-          />
-          <path
-            d="M 68 230 Q 300 42 532 230"
-            stroke="#c084fc"
-            strokeWidth="12"
-            strokeLinecap="round"
-          />
+          <path d="M 20 210 Q 300 -30 580 210" stroke="#fb7185" strokeWidth="14" strokeLinecap="round" />
+          <path d="M 32 215 Q 300 -12 568 215" stroke="#fbbf24" strokeWidth="14" strokeLinecap="round" />
+          <path d="M 44 220 Q 300 6 556 220" stroke="#34d399" strokeWidth="14" strokeLinecap="round" />
+          <path d="M 56 225 Q 300 24 544 225" stroke="#38bdf8" strokeWidth="14" strokeLinecap="round" />
+          <path d="M 68 230 Q 300 42 532 230" stroke="#c084fc" strokeWidth="12" strokeLinecap="round" />
         </svg>
 
         {/* Animated Fluffy 3D Clouds */}
-        <div className="absolute top-12 left-4 w-28 h-11 bg-white/90 rounded-full shadow-[0_8px_16px_rgba(14,116,144,0.18),inset_0_-4px_6px_rgba(186,230,253,0.8)] animate-cloud-drift">
+        <div className="absolute top-14 left-3 w-28 h-11 bg-white/90 rounded-full shadow-[0_8px_16px_rgba(14,116,144,0.18),inset_0_-4px_6px_rgba(186,230,253,0.8)] animate-cloud-drift">
           <div className="absolute -top-4 left-4 w-11 h-11 bg-white/95 rounded-full" />
           <div className="absolute -top-5 right-4 w-13 h-13 bg-white/95 rounded-full" />
         </div>
         <div
-          className="absolute top-20 right-14 w-24 h-10 bg-white/85 rounded-full shadow-md animate-cloud-drift"
+          className="absolute top-22 right-12 w-24 h-10 bg-white/85 rounded-full shadow-md animate-cloud-drift"
           style={{ animationDelay: '1.4s' }}
         >
           <div className="absolute -top-3 left-3 w-10 h-10 bg-white/90 rounded-full" />
@@ -286,44 +258,44 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
       </div>
 
       {/* ===================================================================== */}
-      {/* TOP NAVIGATION BAR (BRIGHT 3D TOY BUTTONS + MUSIC BOX TOGGLE)         */}
+      {/* TOP NAVIGATION BAR - CRISP & NEVER CLIPPED ON MOBILE                  */}
       {/* ===================================================================== */}
-      <header className="relative z-10 flex items-center justify-between px-3 pt-2.5 pb-1.5 shrink-0 gap-1.5">
+      <header className="relative z-10 flex items-center justify-between px-2.5 sm:px-4 pt-2.5 pb-1 shrink-0 gap-1.5 w-full max-w-2xl mx-auto">
         <button
           onClick={() => {
             soundManager.playPop();
             onExitToTitle();
           }}
-          className="toy-button-3d bg-white/95 hover:bg-white text-slate-900 px-3 py-2 rounded-2xl border-2 border-white shadow-lg flex items-center gap-1.5 active:scale-95 cursor-pointer"
+          className="toy-button-3d bg-white/95 hover:bg-white text-slate-900 px-2.5 sm:px-3.5 py-2 rounded-2xl border-2 border-white flex items-center gap-1 active:scale-95 cursor-pointer shrink-0"
         >
           <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 text-pink-500 stroke-[3]" />
           <span className="font-kids font-extrabold text-xs sm:text-sm">Home</span>
         </button>
 
-        {/* Center Level & Category 3D Badge */}
+        {/* Center Compact Single-Row Level Badge */}
         <div
-          className={`bg-gradient-to-r ${theme.badgeGradient} px-3.5 py-1.5 rounded-full border-2 shadow-[0_5px_0_rgba(0,0,0,0.18),0_8px_16px_rgba(0,0,0,0.15)] flex items-center gap-2`}
+          className={`bg-gradient-to-r ${theme.badgeGradient} px-3 py-1.5 rounded-full border-2 shadow-[0_4px_0_rgba(0,0,0,0.18)] flex items-center gap-1.5 min-w-0`}
         >
-          <span className="text-lg sm:text-xl drop-shadow">{theme.emoji}</span>
-          <div className="text-left">
-            <p className="text-[9px] uppercase tracking-wider font-extrabold text-white/90 leading-none">
+          <span className="text-base sm:text-xl shrink-0">{theme.emoji}</span>
+          <div className="text-left min-w-0 leading-none">
+            <p className="text-[9px] sm:text-[10px] uppercase tracking-wider font-extrabold text-white/90 truncate">
               {theme.title}
             </p>
-            <p className="font-kids font-extrabold text-xs sm:text-sm text-white leading-tight drop-shadow">
-              Livello {currentLevel} · ⭐ {progress.stars}
+            <p className="font-kids font-extrabold text-xs sm:text-sm text-white whitespace-nowrap">
+              Liv. {currentLevel} · ⭐ {progress.stars}
             </p>
           </div>
         </div>
 
-        {/* Right Controls: Music Box Toggle + Replay Voice + Parents */}
-        <div className="flex items-center gap-1.5">
+        {/* Right Controls: Music + Ascolta + Parents */}
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={() => {
               const next = soundManager.toggleMusic();
               setMusicOn(next);
             }}
             title={musicOn ? 'Disattiva Musica' : 'Attiva Musica'}
-            className={`toy-button-3d p-2 sm:px-2.5 sm:py-2 rounded-2xl border-2 shadow-lg flex items-center gap-1 active:scale-95 cursor-pointer ${
+            className={`toy-button-3d p-2 sm:px-2.5 sm:py-2 rounded-2xl border-2 flex items-center gap-1 active:scale-95 cursor-pointer ${
               musicOn
                 ? 'bg-gradient-to-b from-pink-400 to-fuchsia-600 text-white border-white'
                 : 'bg-white/90 text-slate-600 border-white'
@@ -334,18 +306,15 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
             ) : (
               <VolumeX className="w-4 h-4 stroke-[2.8]" />
             )}
-            <span className="font-kids font-extrabold text-[11px] hidden sm:inline">
-              Musica
-            </span>
           </button>
 
           <button
             onClick={handleReplayVoice}
-            className="toy-button-3d bg-gradient-to-b from-yellow-300 to-amber-500 text-slate-950 px-2.5 py-2 rounded-2xl border-2 border-white shadow-lg flex items-center gap-1 active:scale-95 cursor-pointer"
+            className="toy-button-3d bg-gradient-to-b from-yellow-300 to-amber-500 text-slate-950 p-2 sm:px-3 sm:py-2 rounded-2xl border-2 border-white flex items-center gap-1 active:scale-95 cursor-pointer"
             title="Riascolta la domanda"
           >
             <Volume2 className="w-4 h-4 stroke-[2.8]" />
-            <span className="font-kids font-extrabold text-xs">Ascolta</span>
+            <span className="font-kids font-extrabold text-xs hidden sm:inline">Ascolta</span>
           </button>
 
           <button
@@ -353,7 +322,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
               soundManager.playPop();
               onOpenParents();
             }}
-            className="toy-button-3d bg-white/90 hover:bg-white text-purple-900 p-2 rounded-2xl border-2 border-white shadow-lg active:scale-95 cursor-pointer"
+            className="toy-button-3d bg-white/95 hover:bg-white text-purple-900 p-2 rounded-2xl border-2 border-white active:scale-95 cursor-pointer"
             title="Area Genitori & QI"
           >
             <ShieldCheck className="w-4 h-4 text-pink-600" />
@@ -362,34 +331,32 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
       </header>
 
       {/* ===================================================================== */}
-      {/* MAIN 3D GAMEPLAY STAGE                                                */}
+      {/* MAIN 3D GAMEPLAY STAGE - WELL-PROPORTIONED CARDS WITH BIG ICONS/TEXT   */}
       {/* ===================================================================== */}
-      <main className="relative z-10 flex-1 flex flex-col justify-between px-3 py-1.5 max-w-xl mx-auto w-full min-h-0 gap-2">
+      <main className="relative z-10 flex-1 flex flex-col justify-center px-3 sm:px-4 py-2 max-w-xl mx-auto w-full min-h-0 gap-3.5 sm:gap-4">
         {/* QUESTION & 3D INTERACTIVE SHOWCASE BOARD */}
-        <div className="board-3d-tabletop rounded-[28px] p-3 sm:p-4 flex flex-col items-center justify-center text-center relative overflow-hidden shrink-0">
-          {/* Animal Guide + IQ Tag Header */}
-          <div className="flex items-center justify-center gap-2 flex-wrap mb-1.5">
-            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-white text-pink-600 border-2 border-pink-300 font-kids font-extrabold text-[11px] shadow-xs">
-              <span className="text-base">{puzzle.animalGuide.emoji}</span>
+        <div className="board-3d-tabletop rounded-[28px] p-3.5 sm:p-5 flex flex-col items-center justify-center text-center relative overflow-hidden shrink-0">
+          <div className="flex items-center justify-center gap-2 flex-wrap mb-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-pink-600 border-2 border-pink-300 font-kids font-extrabold text-xs sm:text-sm shadow-xs">
+              <span className="text-lg sm:text-xl">{puzzle.animalGuide.emoji}</span>
               <span>{puzzle.animalGuide.name}</span>
             </span>
 
             {puzzle.iqParameterTag && (
-              <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-violet-600 to-purple-600 text-white border-2 border-white font-kids font-extrabold text-[10px] uppercase tracking-wider shadow-xs">
+              <span className="px-2.5 py-1 rounded-full bg-gradient-to-r from-violet-600 to-purple-600 text-white border-2 border-white font-kids font-extrabold text-[11px] uppercase tracking-wider shadow-xs">
                 🧠 {puzzle.iqParameterTag}
               </span>
             )}
           </div>
 
-          {/* Prompt Question */}
-          <h2 className="font-kids font-extrabold text-base sm:text-xl text-slate-900 leading-snug max-w-md drop-shadow-[0_1px_0_rgba(255,255,255,0.9)]">
+          <h2 className="font-kids font-extrabold text-xl sm:text-2xl text-slate-900 leading-snug max-w-md drop-shadow-[0_1px_0_rgba(255,255,255,0.9)]">
             {puzzle.prompt}
           </h2>
 
           {/* 1. INTERACTIVE 3D FINGER COUNTING (`count_interactive`) */}
           {puzzle.type === 'count_interactive' && puzzle.targetCount && (
-            <div className="mt-2.5 flex flex-col items-center gap-1.5 w-full">
-              <div className="flex items-center justify-center gap-2.5 flex-wrap bg-white/95 px-4 py-2.5 rounded-2xl border-2 border-amber-300 shadow-inner">
+            <div className="mt-3 flex flex-col items-center gap-2 w-full">
+              <div className="flex items-center justify-center gap-2.5 flex-wrap bg-white/95 px-4 py-3 rounded-2xl border-2 border-amber-300 shadow-inner">
                 {Array.from({ length: puzzle.targetCount }).map((_, idx) => {
                   const isTapped = tappedCountIndices.includes(idx);
                   return (
@@ -397,17 +364,17 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                       key={idx}
                       type="button"
                       onClick={() => handleTapCountObject(idx)}
-                      className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl border-3 transition-all flex items-center justify-center cursor-pointer ${
+                      className={`relative w-15 h-15 sm:w-18 sm:h-18 rounded-2xl border-3 transition-all flex items-center justify-center cursor-pointer ${
                         isTapped
                           ? 'bg-gradient-to-b from-yellow-300 to-amber-400 border-white scale-110 shadow-[0_6px_0_#b45309]'
                           : 'bg-gradient-to-b from-sky-100 to-white border-sky-300 hover:scale-105 animate-float-3d'
                       }`}
                     >
-                      <span className="text-3xl sm:text-4xl drop-shadow">
+                      <span className="text-4xl sm:text-5xl drop-shadow">
                         {puzzle.itemEmoji || '🍎'}
                       </span>
                       {isTapped && (
-                        <span className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-pink-600 text-white font-kids font-extrabold text-xs border-2 border-white flex items-center justify-center shadow">
+                        <span className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-pink-600 text-white font-kids font-extrabold text-sm border-2 border-white flex items-center justify-center shadow">
                           {tappedCountIndices.indexOf(idx) + 1}
                         </span>
                       )}
@@ -415,85 +382,65 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                   );
                 })}
               </div>
-              <span className="inline-flex items-center gap-1 text-[11px] font-fun font-bold text-amber-900">
-                <Hand className="w-3.5 h-3.5 text-pink-600 animate-bounce" />
-                Tocca le figure 3D per contarle ad alta voce, poi scegli il numero!
+              <span className="inline-flex items-center gap-1 text-xs font-fun font-bold text-amber-900">
+                <Hand className="w-4 h-4 text-pink-600 animate-bounce" />
+                Tocca le figure 3D per contarle ad alta voce!
               </span>
             </div>
           )}
 
           {/* 2. VISUAL ADDITION 3D (`visual_addition`) */}
           {puzzle.additionParts && (
-            <div className="mt-2.5 flex items-center justify-center gap-2 sm:gap-3 flex-wrap bg-white/95 px-4 py-2.5 rounded-2xl border-2 border-amber-300 shadow-inner">
-              <div className="flex items-center gap-1 bg-pink-100 px-2.5 py-1.5 rounded-xl border-2 border-pink-300">
-                {Array.from({ length: puzzle.additionParts.countA }).map(
-                  (_, i) => (
-                    <span
-                      key={i}
-                      className="text-2xl sm:text-3xl drop-shadow animate-float-3d"
-                    >
-                      {puzzle.additionParts!.emoji}
-                    </span>
-                  )
-                )}
+            <div className="mt-3 flex items-center justify-center gap-2.5 sm:gap-3.5 flex-wrap bg-white/95 px-4 py-3 rounded-2xl border-2 border-amber-300 shadow-inner">
+              <div className="flex items-center gap-1.5 bg-pink-100 px-3 py-2 rounded-xl border-2 border-pink-300">
+                {Array.from({ length: puzzle.additionParts.countA }).map((_, i) => (
+                  <span key={i} className="text-3xl sm:text-4xl drop-shadow animate-float-3d">
+                    {puzzle.additionParts!.emoji}
+                  </span>
+                ))}
               </div>
-              <span className="font-kids font-extrabold text-2xl text-pink-600">
-                +
-              </span>
-              <div className="flex items-center gap-1 bg-sky-100 px-2.5 py-1.5 rounded-xl border-2 border-sky-300">
-                {Array.from({ length: puzzle.additionParts.countB }).map(
-                  (_, i) => (
-                    <span
-                      key={i}
-                      className="text-2xl sm:text-3xl drop-shadow animate-float-3d"
-                    >
-                      {puzzle.additionParts!.emoji}
-                    </span>
-                  )
-                )}
+              <span className="font-kids font-extrabold text-3xl text-pink-600">+</span>
+              <div className="flex items-center gap-1.5 bg-sky-100 px-3 py-2 rounded-xl border-2 border-sky-300">
+                {Array.from({ length: puzzle.additionParts.countB }).map((_, i) => (
+                  <span key={i} className="text-3xl sm:text-4xl drop-shadow animate-float-3d">
+                    {puzzle.additionParts!.emoji}
+                  </span>
+                ))}
               </div>
-              <span className="font-kids font-extrabold text-2xl text-amber-600">
-                = ❓
-              </span>
+              <span className="font-kids font-extrabold text-3xl text-amber-600">= ❓</span>
             </div>
           )}
 
           {/* 3. VISUAL SUBTRACTION 3D (`visual_subtraction`) */}
           {puzzle.subtractionParts && (
-            <div className="mt-2.5 flex items-center justify-center gap-2 flex-wrap bg-white/95 px-4 py-2.5 rounded-2xl border-2 border-amber-300 shadow-inner">
-              {Array.from({ length: puzzle.subtractionParts.total }).map(
-                (_, idx) => {
-                  const isRemoved =
-                    idx >=
-                    puzzle.subtractionParts!.total -
-                      puzzle.subtractionParts!.minus;
-                  return (
-                    <div
-                      key={idx}
-                      className={`relative w-12 h-12 rounded-xl flex items-center justify-center border-2 ${
-                        isRemoved
-                          ? 'bg-rose-100 border-rose-300 opacity-45 scale-90'
-                          : 'bg-emerald-100 border-emerald-300 animate-float-3d'
-                      }`}
-                    >
-                      <span className="text-2xl sm:text-3xl">
-                        {puzzle.subtractionParts!.emoji}
-                      </span>
-                      {isRemoved && (
-                        <span className="absolute text-rose-600 font-black text-xl">
-                          ✖
-                        </span>
-                      )}
-                    </div>
-                  );
-                }
-              )}
+            <div className="mt-3 flex items-center justify-center gap-2 flex-wrap bg-white/95 px-4 py-3 rounded-2xl border-2 border-amber-300 shadow-inner">
+              {Array.from({ length: puzzle.subtractionParts.total }).map((_, idx) => {
+                const isRemoved =
+                  idx >= puzzle.subtractionParts!.total - puzzle.subtractionParts!.minus;
+                return (
+                  <div
+                    key={idx}
+                    className={`relative w-14 h-14 rounded-xl flex items-center justify-center border-2 ${
+                      isRemoved
+                        ? 'bg-rose-100 border-rose-300 opacity-45 scale-90'
+                        : 'bg-emerald-100 border-emerald-300 animate-float-3d'
+                    }`}
+                  >
+                    <span className="text-3xl sm:text-4xl">
+                      {puzzle.subtractionParts!.emoji}
+                    </span>
+                    {isRemoved && (
+                      <span className="absolute text-rose-600 font-black text-2xl">✖</span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 
           {/* 4. MUSIC & RHYTHM 3D XYLOPHONE (`music_rhythm`) */}
           {puzzle.rhythmNotes && puzzle.rhythmNotes.length > 0 && (
-            <div className="mt-2.5 flex flex-col items-center gap-2 w-full">
+            <div className="mt-3 flex flex-col items-center gap-2 w-full">
               <div className="flex items-center justify-center gap-2 flex-wrap bg-white/95 px-3.5 py-2.5 rounded-2xl border-2 border-pink-300 shadow-inner">
                 {puzzle.rhythmNotes.map((note, idx) => {
                   const isPlaying = activeNoteIdx === idx;
@@ -503,20 +450,17 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                       type="button"
                       onClick={() => {
                         setActiveNoteIdx(idx);
-                        soundManager.playMusicalNote(
-                          note.freq,
-                          note.duration || 0.34
-                        );
+                        soundManager.playMusicalNote(note.freq, note.duration || 0.34);
                         setTimeout(() => setActiveNoteIdx(null), 340);
                       }}
-                      className={`px-3 py-2 rounded-2xl border-2 font-kids font-extrabold text-xs transition-all flex flex-col items-center gap-0.5 cursor-pointer shadow-md ${
+                      className={`px-3.5 py-2 rounded-2xl border-2 font-kids font-extrabold text-xs sm:text-sm transition-all flex flex-col items-center gap-0.5 cursor-pointer shadow-md ${
                         isPlaying
                           ? 'bg-gradient-to-b from-pink-400 to-rose-500 text-white border-white scale-115 shadow-lg'
                           : 'bg-gradient-to-b from-sky-400 to-indigo-500 text-white border-sky-100 hover:scale-105'
                       }`}
                     >
-                      <span className="text-xl">{note.emoji}</span>
-                      <span className="text-[10px]">{note.label}</span>
+                      <span className="text-2xl sm:text-3xl">{note.emoji}</span>
+                      <span className="text-xs">{note.label}</span>
                     </button>
                   );
                 })}
@@ -524,9 +468,9 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
               <button
                 type="button"
                 onClick={handleReplayRhythm}
-                className="toy-button-3d px-4 py-1 rounded-full bg-gradient-to-r from-fuchsia-500 to-pink-500 text-white border-2 border-white font-kids font-extrabold text-xs flex items-center gap-1.5 shadow cursor-pointer"
+                className="toy-button-3d px-4 py-1.5 rounded-full bg-gradient-to-r from-fuchsia-500 to-pink-500 text-white border-2 border-white font-kids font-extrabold text-xs sm:text-sm flex items-center gap-1.5 shadow cursor-pointer"
               >
-                <Music className="w-3.5 h-3.5" />
+                <Music className="w-4 h-4" />
                 Risenti Melodia 3D 🎶
               </button>
             </div>
@@ -534,20 +478,19 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
 
           {/* 5. ENGLISH WORD 3D FLASHCARD (`english_words`) */}
           {puzzle.englishWord && (
-            <div className="mt-2.5 flex items-center gap-3 bg-white/95 px-4 py-2 rounded-2xl border-2 border-cyan-300 shadow-md">
-              <div className="w-13 h-13 rounded-2xl bg-gradient-to-b from-cyan-100 to-sky-200 border-2 border-white shadow flex items-center justify-center text-3xl animate-float-3d">
+            <div className="mt-3 flex items-center gap-3 bg-white/95 px-4 py-2.5 rounded-2xl border-2 border-cyan-300 shadow-md">
+              <div className="w-15 h-15 rounded-2xl bg-gradient-to-b from-cyan-100 to-sky-200 border-2 border-white shadow flex items-center justify-center text-4xl animate-float-3d">
                 {puzzle.englishWord.emoji}
               </div>
               <div className="text-left">
-                <span className="text-[10px] font-kids font-extrabold uppercase tracking-wider text-cyan-700 block">
+                <span className="text-[11px] font-kids font-extrabold uppercase tracking-wider text-cyan-700 block">
                   🇬🇧 {puzzle.englishWord.categoryLabel}
                 </span>
-                <p className="font-kids font-extrabold text-lg sm:text-xl text-rose-600 leading-tight">
+                <p className="font-kids font-extrabold text-xl sm:text-2xl text-rose-600 leading-tight">
                   "{puzzle.englishWord.en}"
                 </p>
-                <p className="text-[11px] font-fun font-bold text-slate-600">
-                  Pronuncia: [{puzzle.englishWord.phoneticHint}] ={' '}
-                  {puzzle.englishWord.it}
+                <p className="text-xs font-fun font-bold text-slate-600">
+                  Pronuncia: [{puzzle.englishWord.phoneticHint}] = {puzzle.englishWord.it}
                 </p>
               </div>
               <button
@@ -560,7 +503,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                     } si dice ${puzzle.englishWord!.en}!`
                   );
                 }}
-                className="toy-button-3d p-2.5 rounded-2xl bg-gradient-to-b from-cyan-400 to-blue-500 text-white border-2 border-white shadow cursor-pointer"
+                className="toy-button-3d p-3 rounded-2xl bg-gradient-to-b from-cyan-400 to-blue-500 text-white border-2 border-white shadow cursor-pointer"
               >
                 <Volume2 className="w-5 h-5" />
               </button>
@@ -569,16 +512,13 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
 
           {/* 6. PATTERN / IQ MATRIX STRIP (`patternItems`) */}
           {puzzle.patternItems && puzzle.patternItems.length > 0 && (
-            <div className="mt-2.5 flex items-center justify-center gap-2 sm:gap-2.5 flex-wrap bg-white/95 px-3.5 py-2.5 rounded-2xl border-2 border-purple-300 shadow-inner">
+            <div className="mt-3 flex items-center justify-center gap-2 sm:gap-3 flex-wrap bg-white/95 px-4 py-3 rounded-2xl border-2 border-purple-300 shadow-inner">
               {puzzle.patternItems.map((item, idx) => {
                 const isMystery = item === '❓' || item === '?';
                 const isArrow = item === '➔' || item === '➡️';
                 if (isArrow) {
                   return (
-                    <span
-                      key={idx}
-                      className="text-lg sm:text-xl font-black text-pink-500"
-                    >
+                    <span key={idx} className="text-2xl font-black text-pink-500">
                       ➔
                     </span>
                   );
@@ -586,10 +526,10 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                 return (
                   <div
                     key={idx}
-                    className={`min-w-11 h-11 sm:min-w-13 sm:h-13 px-2 rounded-2xl flex items-center justify-center border-2 shadow-sm ${
+                    className={`min-w-13 h-13 sm:min-w-15 sm:h-15 px-2.5 rounded-2xl flex items-center justify-center border-2 shadow-sm ${
                       isMystery
-                        ? 'bg-gradient-to-b from-yellow-300 to-amber-500 border-white text-slate-950 font-kids font-extrabold text-xl animate-bounce'
-                        : 'bg-gradient-to-b from-purple-50 to-white border-purple-200 text-2xl sm:text-3xl animate-float-3d'
+                        ? 'bg-gradient-to-b from-yellow-300 to-amber-500 border-white text-slate-950 font-kids font-extrabold text-2xl animate-bounce'
+                        : 'bg-gradient-to-b from-purple-50 to-white border-purple-200 text-3xl sm:text-4xl animate-float-3d'
                     }`}
                   >
                     {item}
@@ -601,43 +541,49 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
         </div>
 
         {/* ================================================================= */}
-        {/* 3D CANDY CHOICE BLOCKS GRID                                       */}
+        {/* COMPACT, CHUNKY 3D CANDY CHOICE BLOCKS WITH LARGE ICONS & LABELS  */}
+        {/* Balanced grid: 2 columns on mobile so buttons never stretch tall! */}
         {/* ================================================================= */}
         <div
           className={`grid ${
-            (puzzle.options?.length || 0) <= 3
-              ? 'grid-cols-1 sm:grid-cols-3'
+            optionsList.length === 3
+              ? 'grid-cols-2 sm:grid-cols-3'
               : 'grid-cols-2'
-          } gap-3 sm:gap-3.5 flex-1 min-h-0 my-0.5`}
+          } gap-3 sm:gap-4 w-full shrink-0`}
         >
-          {(puzzle.options || []).map((option, idx) => {
+          {optionsList.map((option, idx) => {
             const isWrong = wrongOptionIds.includes(option.id);
             const isChosenCorrect =
               isSolved && selectedOptionId === option.id && option.isCorrect;
             const candyClass =
               CANDY_CARD_CLASSES[idx % CANDY_CARD_CLASSES.length];
+            const isLastOfThree = optionsList.length === 3 && idx === 2;
 
             return (
               <button
                 key={option.id}
                 onClick={() => handleSelectOption(option)}
                 disabled={isSolved || isWrong}
-                className={`toy-card-3d relative rounded-[26px] p-2.5 sm:p-3 flex flex-col items-center justify-center gap-1.5 transition-all overflow-hidden cursor-pointer ${candyClass} ${
+                className={`toy-card-3d relative rounded-[26px] px-3 py-3.5 sm:py-4 flex flex-col items-center justify-center gap-2 transition-all overflow-hidden cursor-pointer ${candyClass} ${
+                  isLastOfThree
+                    ? 'col-span-2 sm:col-span-1 w-[56%] sm:w-full mx-auto'
+                    : 'w-full'
+                } ${
                   isWrong
                     ? 'opacity-40 grayscale scale-95 cursor-not-allowed'
                     : isChosenCorrect
                     ? 'ring-4 ring-white scale-[1.04] shadow-[0_0_35px_rgba(250,204,21,0.95)]'
-                    : 'hover:scale-[1.02] active:scale-95'
+                    : 'hover:scale-[1.03] active:scale-95'
                 }`}
               >
                 {/* Top 3D Specular Gloss */}
-                <div className="pointer-events-none absolute inset-x-4 top-1.5 h-3 rounded-full bg-gradient-to-b from-white/75 to-transparent" />
+                <div className="pointer-events-none absolute inset-x-4 top-1.5 h-3 rounded-full bg-gradient-to-b from-white/80 to-transparent" />
 
-                {/* 3D Toy Sphere Pedestal */}
-                <div className="relative z-10 w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/95 border-3 border-white shadow-[0_6px_12px_rgba(0,0,0,0.14),inset_0_-5px_8px_rgba(0,0,0,0.08)] flex items-center justify-center">
-                  <div className="absolute top-1.5 left-3 w-4 h-2 rounded-full bg-white -rotate-25" />
+                {/* Large 3D Toy Sphere Pedestal & Large Emoji */}
+                <div className="relative z-10 w-22 h-22 sm:w-24 sm:h-24 rounded-full bg-white/95 border-3 border-white shadow-[0_6px_14px_rgba(0,0,0,0.14),inset_0_-5px_8px_rgba(0,0,0,0.08)] flex items-center justify-center shrink-0">
+                  <div className="absolute top-1.5 left-4 w-5 h-2.5 rounded-full bg-white -rotate-25" />
                   <span
-                    className={`text-3xl sm:text-4xl drop-shadow-[0_4px_6px_rgba(0,0,0,0.2)] ${
+                    className={`text-5xl sm:text-6xl leading-none drop-shadow-[0_4px_6px_rgba(0,0,0,0.22)] ${
                       !isWrong ? 'animate-float-3d' : ''
                     }`}
                   >
@@ -645,20 +591,20 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                   </span>
                 </div>
 
-                {/* High-Contrast Readable Label Pill */}
-                <div className="relative z-10 bg-white/95 px-3.5 py-1 rounded-2xl border-2 border-white shadow-md max-w-full text-center">
-                  <span className="font-kids font-extrabold text-sm sm:text-base text-slate-900 tracking-wide block leading-tight">
+                {/* Large, High-Contrast Label Pill */}
+                <div className="relative z-10 bg-white/95 px-3.5 py-1.5 rounded-2xl border-2 border-white shadow-md max-w-full text-center">
+                  <span className="font-kids font-extrabold text-lg sm:text-xl text-slate-900 tracking-wide block leading-tight">
                     {option.label}
                   </span>
                   {option.sublabel && (
-                    <span className="font-fun font-bold text-[10px] sm:text-xs text-slate-600 block leading-tight mt-0.5">
+                    <span className="font-fun font-bold text-xs sm:text-sm text-slate-600 block leading-tight mt-0.5">
                       {option.sublabel}
                     </span>
                   )}
                 </div>
 
                 {isChosenCorrect && (
-                  <div className="absolute top-2 right-2 w-8 h-8 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center shadow-lg animate-bounce">
+                  <div className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center shadow-lg animate-bounce">
                     <Check className="w-5 h-5 text-white stroke-[3.5]" />
                   </div>
                 )}
@@ -666,16 +612,18 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
             );
           })}
         </div>
+      </main>
 
-        {/* BOTTOM HELPER BAR */}
-        <div className="bg-white/90 backdrop-blur-md rounded-2xl px-3.5 py-2 border-2 border-white shadow-lg flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-1.5">
-            <Sparkles className="w-4 h-4 text-pink-500 shrink-0" />
-            <span className="text-xs font-fun font-extrabold text-slate-800">
-              Tocca la figura giusta 3D per vincere le stelline d'oro!
+      {/* BOTTOM HELPER BAR */}
+      <footer className="relative z-10 px-3 pb-2.5 max-w-xl mx-auto w-full shrink-0">
+        <div className="bg-white/92 backdrop-blur-md rounded-2xl px-3.5 py-2 border-2 border-white shadow-lg flex items-center justify-between">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-pink-500 shrink-0" />
+            <span className="text-xs sm:text-sm font-fun font-extrabold text-slate-800 truncate">
+              Tocca la risposta giusta per vincere 3 stelline!
             </span>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 shrink-0">
             {[1, 2, 3].map((s) => (
               <Star
                 key={s}
@@ -684,7 +632,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
             ))}
           </div>
         </div>
-      </main>
+      </footer>
 
       {/* ===================================================================== */}
       {/* VICTORY MODAL OVERLAY                                                 */}
@@ -699,7 +647,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
             <h3 className="font-kids font-extrabold text-2xl sm:text-3xl text-pink-600">
               Bravissima Emma! 🎉
             </h3>
-            <p className="text-xs sm:text-sm font-fun font-bold text-slate-700 mt-1.5 leading-relaxed">
+            <p className="text-sm sm:text-base font-fun font-bold text-slate-700 mt-1.5 leading-relaxed">
               {puzzle.funExplanation}
             </p>
 
