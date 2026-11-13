@@ -533,6 +533,27 @@ export function saveUserProgress(progress: UserProgress) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
   } catch {
-    // localstorage error
+    // Fallback if QuotaExceededError (e.g. large base64 drawings): keep recent 4 drawings and retry
+    try {
+      const trimmed: UserProgress = {
+        ...progress,
+        savedDrawings: (progress.savedDrawings || []).slice(0, 4),
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+    } catch {
+      // Last-resort: persist core progression & stats without image blobs
+      try {
+        const lightweight: UserProgress = {
+          ...progress,
+          savedDrawings: (progress.savedDrawings || []).map((d) => ({
+            ...d,
+            dataUrl: '',
+          })),
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(lightweight));
+      } catch {
+        // ignore if storage completely unavailable
+      }
+    }
   }
 }

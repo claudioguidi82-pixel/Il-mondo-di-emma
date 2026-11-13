@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ArrowLeft,
   RotateCcw,
@@ -14,7 +14,7 @@ import { confetti } from '../utils/confetti';
 
 interface SvagoArenaProps {
   levelNumber: number;
-  onComplete: () => void;
+  onComplete: (mode: 'tris' | 'bubbles' | 'memory' | 'stars', wonTris: boolean) => void;
   onExitToTitle: () => void;
 }
 
@@ -108,24 +108,36 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
   const [starsCaught, setStarsCaught] = useState(0);
   const STARS_TARGET = 8;
 
+  const poppedIdsRef = useRef<Set<number>>(new Set());
+  const caughtIdsRef = useRef<Set<number>>(new Set());
+  const memoryTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const clearMemoryTimers = useCallback(() => {
+    memoryTimersRef.current.forEach((t) => clearTimeout(t));
+    memoryTimersRef.current = [];
+  }, []);
+
   useEffect(() => {
     soundManager.startBackgroundMusic();
     const unsub = soundManager.onMusicChange((enabled) => setMusicOn(enabled));
     return () => {
       unsub();
+      clearMemoryTimers();
       soundManager.stopBackgroundMusic();
+      soundManager.stopSpeech();
     };
-  }, []);
+  }, [clearMemoryTimers]);
 
   const initBubblesGame = useCallback(() => {
+    poppedIdsRef.current.clear();
     const generated: Bubble3DItem[] = Array.from({ length: BUBBLE_TARGET }).map(
       (_, idx) => ({
         id: idx,
         emoji: BUBBLE_EMOJIS[idx % BUBBLE_EMOJIS.length],
         color: BUBBLE_PALETTE[idx % BUBBLE_PALETTE.length],
-        size: idx % 2 === 0 ? 78 : 70,
-        left: 8 + (idx % 3) * 30 + ((idx * 7) % 9),
-        top: 8 + Math.floor(idx / 3) * 23 + ((idx * 5) % 6),
+        size: idx % 2 === 0 ? 74 : 68,
+        left: 6 + (idx % 3) * 28 + ((idx * 5) % 7),
+        top: 6 + Math.floor(idx / 3) * 20 + ((idx * 3) % 5),
         popped: false,
       })
     );
@@ -134,6 +146,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
   }, []);
 
   const initMemoryGame = useCallback(() => {
+    clearMemoryTimers();
     const pairs = [...MEMORY_EMOJIS, ...MEMORY_EMOJIS];
     const shuffled = pairs
       .map((emoji, idx) => ({
@@ -151,15 +164,16 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
     setMemoryCards(shuffled);
     setFlippedIndices([]);
     setMemoryComplete(false);
-  }, [levelNumber]);
+  }, [levelNumber, clearMemoryTimers]);
 
   const initStarsGame = useCallback(() => {
+    caughtIdsRef.current.clear();
     const generated: FallingStar3D[] = Array.from({ length: STARS_TARGET }).map(
       (_, idx) => ({
         id: idx,
         emoji: ['⭐', '🌟', '💖', '👑', '🦄', '🌈', '✨', '🎈'][idx % 8],
-        left: 10 + (idx % 4) * 22 + ((idx * 3) % 6),
-        top: 10 + Math.floor(idx / 4) * 42 + ((idx * 9) % 12),
+        left: 6 + (idx % 4) * 21 + ((idx * 3) % 5),
+        top: 10 + Math.floor(idx / 4) * 40 + ((idx * 5) % 10),
         caught: false,
       })
     );
@@ -267,11 +281,14 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
   };
 
   const handlePopBubble = (id: number) => {
+    if (poppedIdsRef.current.has(id)) return;
+    poppedIdsRef.current.add(id);
+
     setBubbles((prev) =>
       prev.map((b) => (b.id === id ? { ...b, popped: true } : b))
     );
     soundManager.playTwinkle();
-    const nextCount = bubblesPopped + 1;
+    const nextCount = poppedIdsRef.current.size;
     setBubblesPopped(nextCount);
     if (nextCount >= BUBBLE_TARGET) {
       soundManager.playFanfare();
@@ -285,8 +302,8 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
   const handleMemoryCardClick = (index: number) => {
     if (
       flippedIndices.length >= 2 ||
-      memoryCards[index].flipped ||
-      memoryCards[index].matched
+      memoryCards[index]?.flipped ||
+      memoryCards[index]?.matched
     ) {
       return;
     }
@@ -303,7 +320,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
     if (nextFlipped.length === 2) {
       const [firstIdx, secondIdx] = nextFlipped;
       if (updated[firstIdx].emoji === updated[secondIdx].emoji) {
-        setTimeout(() => {
+        const matchTimer = setTimeout(() => {
           soundManager.playTwinkle();
           setMemoryCards((prev) => {
             const matchedCards = prev.map((c, idx) =>
@@ -323,8 +340,9 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
           });
           setFlippedIndices([]);
         }, 350);
+        memoryTimersRef.current.push(matchTimer);
       } else {
-        setTimeout(() => {
+        const flipBackTimer = setTimeout(() => {
           setMemoryCards((prev) =>
             prev.map((c, idx) =>
               idx === firstIdx || idx === secondIdx
@@ -334,16 +352,20 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
           );
           setFlippedIndices([]);
         }, 750);
+        memoryTimersRef.current.push(flipBackTimer);
       }
     }
   };
 
   const handleCatchStar = (id: number) => {
+    if (caughtIdsRef.current.has(id)) return;
+    caughtIdsRef.current.add(id);
+
     setStarsList((prev) =>
       prev.map((s) => (s.id === id ? { ...s, caught: true } : s))
     );
     soundManager.playTwinkle();
-    const nextCaught = starsCaught + 1;
+    const nextCaught = caughtIdsRef.current.size;
     setStarsCaught(nextCaught);
     if (nextCaught >= STARS_TARGET) {
       soundManager.playFanfare();
@@ -413,6 +435,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
       <header className="relative z-10 flex items-center justify-between px-3 pt-2.5 pb-1 shrink-0 gap-1.5">
         <button
           onClick={() => {
+            soundManager.stopSpeech();
             soundManager.playPop();
             onExitToTitle();
           }}
@@ -582,7 +605,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
               </span>
             </div>
 
-            <div className="relative flex-1 rounded-[32px] board-3d-tabletop overflow-hidden">
+            <div className="relative flex-1 min-h-[260px] rounded-[32px] board-3d-tabletop overflow-hidden">
               {bubbles.map((b) =>
                 b.popped ? null : (
                   <button
@@ -677,7 +700,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
               </span>
             </div>
 
-            <div className="relative flex-1 rounded-[32px] board-3d-tabletop overflow-hidden">
+            <div className="relative flex-1 min-h-[260px] rounded-[32px] board-3d-tabletop overflow-hidden">
               {starsList.map((st) =>
                 st.caught ? null : (
                   <button
@@ -743,7 +766,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
             <button
               onClick={() => {
                 soundManager.playSuccess();
-                onComplete();
+                onComplete(gameMode, trisWinner === 'EMMA');
               }}
               className="toy-button-3d py-2.5 px-4 rounded-2xl bg-gradient-to-b from-emerald-400 via-green-500 to-teal-600 text-white font-kids font-extrabold text-xs sm:text-sm border-2 border-white shadow-lg flex items-center justify-center gap-1.5 cursor-pointer"
             >

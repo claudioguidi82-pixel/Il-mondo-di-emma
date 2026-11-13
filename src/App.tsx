@@ -24,7 +24,23 @@ export default function App() {
   useEffect(() => {
     soundManager.soundEnabled = progress.soundEnabled;
     soundManager.voiceEnabled = progress.voiceEnabled;
-  }, [progress.soundEnabled, progress.voiceEnabled]);
+    soundManager.musicEnabled = progress.musicEnabled;
+    if (!progress.soundEnabled || !progress.musicEnabled) {
+      soundManager.stopBackgroundMusic();
+    }
+  }, [progress.soundEnabled, progress.voiceEnabled, progress.musicEnabled]);
+
+  // Persist music toggle state when changed inside PlayArena or SvagoArena
+  useEffect(() => {
+    return soundManager.onMusicChange((enabled) => {
+      setProgress((prev) => {
+        if (prev.musicEnabled === enabled) return prev;
+        const next = { ...prev, musicEnabled: enabled };
+        saveUserProgress(next);
+        return next;
+      });
+    });
+  }, []);
 
   const updateProgress = (updater: (prev: UserProgress) => UserProgress) => {
     setProgress(prev => {
@@ -59,7 +75,8 @@ export default function App() {
     stars: number,
     gems: number,
     category: GameCategory,
-    isFirstTry: boolean
+    isFirstTry: boolean,
+    attemptsCount: number = 1
   ) => {
     updateProgress(prev => {
       const nextLevel = prev.currentLevel + 1;
@@ -73,7 +90,7 @@ export default function App() {
         stars: prev.stars + stars,
         gems: prev.gems + gems,
         totalPuzzlesSolved: prev.totalPuzzlesSolved + 1,
-        totalAttempts: prev.totalAttempts + 1,
+        totalAttempts: prev.totalAttempts + Math.max(1, attemptsCount),
         categoryStats: {
           ...prev.categoryStats,
           [category]: {
@@ -85,7 +102,10 @@ export default function App() {
     });
   };
 
-  const handleTrisComplete = () => {
+  const handleSvagoComplete = (
+    mode: 'tris' | 'bubbles' | 'memory' | 'stars' = 'tris',
+    wonTris: boolean = false
+  ) => {
     updateProgress(prev => {
       const nextLevel = prev.currentLevel + 1;
       return {
@@ -94,8 +114,8 @@ export default function App() {
         highestLevelReached: Math.max(prev.highestLevelReached, nextLevel),
         stars: prev.stars + 3,
         gems: prev.gems + 5,
-        trisGamesPlayed: prev.trisGamesPlayed + 1,
-        trisGamesWon: prev.trisGamesWon + 1,
+        trisGamesPlayed: prev.trisGamesPlayed + (mode === 'tris' ? 1 : 0),
+        trisGamesWon: prev.trisGamesWon + (mode === 'tris' && wonTris ? 1 : 0),
       };
     });
   };
@@ -298,7 +318,7 @@ export default function App() {
           {isSvagoLevel ? (
             <SvagoArena
               levelNumber={progress.currentLevel}
-              onComplete={handleTrisComplete}
+              onComplete={handleSvagoComplete}
               onExitToTitle={() => setCurrentView('title')}
             />
           ) : (

@@ -23,7 +23,7 @@ export function enforceItalianGenderConcordance(text: string): string {
 
   // Feminine nouns -> "una"
   s = s.replace(
-    /\b(?:1|uno)\s+(mela|fragolina|fragola|stellina|stella|farfallina|farfalla|carota|carotina|banana|pera|ciliegia|fetta|pallina|palla|macchinina| Nuvola|nuvola|rosa|chiocciola|chiocciolina|tartaruga|giraffa|pecorella|mucca|gallina|ranocchia|scimmietta|volpina|rondine|formica|formichina|scarpa|bicicletta)\b/gi,
+    /\b(?:1|uno)\s+(mela|fragolina|fragola|stellina|stella|farfallina|farfalla|carota|carotina|banana|pera|ciliegia|fetta|pallina|palla|macchinina|nuvola|rosa|chiocciola|chiocciolina|tartaruga|giraffa|pecorella|mucca|gallina|ranocchia|scimmietta|volpina|rondine|formica|formichina|scarpa|bicicletta)\b/gi,
     'una $1'
   );
 
@@ -137,6 +137,7 @@ class SoundManager {
   private failsafeTimer: ReturnType<typeof setTimeout> | null = null;
   private bgMusicInterval: ReturnType<typeof setInterval> | null = null;
   private bgNoteStep: number = 0;
+  private rhythmTimers: ReturnType<typeof setTimeout>[] = [];
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -183,7 +184,7 @@ class SoundManager {
 
   toggleMusic(): boolean {
     this.musicEnabled = !this.musicEnabled;
-    if (this.musicEnabled) {
+    if (this.musicEnabled && this.soundEnabled) {
       this.startBackgroundMusic();
     } else {
       this.stopBackgroundMusic();
@@ -584,8 +585,14 @@ class SoundManager {
     }
   }
 
+  stopRhythmSequence() {
+    this.rhythmTimers.forEach((t) => clearTimeout(t));
+    this.rhythmTimers = [];
+  }
+
   // Play a rhythmic or melodic sequence of notes (for Musica & Ritmo levels)
   playRhythmSequence(notes: { freq: number; duration: number }[]) {
+    this.stopRhythmSequence();
     if (!this.soundEnabled || !notes || notes.length === 0) return;
     try {
       this.initCtx();
@@ -593,9 +600,10 @@ class SoundManager {
       let offsetMs = 0;
       notes.forEach((n) => {
         const durSec = Math.max(0.15, n.duration || 0.3);
-        setTimeout(() => {
+        const timer = setTimeout(() => {
           this.playMusicalNote(n.freq, durSec);
         }, offsetMs);
+        this.rhythmTimers.push(timer);
         offsetMs += Math.round((durSec + 0.08) * 1000);
       });
     } catch {

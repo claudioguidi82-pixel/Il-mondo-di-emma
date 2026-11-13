@@ -65,6 +65,9 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
     soundManager.speakInstruction(
       'Benvenuta nello Studio di Disegno, Emma! Prendi i pennelli magici e crea un capolavoro!'
     );
+    return () => {
+      soundManager.stopSpeech();
+    };
   }, []);
 
   // Initialize and resize canvas
@@ -282,6 +285,11 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
   // Pointer event handlers (touch + mouse seamless support)
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     e.preventDefault();
+    try {
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+    } catch {
+      // ignore if unsupported
+    }
     const coords = getCanvasCoords(e.clientX, e.clientY);
     if (!coords) return;
 
@@ -312,7 +320,7 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
     }
   };
 
-  // Save drawing into Emma's gallery
+  // Save drawing into Emma's gallery (compressed JPEG to stay well within localStorage quota)
   const handleSaveDrawing = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -321,7 +329,26 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
     confetti.burst();
     setSaveSuccess(true);
 
-    const dataUrl = canvas.toDataURL('image/png');
+    let dataUrl = '';
+    try {
+      const maxThumbW = 640;
+      const scale = Math.min(1, maxThumbW / canvas.width);
+      const thumbCanvas = document.createElement('canvas');
+      thumbCanvas.width = Math.max(1, Math.round(canvas.width * scale));
+      thumbCanvas.height = Math.max(1, Math.round(canvas.height * scale));
+      const tCtx = thumbCanvas.getContext('2d');
+      if (tCtx) {
+        tCtx.fillStyle = '#ffffff';
+        tCtx.fillRect(0, 0, thumbCanvas.width, thumbCanvas.height);
+        tCtx.drawImage(canvas, 0, 0, thumbCanvas.width, thumbCanvas.height);
+        dataUrl = thumbCanvas.toDataURL('image/jpeg', 0.78);
+      } else {
+        dataUrl = canvas.toDataURL('image/jpeg', 0.78);
+      }
+    } catch {
+      dataUrl = canvas.toDataURL('image/png');
+    }
+
     const newDrawing: SavedDrawing = {
       id: `drawing_${Date.now()}`,
       title: `Disegno Magico #${(progress?.savedDrawings?.length || 0) + 1}`,
@@ -363,6 +390,7 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
         {/* Back Button */}
         <button
           onClick={() => {
+            soundManager.stopSpeech();
             soundManager.playPop();
             onClose();
           }}
