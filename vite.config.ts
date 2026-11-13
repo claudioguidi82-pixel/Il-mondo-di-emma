@@ -47,7 +47,7 @@ export default defineConfig(() => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
-          globIgnores: ['**/assets/aistudio/**'],
+          globIgnores: ['**/assets/aistudio/**', '**/pwa-512x512.png', '**/pwa-maskable-512x512.png'],
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
           runtimeCaching: [
             {

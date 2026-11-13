@@ -1,8 +1,9 @@
 // Infinite Adaptive Curriculum & Procedural Generator tailored to Emma (Born: 22/08/2021 - 5 Years Old)
-// Preschool Focus: Visual Discrimination, Colors, Shapes, Animal Sounds, Counting 1-5, Concrete Visual Math, Logic
+// Preschool Focus: Visual Discrimination, Colors, Shapes, Animal Sounds, Counting 1-5, Concrete Visual Math,
+// Music & Rhythm, First English Words, and Dedicated Preschool IQ Psychometric Levels (WPPSI-IV inspired)
 // Strict Italian Gender & Number Agreement (e.g. "una mela", "due mele", "un biscottino", "due biscottini")
 // Systematic Crescendo of Difficulty Every 10 Levels (after each Svago Level)
-import { GameCategory, Puzzle, PuzzleOption } from '../types/game';
+import { GameCategory, Puzzle, PuzzleOption, RhythmNote, EnglishWordHighlight } from '../types/game';
 
 // Emma's Birthdate
 export const EMMA_BIRTH_DATE = '2021-08-22';
@@ -32,11 +33,11 @@ export function getEmmaCurrentAge(currentDate: Date = new Date()): EmmaAgeInfo {
   const totalMonths = years * 12 + months;
   const displayText = `${years} anni e ${months} mesi`;
 
-  let developmentalStage = 'Fase Prescolare (Colori, Forme, Animali, Suoni, Ragionamento & Prime Quantità)';
+  let developmentalStage = 'Fase Prescolare (Logica QI, Musica & Ritmo, Prime Parole Inglese, Numeri & Forme)';
   if (totalMonths >= 72) {
-    developmentalStage = 'Fase Scuola Primaria (Inizio Lettura e Calcolo Aritmetico)';
+    developmentalStage = 'Fase Scuola Primaria (Inizio Lettura, Inglese Base e Calcolo Aritmetico)';
   } else if (totalMonths >= 66) {
-    developmentalStage = 'Fase Transizione Infanzia (Fonetica Spontanea & Somme Visive)';
+    developmentalStage = 'Fase Transizione Infanzia (Fonetica, Ritmo Musicale, Inglese & Somme Visive)';
   }
 
   return { years, months, totalMonths, displayText, developmentalStage };
@@ -45,11 +46,11 @@ export function getEmmaCurrentAge(currentDate: Date = new Date()): EmmaAgeInfo {
 // Friendly Animal Guides
 const ANIMAL_GUIDES = [
   { name: 'Leo lo Scoiattolo', emoji: '🐿️', role: 'Amico degli Animali', voicePitch: 1.25 },
-  { name: 'Piuma la Rondine', emoji: '🕊️', role: 'Guida dei Colori', voicePitch: 1.3 },
+  { name: 'Piuma la Rondine', emoji: '🕊️', role: 'Maestra di Musica & Inglese', voicePitch: 1.3 },
   { name: 'Brio il Delfino', emoji: '🐬', role: 'Campione dei Numeri', voicePitch: 1.2 },
   { name: 'Fiamma la Volpina', emoji: '🦊', role: 'Esploratrice di Forme', voicePitch: 1.22 },
-  { name: 'Miele l\'Orsetto', emoji: '🧸', role: 'Custode del Bosco', voicePitch: 1.15 },
-  { name: 'Barnaba il Gufo', emoji: '🦉', role: 'Saggio delle Favole', voicePitch: 1.1 },
+  { name: 'Miele l\'Orsetto', emoji: '🧸', role: 'Custode del Ritmo', voicePitch: 1.15 },
+  { name: 'Barnaba il Gufo', emoji: '🦉', role: 'Saggio del QI & Favole', voicePitch: 1.1 },
 ];
 
 // =========================================================================
@@ -58,22 +59,25 @@ const ANIMAL_GUIDES = [
 // =========================================================================
 export interface MathItemTheme {
   emoji: string;
-  singular: string;       // "mela", "fragolina", "biscottino", "stellina"
-  plural: string;         // "mele", "fragoline", "biscottini", "stelline"
+  singular: string;          // "mela", "fragolina", "biscottino", "stellina"
+  plural: string;            // "mele", "fragoline", "biscottini", "stelline"
   gender: 'f' | 'm';
-  articleSingular: string; // "una" o "un"
+  articleSingular: string;   // "una" o "un"
+  articlePluralAll: string;  // "tutte le", "tutti i", "tutti gli"
+  eachPhrase: string;        // "una ad una" o "uno ad uno"
+  countPronoun: string;      // "contarle" o "contarli"
 }
 
 export const MATH_ITEM_CATALOG: MathItemTheme[] = [
-  { emoji: '🍎', singular: 'mela', plural: 'mele', gender: 'f', articleSingular: 'una' },
-  { emoji: '🍓', singular: 'fragolina', plural: 'fragoline', gender: 'f', articleSingular: 'una' },
-  { emoji: '⭐', singular: 'stellina', plural: 'stelline', gender: 'f', articleSingular: 'una' },
-  { emoji: '🦋', singular: 'farfallina', plural: 'farfalline', gender: 'f', articleSingular: 'una' },
-  { emoji: '🥕', singular: 'carota', plural: 'carote', gender: 'f', articleSingular: 'una' },
-  { emoji: '🍪', singular: 'biscottino', plural: 'biscottini', gender: 'm', articleSingular: 'un' },
-  { emoji: '🎈', singular: 'palloncino', plural: 'palloncini', gender: 'm', articleSingular: 'un' },
-  { emoji: '🐬', singular: 'delfino', plural: 'delfini', gender: 'm', articleSingular: 'un' },
-  { emoji: '🧸', singular: 'orsetto', plural: 'orsetti', gender: 'm', articleSingular: 'un' },
+  { emoji: '🍎', singular: 'mela', plural: 'mele', gender: 'f', articleSingular: 'una', articlePluralAll: 'tutte le', eachPhrase: 'una ad una', countPronoun: 'contarle' },
+  { emoji: '🍓', singular: 'fragolina', plural: 'fragoline', gender: 'f', articleSingular: 'una', articlePluralAll: 'tutte le', eachPhrase: 'una ad una', countPronoun: 'contarle' },
+  { emoji: '⭐', singular: 'stellina', plural: 'stelline', gender: 'f', articleSingular: 'una', articlePluralAll: 'tutte le', eachPhrase: 'una ad una', countPronoun: 'contarle' },
+  { emoji: '🦋', singular: 'farfallina', plural: 'farfalline', gender: 'f', articleSingular: 'una', articlePluralAll: 'tutte le', eachPhrase: 'una ad una', countPronoun: 'contarle' },
+  { emoji: '🥕', singular: 'carota', plural: 'carote', gender: 'f', articleSingular: 'una', articlePluralAll: 'tutte le', eachPhrase: 'una ad una', countPronoun: 'contarle' },
+  { emoji: '🍪', singular: 'biscottino', plural: 'biscottini', gender: 'm', articleSingular: 'un', articlePluralAll: 'tutti i', eachPhrase: 'uno ad uno', countPronoun: 'contarli' },
+  { emoji: '🎈', singular: 'palloncino', plural: 'palloncini', gender: 'm', articleSingular: 'un', articlePluralAll: 'tutti i', eachPhrase: 'uno ad uno', countPronoun: 'contarli' },
+  { emoji: '🐬', singular: 'delfino', plural: 'delfini', gender: 'm', articleSingular: 'un', articlePluralAll: 'tutti i', eachPhrase: 'uno ad uno', countPronoun: 'contarli' },
+  { emoji: '🧸', singular: 'orsetto', plural: 'orsetti', gender: 'm', articleSingular: 'un', articlePluralAll: 'tutti gli', eachPhrase: 'uno ad uno', countPronoun: 'contarli' },
 ];
 
 const ITALIAN_NUM_WORDS: Record<number, { f: string; m: string }> = {
@@ -90,7 +94,7 @@ const ITALIAN_NUM_WORDS: Record<number, { f: string; m: string }> = {
 export function formatQuantityItalian(count: number, item: MathItemTheme): { text: string; speech: string } {
   if (count === 1) {
     return {
-      text: `1 ${item.singular}`,
+      text: `${item.articleSingular} ${item.singular}`,
       speech: `${item.articleSingular} ${item.singular}`,
     };
   }
@@ -101,13 +105,24 @@ export function formatQuantityItalian(count: number, item: MathItemTheme): { tex
   };
 }
 
+// Deterministic shuffle so options never jump during state updates
+function deterministicShuffle<T>(items: T[], seed: number): T[] {
+  const arr = [...items];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = (seed * 31 + i * 17) % (i + 1);
+    const temp = arr[i];
+    arr[i] = arr[j];
+    arr[j] = temp;
+  }
+  return arr;
+}
+
 // =========================================================================
 // 5-YEAR-OLD APPROPRIATE CURATED DATA CATALOGS
 // =========================================================================
 
 // 1. I Versi degli Animali (Graduati: base nel Tier 1, selvatici/campestri nei tier successivi)
 const ANIMAL_SOUNDS = [
-  // Tier 1 Base
   {
     sound: 'Miao',
     prompt: 'Chi fa "Miao"? 🐱',
@@ -141,7 +156,6 @@ const ANIMAL_SOUNDS = [
     ],
     explanation: 'Esatto! La simpatica mucca fa Muuu!',
   },
-  // Tier 2 Natura
   {
     sound: 'Cra Cra',
     prompt: 'Chi fa "Cra Cra" nello stagno? 🐸',
@@ -234,28 +248,6 @@ const ANIMAL_FOOD = [
     ],
     explanation: 'Che bontà! L\'orsetto adora il miele profumato!',
   },
-  {
-    animal: 'Gattino',
-    prompt: 'Cosa beve il gattino nella ciotolina? 🐱',
-    speech: 'Cosa beve con gusto il gattino quando fa le fusa?',
-    correct: { label: 'Latte', emoji: '🥛', sublabel: 'Fresco e bianco' },
-    distractors: [
-      { label: 'Carota', emoji: '🥕', sublabel: 'Verdura' },
-      { label: 'Osso', emoji: '🦴', sublabel: 'Per i cani' },
-    ],
-    explanation: 'Proprio così! Una bella ciotolina di latte fresco!',
-  },
-  {
-    animal: 'Topolino',
-    prompt: 'Cosa cerca il furbetto topolino? 🐭',
-    speech: 'Quale boccone con i buchi fa impazzire il topolino?',
-    correct: { label: 'Formaggio', emoji: '🧀', sublabel: 'Giallo con i buchi' },
-    distractors: [
-      { label: 'Miele', emoji: '🍯', sublabel: 'Per l\'orsetto' },
-      { label: 'Pesce', emoji: '🐟', sublabel: 'Per il gatto' },
-    ],
-    explanation: 'Il topolino adora sgranocchiare il formaggio!',
-  },
 ];
 
 // 3. Dove Vivono gli Animali? (Habitat)
@@ -290,16 +282,6 @@ const ANIMAL_HABITATS = [
     ],
     explanation: 'Bravissima! L\'ape vive nell\'alveare con tutte le sue amiche!',
   },
-  {
-    prompt: 'Dove dorme l\'orsetto d\'inverno? 🐻',
-    speech: 'Qual è il rifugio caldo nel bosco dove dorme l\'orsetto?',
-    correct: { label: 'Nella Tana', emoji: '🪵', sublabel: 'Nel bosco caldo' },
-    distractors: [
-      { label: 'Nel Mare', emoji: '🌊', sublabel: 'Troppo bagnato' },
-      { label: 'Nel Nido', emoji: '🪺', sublabel: 'Troppo piccolo' },
-    ],
-    explanation: 'L\'orsetto dorme al caldo nella sua tana tra i tronchi del bosco!',
-  },
 ];
 
 // 4. Confronti di Grandezza Visiva per 5 Anni
@@ -333,16 +315,6 @@ const SIZE_COMPARISONS = [
       { label: 'Tartaruga', emoji: '🐢', sublabel: 'È bassa' },
     ],
     explanation: 'La giraffa con il suo collo altissimo che tocca le nuvole!',
-  },
-  {
-    prompt: 'Chi è il più LENTO a camminare? 🐌',
-    speech: 'Chi cammina pianissimo portando la casetta sulla schiena?',
-    correct: { label: 'Chiocciolina', emoji: '🐌', sublabel: 'Molto lenta' },
-    distractors: [
-      { label: 'Ghepardo', emoji: '🐆', sublabel: 'Corre veloce' },
-      { label: 'Leprotto', emoji: '🐇', sublabel: 'Fa grandi salti' },
-    ],
-    explanation: 'La chiocciolina va piano piano senza alcuna fretta!',
   },
 ];
 
@@ -388,51 +360,7 @@ const COLOR_MIXES = [
   },
 ];
 
-// 6. Trova l'Intruso Evidente (Logica visiva)
-const ODD_ONE_OUT_CATALOG = [
-  {
-    prompt: 'Quale NON si mangia? 🍽️',
-    speech: 'Guarda bene questi tre oggetti: quale NON è un frutto da mangiare?',
-    correct: { label: 'Scarpa', emoji: '👟', sublabel: 'Si mette ai piedi!' },
-    distractors: [
-      { label: 'Mela', emoji: '🍎', sublabel: 'Frutto delizioso' },
-      { label: 'Banana', emoji: '🍌', sublabel: 'Frutto dolce' },
-    ],
-    explanation: 'Bravissima! La scarpa serve per camminare, non si mangia affatto!',
-  },
-  {
-    prompt: 'Quale NON è un animale? 🐾',
-    speech: 'Tocca l\'elemento che NON è un animale vivo:',
-    correct: { label: 'Automobile', emoji: '🚗', sublabel: 'Ha le ruote e il motore' },
-    distractors: [
-      { label: 'Gattino', emoji: '🐱', sublabel: 'È un animale' },
-      { label: 'Cagnolino', emoji: '🐶', sublabel: 'È un animale' },
-    ],
-    explanation: 'Esatto! L\'automobile è un veicolo con le ruote, non un animale!',
-  },
-  {
-    prompt: 'Quale NON nuota nell\'acqua? 🌊',
-    speech: 'Chi tra questi NON sa nuotare sotto il mare?',
-    correct: { label: 'Scoiattolo', emoji: '🐿️', sublabel: 'Vive sugli alberi!' },
-    distractors: [
-      { label: 'Delfino', emoji: '🐬', sublabel: 'Nuota nel mare' },
-      { label: 'Pesciolino', emoji: '🐟', sublabel: 'Nuota nell\'acqua' },
-    ],
-    explanation: 'Lo scoiattolo vive sugli alberi del bosco e mangia le ghiande!',
-  },
-  {
-    prompt: 'Quale NON serve per dormire? 🛏️',
-    speech: 'Quale di questi oggetti NON serve per fare la nanna a letto?',
-    correct: { label: 'Bicicletta', emoji: '🚲', sublabel: 'Serve per pedalare fuori!' },
-    distractors: [
-      { label: 'Cuscino', emoji: '🛏️', sublabel: 'Morbido per la testa' },
-      { label: 'Pigiama', emoji: '🧸', sublabel: 'Per la nanna' },
-    ],
-    explanation: 'La bicicletta serve per correre al parco, non per dormire a letto!',
-  },
-];
-
-// 7. Lettere Iniziali Affettuose & Familiari (Emma, Mamma, Sole...)
+// 6. Lettere Iniziali Affettuose & Familiari (Emma, Mamma, Sole...)
 const INITIAL_LETTER_SPECIALS = [
   {
     letter: 'E',
@@ -478,7 +406,7 @@ const INITIAL_LETTER_SPECIALS = [
   },
 ];
 
-// 8. Indovinelli Magici in Rima per Sviluppare il Ragionamento (Preschool 5 anni)
+// 7. Indovinelli Magici in Rima per Sviluppare il Ragionamento (Preschool 5 anni)
 export const KID_RIDDLES = [
   {
     prompt: 'Indovinello: Chi sono? 🐴',
@@ -490,17 +418,6 @@ export const KID_RIDDLES = [
       { label: 'Pesciolino', emoji: '🐟', sublabel: 'Nuota nel mare' },
     ],
     explanation: 'Proprio il cavallino galoppante con la sua bellissima criniera!',
-  },
-  {
-    prompt: 'Indovinello: Chi sono? 🐟',
-    speech: 'Ascolta bene: Vivo nell\'acqua fresca, non so camminare, ma con le mie pinne so ben nuotare. Chi sono?',
-    riddleText: 'Vivo nell\'acqua fresca, non so camminare, ma con le mie pinne so ben nuotare... Chi sono?',
-    correct: { label: 'Pesciolino', emoji: '🐟', sublabel: 'Nuota nell\'acqua' },
-    distractors: [
-      { label: 'Uccellino', emoji: '🐣', sublabel: 'Vola in cielo' },
-      { label: 'Gattino', emoji: '🐱', sublabel: 'Fa Miao sul divano' },
-    ],
-    explanation: 'Bravissima! È il pesciolino argentato che sguazza nell\'acqua!',
   },
   {
     prompt: 'Indovinello: Chi sono? 🦋',
@@ -525,61 +442,6 @@ export const KID_RIDDLES = [
     explanation: 'Esatto! La chiocciolina con la casetta rotonda sulla schiena!',
   },
   {
-    prompt: 'Indovinello: Chi sono? 🍎',
-    speech: 'Ascolta la rima: Rotonda e profumata, rossa o dorata, dolce e croccante appena sgranocchiata. Chi sono?',
-    riddleText: 'Rotonda e profumata, rossa o dorata, dolce e succosa appena sgranocchiata... Chi sono?',
-    correct: { label: 'Mela', emoji: '🍎', sublabel: 'Frutto delizioso' },
-    distractors: [
-      { label: 'Sasso', emoji: '🪨', sublabel: 'Duro e grigio' },
-      { label: 'Scarpa', emoji: '👟', sublabel: 'Si mette ai piedi' },
-    ],
-    explanation: 'Bravissima Emma! La mela dolce e croccante!',
-  },
-  {
-    prompt: 'Indovinello: Chi sono? ☀️',
-    speech: 'Indovinello caldo: Giallo e splendente nel cielo d\'estate, scaldo la terra e le giornate dorate. Chi sono?',
-    riddleText: 'Giallo e splendente nel cielo d\'estate, scaldo la terra e le giornate dorate... Chi sono?',
-    correct: { label: 'Sole', emoji: '☀️', sublabel: 'Luminoso e caldo' },
-    distractors: [
-      { label: 'Pupazzo di neve', emoji: '⛄', sublabel: 'Fatto di ghiaccio' },
-      { label: 'Ombrello', emoji: '☂️', sublabel: 'Per la pioggia' },
-    ],
-    explanation: 'Il sole che risplende alto e ci riscalda ogni giorno!',
-  },
-  {
-    prompt: 'Indovinello: Chi sono? 🐰',
-    speech: 'Ascolta bene: Ho lunghe orecchie e un musetto carino, mangio carote e salto nel giardino. Chi sono?',
-    riddleText: 'Ho lunghe orecchie e musetto carino, mangio carote e salto nel giardino... Chi sono?',
-    correct: { label: 'Coniglietto', emoji: '🐰', sublabel: 'Salterino e morbido' },
-    distractors: [
-      { label: 'Tartaruga', emoji: '🐢', sublabel: 'Molto lenta' },
-      { label: 'Elefante', emoji: '🐘', sublabel: 'Con la proboscide' },
-    ],
-    explanation: 'Proprio il tenero coniglietto dalle lunghe orecchie!',
-  },
-  {
-    prompt: 'Indovinello: Chi sono? 🐝',
-    speech: 'Indovinello alato: Volo di fiore in fiore con un ronzio canterino, preparo il dolce miele per il tuo pancino. Chi sono?',
-    riddleText: 'Volo di fiore in fiore con un ronzio canterino, preparo il dolce miele per il tuo pancino... Chi sono?',
-    correct: { label: 'Ape', emoji: '🐝', sublabel: 'Fa ronzio e miele' },
-    distractors: [
-      { label: 'Mucca', emoji: '🐄', sublabel: 'Fa il latte' },
-      { label: 'Orso', emoji: '🐻', sublabel: 'Mangia il miele' },
-    ],
-    explanation: 'L\'apina laboriosa che vola sui fiori e fa il miele dorato!',
-  },
-  {
-    prompt: 'Indovinello: Chi sono? 🌙',
-    speech: 'Indovinello della sera: Di notte risplendo nel cielo incantato, sembro una fetta di formaggio dorato. Chi sono?',
-    riddleText: 'Di notte risplendo nel cielo incantato, sembro una fetta di formaggio dorato... Chi sono?',
-    correct: { label: 'Luna', emoji: '🌙', sublabel: 'Nel cielo notturno' },
-    distractors: [
-      { label: 'Sole', emoji: '☀️', sublabel: 'Brilla di giorno' },
-      { label: 'Albero', emoji: '🌳', sublabel: 'Con le foglie verdi' },
-    ],
-    explanation: 'La dolce luna che ci fa compagnia prima della nanna!',
-  },
-  {
     prompt: 'Indovinello: Chi sono? 🌈',
     speech: 'Indovinello colorato: Sette colori brillano nel cielo dopo il temporale, sembro un ponte magico e speciale. Chi sono?',
     riddleText: 'Sette colori brillano nel cielo dopo il temporale, sembro un ponte magico e speciale... Chi sono?',
@@ -589,6 +451,339 @@ export const KID_RIDDLES = [
       { label: 'Torta', emoji: '🎂', sublabel: 'Per il compleanno' },
     ],
     explanation: 'L\'arcobaleno meraviglioso con tutti i suoi colori magici!',
+  },
+];
+
+// =========================================================================
+// 8. CATALOGO MUSICA, STRUMENTI & RITMO SONORO (LIVELLI MUSICALI CON NOTE REALI)
+// =========================================================================
+interface MusicRhythmEntry {
+  title: string;
+  prompt: string;
+  speech: string;
+  rhythmNotes: RhythmNote[];
+  correct: { label: string; emoji: string; sublabel: string; noteFreq: number };
+  distractors: { label: string; emoji: string; sublabel: string; noteFreq: number }[];
+  explanation: string;
+}
+
+const MUSIC_RHYTHM_CATALOG: MusicRhythmEntry[] = [
+  {
+    title: 'La Scala Magica: Do - Re - Mi!',
+    prompt: 'Ascolta le note: DO 🎵 - RE 🎶 - ... Quale nota viene dopo?',
+    speech: 'Ascolta la melodia che sale: Do... Re... Quale nota musicale cantiamo adesso? Do, Re, Mi!',
+    rhythmNotes: [
+      { freq: 261.63, duration: 0.35, label: 'DO', emoji: '🔴' },
+      { freq: 293.66, duration: 0.35, label: 'RE', emoji: '🟠' },
+      { freq: 329.63, duration: 0.45, label: '❓', emoji: '🎵' },
+    ],
+    correct: { label: 'Nota MI!', emoji: '🎶', sublabel: 'Do - Re - MI!', noteFreq: 329.63 },
+    distractors: [
+      { label: 'Silenzio', emoji: '🤫', sublabel: 'Pausa muta', noteFreq: 196.0 },
+      { label: 'Sirena', emoji: '🚨', sublabel: 'Rumore forte', noteFreq: 220.0 },
+    ],
+    explanation: 'Bravissima! Nella scala musicale dopo il Do e il Re viene sempre il dolce MI!',
+  },
+  {
+    title: 'Il Ritmo del Tamburello: Ta - Ta - Bum!',
+    prompt: 'Segui il ritmo: Tamburo 🥁, Battito 👏, Tamburo 🥁... Cosa tocca adesso?',
+    speech: 'Sentiamo il ritmo allegro: Tamburo, Battito di mani, Tamburo... Cosa viene adesso per continuare il ritmo?',
+    rhythmNotes: [
+      { freq: 196.0, duration: 0.3, label: 'BUM', emoji: '🥁' },
+      { freq: 523.25, duration: 0.25, label: 'CLAP', emoji: '👏' },
+      { freq: 196.0, duration: 0.3, label: 'BUM', emoji: '🥁' },
+      { freq: 523.25, duration: 0.35, label: '❓', emoji: '✨' },
+    ],
+    correct: { label: 'Battito 👏', emoji: '👏', sublabel: 'Clap con le manine!', noteFreq: 523.25 },
+    distractors: [
+      { label: 'Cuscino', emoji: '🛏️', sublabel: 'Non fa musica', noteFreq: 220.0 },
+      { label: 'Ombrello', emoji: '☂️', sublabel: 'Per la pioggia', noteFreq: 246.94 },
+    ],
+    explanation: 'Che senso del ritmo! Tamburo, Battito, Tamburo, Battito!',
+  },
+  {
+    title: 'Lo Strumento coi Tasti Bianchi e Neri',
+    prompt: 'Quale strumento musicale si suona coi ditini sui tasti bianchi e neri? 🎹',
+    speech: 'Ascolta questa dolce melodia: quale strumento musicale ha tanti tasti bianchi e neri da suonare con le dita?',
+    rhythmNotes: [
+      { freq: 523.25, duration: 0.25, label: 'DO', emoji: '🎹' },
+      { freq: 659.25, duration: 0.25, label: 'MI', emoji: '🎹' },
+      { freq: 783.99, duration: 0.4, label: 'SOL', emoji: '🎹' },
+    ],
+    correct: { label: 'Pianoforte', emoji: '🎹', sublabel: 'Tasti bianchi e neri', noteFreq: 523.25 },
+    distractors: [
+      { label: 'Tamburo', emoji: '🥁', sublabel: 'Si suona con le bacchette', noteFreq: 196.0 },
+      { label: 'Maracas', emoji: '🪇', sublabel: 'Si scuotono', noteFreq: 440.0 },
+    ],
+    explanation: 'Esatto! Il Pianoforte ha i tasti bianchi e neri che cantano sotto le dita!',
+  },
+  {
+    title: 'Chi Fa "Bum Bum" con le Bacchette?',
+    prompt: 'Quale strumento tiene il tempo facendo "Bum Bum" con le bacchette? 🥁',
+    speech: 'Quale strumento rotondo fa Bum Bum quando lo tocchiamo a tempo con le bacchette?',
+    rhythmNotes: [
+      { freq: 164.81, duration: 0.28, label: 'BUM', emoji: '🥁' },
+      { freq: 164.81, duration: 0.28, label: 'BUM', emoji: '🥁' },
+      { freq: 220.0, duration: 0.4, label: 'TA!', emoji: '🥁' },
+    ],
+    correct: { label: 'Tamburo', emoji: '🥁', sublabel: 'Ritmo Bum Bum!', noteFreq: 220.0 },
+    distractors: [
+      { label: 'Violino', emoji: '🎻', sublabel: 'Ha le corde e l\'archetto', noteFreq: 659.25 },
+      { label: 'Arpa', emoji: '🎵', sublabel: 'Pizzica le corde', noteFreq: 587.33 },
+    ],
+    explanation: 'Proprio il Tamburo! È il re del ritmo e della marcia!',
+  },
+  {
+    title: 'Lo Strumento con 6 Corde da Pizzicare',
+    prompt: 'Quale strumento si abbraccia e ha le corde che fanno "Plin Plin"? 🎸',
+    speech: 'Quale strumento musicale ha le corde e si suona pizzicandole con le dita per cantare insieme?',
+    rhythmNotes: [
+      { freq: 329.63, duration: 0.25, label: 'PLIN', emoji: '🎸' },
+      { freq: 392.0, duration: 0.25, label: 'PLON', emoji: '🎸' },
+      { freq: 523.25, duration: 0.4, label: 'PLIN!', emoji: '🎸' },
+    ],
+    correct: { label: 'Chitarra', emoji: '🎸', sublabel: 'Suona con le corde', noteFreq: 392.0 },
+    distractors: [
+      { label: 'Tromba', emoji: '🎺', sublabel: 'Si soffia dentro', noteFreq: 440.0 },
+      { label: 'Campanella', emoji: '🔔', sublabel: 'Fa Din Don', noteFreq: 783.99 },
+    ],
+    explanation: 'Fantastico! La Chitarra regala allegre canzoni pizzicando le sue corde!',
+  },
+  {
+    title: 'Ritmo Melodico: Campanella e Stellina',
+    prompt: 'Completa il ritmo musicale: Din 🔔 - Din 🔔 - Stella 🌟 - Din 🔔 - Din 🔔 - ...?',
+    speech: 'Ascolta il ritmo a tre tempi: Campanella, Campanella, Stella... Campanella, Campanella... cosa chiude il giro?',
+    rhythmNotes: [
+      { freq: 659.25, duration: 0.22, label: 'DIN', emoji: '🔔' },
+      { freq: 659.25, duration: 0.22, label: 'DIN', emoji: '🔔' },
+      { freq: 880.0, duration: 0.4, label: 'STELLA', emoji: '🌟' },
+    ],
+    correct: { label: 'Stella 🌟', emoji: '🌟', sublabel: 'Chiude il giro musicale!', noteFreq: 880.0 },
+    distractors: [
+      { label: 'Sasso', emoji: '🪨', sublabel: 'Non suona', noteFreq: 196.0 },
+      { label: 'Scarpa', emoji: '👟', sublabel: 'Fuori tempo', noteFreq: 220.0 },
+    ],
+    explanation: 'Che orecchio musicale! Din, Din, Stella... il ritmo è perfetto!',
+  },
+];
+
+// =========================================================================
+// 9. CATALOGO PRIME PAROLINE IN INGLESE (PRESCHOOL BILINGUAL DISCOVERY)
+// =========================================================================
+interface EnglishLessonEntry {
+  wordInfo: EnglishWordHighlight;
+  prompt: string;
+  speech: string;
+  correct: { label: string; emoji: string; sublabel: string };
+  distractors: { label: string; emoji: string; sublabel: string }[];
+  explanation: string;
+}
+
+const ENGLISH_WORDS_CATALOG: EnglishLessonEntry[] = [
+  // Tier 1 Base
+  {
+    wordInfo: { en: 'DOG', it: 'Cagnolino', phoneticHint: 'Si legge: "Dog"', emoji: '🐶', categoryLabel: 'Animali in Inglese' },
+    prompt: 'In inglese "DOG" significa Cagnolino! Qual è il DOG? 🐶',
+    speech: 'Impariamo una parolina in inglese! In inglese il cagnolino si chiama Dog! Tocca il Dog!',
+    correct: { label: 'DOG (Cagnolino)', emoji: '🐶', sublabel: '🇬🇧 Dog = 🇮🇹 Cagnolino' },
+    distractors: [
+      { label: 'Pesciolino', emoji: '🐟', sublabel: 'Nuota nel mare' },
+      { label: 'Albero', emoji: '🌳', sublabel: 'Nel bosco' },
+    ],
+    explanation: 'Bravissima! Dog in inglese vuol dire proprio Cagnolino!',
+  },
+  {
+    wordInfo: { en: 'CAT', it: 'Gattino', phoneticHint: 'Si legge: "Chet"', emoji: '🐱', categoryLabel: 'Animali in Inglese' },
+    prompt: 'In inglese "CAT" è il Gattino che fa Miao! Tocca il CAT! 🐱',
+    speech: 'Parolina inglese! Il gattino morbido in inglese si chiama Cat! Tocca il Cat!',
+    correct: { label: 'CAT (Gattino)', emoji: '🐱', sublabel: '🇬🇧 Cat = 🇮🇹 Gattino' },
+    distractors: [
+      { label: 'Mucca', emoji: '🐄', sublabel: 'Fa Muuu' },
+      { label: 'Macchinina', emoji: '🚗', sublabel: 'Ha 4 ruote' },
+    ],
+    explanation: 'Super! Cat è il Gattino in inglese!',
+  },
+  {
+    wordInfo: { en: 'SUN', it: 'Sole', phoneticHint: 'Si legge: "San"', emoji: '☀️', categoryLabel: 'Natura in Inglese' },
+    prompt: 'In inglese il Sole giallo si chiama "SUN"! Qual è il SUN? ☀️',
+    speech: 'Come si dice Sole in inglese? Si dice San! Tocca il Sole splendente, Sun!',
+    correct: { label: 'SUN (Sole)', emoji: '☀️', sublabel: '🇬🇧 Sun = 🇮🇹 Sole' },
+    distractors: [
+      { label: 'Ombrello', emoji: '☂️', sublabel: 'Per la pioggia' },
+      { label: 'Scarpa', emoji: '👟', sublabel: 'Si mette ai piedi' },
+    ],
+    explanation: 'Meraviglioso! Sun significa Sole in inglese!',
+  },
+  {
+    wordInfo: { en: 'APPLE', it: 'Mela', phoneticHint: 'Si legge: "Èppol"', emoji: '🍎', categoryLabel: 'Frutta in Inglese' },
+    prompt: 'In inglese una mela rossa si chiama "APPLE"! Tocca la APPLE! 🍎',
+    speech: 'Impariamo l\'inglese: una mela dolce e rossa si chiama Èppol! Tocca la Apple!',
+    correct: { label: 'APPLE (Mela)', emoji: '🍎', sublabel: '🇬🇧 Apple = 🇮🇹 Mela' },
+    distractors: [
+      { label: 'Carota', emoji: '🥕', sublabel: 'Arancione' },
+      { label: 'Pallone', emoji: '⚽', sublabel: 'Per giocare' },
+    ],
+    explanation: 'Proprio così! Apple in inglese significa una mela!',
+  },
+  // Tier 2+ Colori, Stelle, Natura & Numeri in Inglese
+  {
+    wordInfo: { en: 'STAR', it: 'Stella', phoneticHint: 'Si legge: "Star"', emoji: '⭐', categoryLabel: 'Cielo in Inglese' },
+    prompt: 'In inglese la Stellina dorata si chiama "STAR"! Tocca la STAR! ⭐',
+    speech: 'La stellina che brilla nel cielo in inglese si chiama Star! Tocca la Star dorata!',
+    correct: { label: 'STAR (Stella)', emoji: '⭐', sublabel: '🇬🇧 Star = 🇮🇹 Stella' },
+    distractors: [
+      { label: 'Sasso', emoji: '🪨', sublabel: 'Grigio' },
+      { label: 'Funghetto', emoji: '🍄', sublabel: 'Nel bosco' },
+    ],
+    explanation: 'Bravissima! Star vuol dire Stella in inglese!',
+  },
+  {
+    wordInfo: { en: 'RED', it: 'Rosso', phoneticHint: 'Si legge: "Red"', emoji: '🔴', categoryLabel: 'Colori in Inglese' },
+    prompt: 'In inglese il colore ROSSO si dice "RED"! Quale cerchio è RED? 🔴',
+    speech: 'Giochiamo coi colori in inglese! Il colore Rosso si chiama Red! Tocca il colore Red!',
+    correct: { label: 'RED (Rosso)', emoji: '🔴', sublabel: '🇬🇧 Red = 🇮🇹 Rosso' },
+    distractors: [
+      { label: 'Blu', emoji: '🔵', sublabel: 'Colore del mare' },
+      { label: 'Verde', emoji: '🟢', sublabel: 'Colore del prato' },
+    ],
+    explanation: 'Fantastico! Red è il colore Rosso in inglese!',
+  },
+  {
+    wordInfo: { en: 'BLUE', it: 'Blu', phoneticHint: 'Si legge: "Blu"', emoji: '🔵', categoryLabel: 'Colori in Inglese' },
+    prompt: 'In inglese il colore BLU del mare si scrive "BLUE"! Tocca BLUE! 🔵',
+    speech: 'Come il mare e il cielo: in inglese Blu si dice Blu! Tocca il cerchio Blue!',
+    correct: { label: 'BLUE (Blu)', emoji: '🔵', sublabel: '🇬🇧 Blue = 🇮🇹 Blu' },
+    distractors: [
+      { label: 'Giallo', emoji: '🟡', sublabel: 'Come il limone' },
+      { label: 'Rosso', emoji: '🔴', sublabel: 'Come la fragola' },
+    ],
+    explanation: 'Perfetto! Blue è il colore Blu in inglese!',
+  },
+  {
+    wordInfo: { en: 'HEART', it: 'Cuore', phoneticHint: 'Si legge: "Hart"', emoji: '💖', categoryLabel: 'Parole Dolci in Inglese' },
+    prompt: 'In inglese il Cuoricino si chiama "HEART"! Tocca il HEART! 💖',
+    speech: 'Una parola dolcissima in inglese: il cuoricino si dice Hart! Tocca il Heart rosa!',
+    correct: { label: 'HEART (Cuore)', emoji: '💖', sublabel: '🇬🇧 Heart = 🇮🇹 Cuore' },
+    distractors: [
+      { label: 'Quadrato', emoji: '🟦', sublabel: 'Ha 4 angoli' },
+      { label: 'Triangolo', emoji: '🔺', sublabel: 'Ha 3 punte' },
+    ],
+    explanation: 'Che meraviglia! Heart significa Cuore in inglese!',
+  },
+  {
+    wordInfo: { en: 'BUTTERFLY', it: 'Farfalla', phoneticHint: 'Si legge: "Bàtterflai"', emoji: '🦋', categoryLabel: 'Natura in Inglese' },
+    prompt: 'In inglese la Farfalla si chiama "BUTTERFLY"! Tocca la BUTTERFLY! 🦋',
+    speech: 'Ascolta che bella parola inglese: la farfallina colorata si chiama Bàtterflai! Tocca la Butterfly!',
+    correct: { label: 'BUTTERFLY (Farfalla)', emoji: '🦋', sublabel: '🇬🇧 Butterfly = 🇮🇹 Farfalla' },
+    distractors: [
+      { label: 'Tartaruga', emoji: '🐢', sublabel: 'Cammina piano' },
+      { label: 'Orsetto', emoji: '🐻', sublabel: 'Dorme nella tana' },
+    ],
+    explanation: 'Campionessa d\'inglese! Butterfly è la Farfalla!',
+  },
+  {
+    wordInfo: { en: 'RAINBOW', it: 'Arcobaleno', phoneticHint: 'Si legge: "Rèinbou"', emoji: '🌈', categoryLabel: 'Cielo in Inglese' },
+    prompt: 'In inglese l\'Arcobaleno si chiama "RAINBOW"! Tocca il RAINBOW! 🌈',
+    speech: 'L\'arcobaleno dai sette colori in inglese si chiama Rèinbou! Tocca il Rainbow!',
+    correct: { label: 'RAINBOW (Arcobaleno)', emoji: '🌈', sublabel: '🇬🇧 Rainbow = 🇮🇹 Arcobaleno' },
+    distractors: [
+      { label: 'Nuvola Grigia', emoji: '🌧️', sublabel: 'Pioggia' },
+      { label: 'Sasso', emoji: '🪨', sublabel: 'Duro' },
+    ],
+    explanation: 'Bravissima! Rainbow significa proprio Arcobaleno!',
+  },
+];
+
+// =========================================================================
+// 10. CATALOGO LIVELLI PSICOMETRICI PER MISURARE IL QI (WPPSI-IV 5 ANNI)
+// Parametri misurati:
+// - Ragionamento Fluido & Matrici Analogiche (Gf)
+// - Elaborazione Visuo-Spaziale & Trasformazione Forme (Gv)
+// - Memoria di Lavoro & Serie Deduttive (Gwm)
+// - Astrazione Concettuale & Categorizzazione (Gc/Gf)
+// =========================================================================
+interface IQMatrixEntry {
+  iqParameterTag: string;
+  prompt: string;
+  speech: string;
+  patternItems?: string[];
+  correct: { label: string; emoji: string; sublabel: string };
+  distractors: { label: string; emoji: string; sublabel: string }[];
+  explanation: string;
+}
+
+const IQ_PSYCHOMETRIC_CATALOG: IQMatrixEntry[] = [
+  {
+    iqParameterTag: 'Ragionamento Analogico Fluido (Gf)',
+    prompt: 'Analogia QI: Il Pesciolino 🐟 sta al Mare 🌊 come l\'Uccellino 🐦 sta al...?',
+    speech: 'Sfida del Genietto! Se il pesciolino nuota nel mare, l\'uccellino con le ali dove vola?',
+    patternItems: ['🐟', '➔', '🌊', '🐦', '➔', '❓'],
+    correct: { label: 'Cielo Azzurro', emoji: '☁️', sublabel: 'Vola nel cielo!' },
+    distractors: [
+      { label: 'Sotto il Mare', emoji: '🪸', sublabel: 'Per i pesci' },
+      { label: 'Nel Frigorifero', emoji: '🧊', sublabel: 'Troppo freddo' },
+    ],
+    explanation: 'Ragionamento perfetto! Pesce nel mare, uccellino nel cielo!',
+  },
+  {
+    iqParameterTag: 'Matrice Visuo-Spaziale (Gv/Gf)',
+    prompt: 'Matrice QI: Cerchio Rosso 🔴 ➔ Stella Rossa 🌟 : Cerchio Blu 🔵 ➔ ...?',
+    speech: 'Osserva la trasformazione magica: il Cerchio Rosso diventa una Stella Rossa. Allora il Cerchio Blu cosa diventa?',
+    patternItems: ['🔴', '➔', '🌟', '🔵', '➔', '❓'],
+    correct: { label: 'Stella Blu!', emoji: '💠', sublabel: 'Stessa forma, colore blu' },
+    distractors: [
+      { label: 'Banana Gialla', emoji: '🍌', sublabel: 'È un frutto' },
+      { label: 'Quadrato Verde', emoji: '🟩', sublabel: 'Forma e colore diversi' },
+    ],
+    explanation: 'Che mente brillante! Hai trasformato la forma mantenendo la regola logica!',
+  },
+  {
+    iqParameterTag: 'Deduzione Logico-Temporale (Gf)',
+    prompt: 'Analogia QI: Il Sole ☀️ brilla di Giorno, mentre la Luna 🌙 brilla di...?',
+    speech: 'Pensiamo insieme: il Sole illumina il giorno, mentre la Luna e le stelline quando brillano?',
+    patternItems: ['☀️', '➔', '🌅', '🌙', '➔', '❓'],
+    correct: { label: 'Di Notte!', emoji: '🌌', sublabel: 'Nel cielo stellato' },
+    distractors: [
+      { label: 'A Mezzogiorno', emoji: '🏖️', sublabel: 'C\'è il sole' },
+      { label: 'Nel Piatto', emoji: '🍽️', sublabel: 'Per la pappa' },
+    ],
+    explanation: 'Esatto! Sole di giorno, Luna di notte: un\'analogia logica impeccabile!',
+  },
+  {
+    iqParameterTag: 'Astrazione Funzionale (Gc/Gf)',
+    prompt: 'Logica QI: La Scarpa 👟 si mette sul Piede, il Cappello 🧢 si mette sulla...?',
+    speech: 'Ragionamento del Genietto: se la scarpa veste il piedino, il cappello dove si indossa?',
+    patternItems: ['👟', '➔', '🦶', '🧢', '➔', '❓'],
+    correct: { label: 'Sulla Testa!', emoji: '🧒', sublabel: 'Protegge il capino' },
+    distractors: [
+      { label: 'Sulla Pancia', emoji: '👕', sublabel: 'Lì va la maglietta' },
+      { label: 'Sulle Mani', emoji: '🧤', sublabel: 'Lì vanno i guanti' },
+    ],
+    explanation: 'Bravissima! Scarpa sul piede, cappello sulla testa!',
+  },
+  {
+    iqParameterTag: 'Memoria di Lavoro & Crescita (Gwm)',
+    prompt: 'Serie QI: 1 Germoglio 🌱 ➔ 2 Fiorellini 🌸🌸 ➔ 3 Alberi 🌳🌳🌳. Quale passo mostra PIÙ elementi?',
+    speech: 'Osserva la crescita della natura: prima c\'è un germoglio, poi due fiorellini, poi tre alberi! Quale gruppo è il più numeroso?',
+    patternItems: ['🌱', '🌸🌸', '🌳🌳🌳', '❓'],
+    correct: { label: '3 Alberi 🌳🌳🌳', emoji: '🌳', sublabel: '3 è il più grande della serie!' },
+    distractors: [
+      { label: '1 Germoglio 🌱', emoji: '🌱', sublabel: 'È solo uno' },
+      { label: '2 Fiorellini 🌸', emoji: '🌸', sublabel: 'Sono due' },
+    ],
+    explanation: 'Ottima concentrazione! La serie cresce da 1 a 2 fino a 3 alberi!',
+  },
+  {
+    iqParameterTag: 'Categorizzazione Esclusiva (Gf)',
+    prompt: 'Test QI: Mela 🍎, Fragola 🍓 e Banana 🍌 sono frutti. Quale tra questi NON c\'entra?',
+    speech: 'Trova l\'elemento fuori categoria: Mela, Fragola, Banana... quale oggetto non appartiene alla famiglia della frutta?',
+    patternItems: ['🍎', '🍓', '🍌', '❓'],
+    correct: { label: 'Orologio ⏰', emoji: '⏰', sublabel: 'Segna l\'ora, non è un frutto!' },
+    distractors: [
+      { label: 'Mela Rossa', emoji: '🍎', sublabel: 'È un frutto' },
+      { label: 'Fragolina', emoji: '🍓', sublabel: 'È un frutto' },
+    ],
+    explanation: 'Geniale! Hai distinto subito la categoria logica della frutta!',
   },
 ];
 
@@ -629,11 +824,17 @@ export function getEncouragementPhrase(isSuccess: boolean, includeName: boolean 
 
 // =========================================================================
 // PROCEDURAL LEVEL GENERATOR - GRADUAL CRESCENDO EVERY 10 LEVELS
-// Tier 1 (Lv 1 - 9): Fondamentali (Suoni base, conteggio 1-3, forme cerchio/stella)
-// Tier 2 (Lv 11 - 19): Lettere familiari, forme secondarie, conteggio 1-5, addizioni 1+1
-// Tier 3 (Lv 21 - 29): Mescolanza colori, logica spaziale, confronti quantità, addizioni 2+1
-// Tier 4 (Lv 31 - 39): Sottrazioni visive con asportazione (3-1), sequenze numeriche, forme e lati
-// Tier 5+ (Lv 41+): Crescendo continuo combinato, mai frustrante, a misura di 5 anni
+// Includes in every 10-level cycle:
+// - Step 1: Versi degli Animali & Natura (logic)
+// - Step 2: Conteggio Interattivo con il Dito (numbers - grammatica M/F perfetta)
+// - Step 3: Musica, Note & Ritmo Sonoro con audio reale (music)
+// - Step 4: Forme, Colori & Mescolanze Cromatiche (shapes)
+// - Step 5: Lettere Familiari, Fonetica & Indovinelli in Rima (letters)
+// - Step 6: Prime Paroline in Inglese (english)
+// - Step 7: Livello Misurazione QI - Matrici & Analogie Psicometriche (logic / iq_matrix)
+// - Step 8: Grandezze, Habitat o Sottrazione Visiva Concreta (numbers / logic)
+// - Step 9: Pattern Sequenziale o Addizione Visiva Concreta (numbers / logic)
+// - Level 10, 20, 30...: Gioco di Svago, poi il grado di difficoltà sale di Tier!
 // =========================================================================
 export function generateProceduralPuzzle(level: number): Puzzle {
   const guide = ANIMAL_GUIDES[(level - 1) % ANIMAL_GUIDES.length];
@@ -647,15 +848,14 @@ export function generateProceduralPuzzle(level: number): Puzzle {
 
   // -------------------------------------------------------------
   // STEP 1: I VERSI DEGLI ANIMALI & IDENTITÀ
-  // Tier 1: animali domestici. Tier 2+: animali del bosco e della campagna
   // -------------------------------------------------------------
   if (step === 1) {
     const soundList = tier === 1 
-      ? ANIMAL_SOUNDS.slice(0, 3) // Gattino, Cane, Mucca
+      ? ANIMAL_SOUNDS.slice(0, 3)
       : ANIMAL_SOUNDS;
     const item = soundList[(level + tier) % soundList.length];
     
-    const options: PuzzleOption[] = [
+    const options: PuzzleOption[] = deterministicShuffle([
       {
         id: 'opt_sound_corr',
         label: item.correct.label,
@@ -670,7 +870,7 @@ export function generateProceduralPuzzle(level: number): Puzzle {
         sublabel: d.sublabel,
         isCorrect: false,
       })),
-    ].sort(() => Math.random() - 0.5);
+    ], level);
 
     return {
       id: `lvl_${level}_sound`,
@@ -690,17 +890,16 @@ export function generateProceduralPuzzle(level: number): Puzzle {
   }
 
   // -------------------------------------------------------------
-  // STEP 2: CONTEGGIO INTERATTIVO CON IL DITO (Grammatica impeccabile)
-  // Tier 1: 1 a 3 elementi
-  // Tier 2: 3 a 5 elementi
-  // Tier 3+: fino a 6 elementi
+  // STEP 2: CONTEGGIO INTERATTIVO CON IL DITO (Grammatica M/F impeccabile)
   // -------------------------------------------------------------
   if (step === 2) {
     const targetCount = tier === 1
-      ? 2 + ((level - 1) % 2) // 2 o 3 nel Tier 1
+      ? 2 + ((level - 1) % 2)
       : tier === 2
-      ? 3 + ((level - 1) % 3) // 3, 4 o 5 nel Tier 2
-      : 4 + ((level - 1) % 3); // 4, 5 o 6 nel Tier 3+
+      ? 3 + ((level - 1) % 3)
+      : tier === 3
+      ? 4 + ((level - 1) % 3)
+      : 5 + ((level - 1) % 3);
 
     const formatted = formatQuantityItalian(targetCount, mathTheme);
 
@@ -711,8 +910,8 @@ export function generateProceduralPuzzle(level: number): Puzzle {
       category: 'numbers',
       type: 'count_interactive',
       title: `Livello ${level}: Tocca e Conta!`,
-      prompt: `Tocca con il dito tutte le ${formatted.text}!`,
-      speechText: `Tocca tutte le ${mathTheme.plural} una ad una con il ditino per contarle insieme!`,
+      prompt: `Tocca con il dito ${mathTheme.articlePluralAll} ${formatted.text}!`,
+      speechText: `Tocca ${mathTheme.articlePluralAll} ${mathTheme.plural}, ${mathTheme.eachPhrase}, con il ditino per ${mathTheme.countPronoun} insieme!`,
       animalGuide: guide,
       targetCount,
       itemEmoji: mathTheme.emoji,
@@ -725,56 +924,54 @@ export function generateProceduralPuzzle(level: number): Puzzle {
   }
 
   // -------------------------------------------------------------
-  // STEP 3: INDOVINELLI MAGICI IN RIMA
-  // Crescendo: indovinelli con rime e associazioni logiche per l'età
+  // STEP 3: MUSICA, NOTE & RITMO SONORO (LIVELLI DI MUSICA E RITMO)
   // -------------------------------------------------------------
   if (step === 3) {
-    const riddle = KID_RIDDLES[(level + tier) % KID_RIDDLES.length];
-    const options: PuzzleOption[] = [
+    const musicItem = MUSIC_RHYTHM_CATALOG[(level + tier - 1) % MUSIC_RHYTHM_CATALOG.length];
+    const options: PuzzleOption[] = deterministicShuffle([
       {
-        id: 'opt_riddle_corr',
-        label: riddle.correct.label,
-        emoji: riddle.correct.emoji,
-        sublabel: riddle.correct.sublabel,
+        id: 'opt_music_corr',
+        label: musicItem.correct.label,
+        emoji: musicItem.correct.emoji,
+        sublabel: musicItem.correct.sublabel,
+        noteFreq: musicItem.correct.noteFreq,
         isCorrect: true,
       },
-      ...riddle.distractors.map((d, i) => ({
-        id: `opt_riddle_dist_${i}`,
+      ...musicItem.distractors.map((d, i) => ({
+        id: `opt_music_dist_${i}`,
         label: d.label,
         emoji: d.emoji,
         sublabel: d.sublabel,
+        noteFreq: d.noteFreq,
         isCorrect: false,
       })),
-    ].sort(() => Math.random() - 0.5);
+    ], level);
 
     return {
-      id: `lvl_${level}_riddle`,
+      id: `lvl_${level}_music`,
       levelNumber: level,
       difficultyTier: tier,
-      category: 'logic',
-      type: 'riddle',
-      title: `Livello ${level}: Indovinello Magico! 🧩`,
-      prompt: riddle.riddleText,
-      speechText: riddle.speech,
+      category: 'music',
+      type: 'music_rhythm',
+      title: `Livello ${level}: ${musicItem.title} 🎵`,
+      prompt: musicItem.prompt,
+      speechText: musicItem.speech,
       animalGuide: guide,
+      rhythmNotes: musicItem.rhythmNotes,
       options,
       rewardStars: 3,
       rewardGems: 2,
-      funExplanation: riddle.explanation,
+      funExplanation: musicItem.explanation,
     };
   }
 
   // -------------------------------------------------------------
   // STEP 4: FORME, COLORI & SPAZIO
-  // Tier 1: Cerchio e Stella
-  // Tier 2: Triangolo e Quadrato
-  // Tier 3+: Mescolanza colori
   // -------------------------------------------------------------
   if (step === 4) {
-    if (tier >= 3 && level % 2 === 0) {
-      // Mescolanze cromatiche
+    if (tier >= 2 && level % 2 === 0) {
       const mix = COLOR_MIXES[(level + tier) % COLOR_MIXES.length];
-      const options: PuzzleOption[] = [
+      const options: PuzzleOption[] = deterministicShuffle([
         {
           id: 'opt_mix_corr',
           label: mix.correct.label,
@@ -789,7 +986,7 @@ export function generateProceduralPuzzle(level: number): Puzzle {
           color: d.color,
           isCorrect: false,
         })),
-      ].sort(() => Math.random() - 0.5);
+      ], level);
 
       return {
         id: `lvl_${level}_colormix`,
@@ -807,12 +1004,12 @@ export function generateProceduralPuzzle(level: number): Puzzle {
         funExplanation: mix.explanation,
       };
     } else {
-      // Riconoscimento forme geometriche calibrate
       const shapeList = tier === 1 ? SHAPES_CATALOG.slice(0, 3) : SHAPES_CATALOG;
       const shape = shapeList[(level + tier) % shapeList.length];
       const otherShapes = SHAPES_CATALOG.filter(s => s.name !== shape.name).slice(0, 2);
 
-      const options: PuzzleOption[] = [
+      const articleShape = shape.name === 'Stella' ? 'la' : 'il';
+      const options: PuzzleOption[] = deterministicShuffle([
         {
           id: `opt_shape_corr_${shape.name}`,
           label: shape.name,
@@ -829,7 +1026,7 @@ export function generateProceduralPuzzle(level: number): Puzzle {
           sublabel: s.hint,
           isCorrect: false,
         })),
-      ].sort(() => Math.random() - 0.5);
+      ], level);
 
       return {
         id: `lvl_${level}_shape`,
@@ -838,32 +1035,68 @@ export function generateProceduralPuzzle(level: number): Puzzle {
         category: 'shapes',
         type: 'match_shape',
         title: `Livello ${level}: Riconosci la Forma!`,
-        prompt: `Tocca il "${shape.name}" ${shape.emoji}`,
+        prompt: `Tocca ${articleShape} "${shape.name}" ${shape.emoji}`,
         speechText: `Tocca con il ditino la figura che si chiama ${shape.name}!`,
         animalGuide: guide,
         options,
         rewardStars: 2,
         rewardGems: 1,
-        funExplanation: `Esatto! Quello è proprio un bellissimo ${shape.name}!`,
+        funExplanation: shape.name === 'Stella'
+          ? `Esatto! Quella è proprio una bellissima Stella!`
+          : `Esatto! Quello è proprio un bellissimo ${shape.name}!`,
       };
     }
   }
 
   // -------------------------------------------------------------
-  // STEP 5: LETTERE FAMILIARI & FONETICA
-  // Tier 1: E di Emma e A di Ape
-  // Tier 2+: M di Mamma, S di Sole, C di Cane, O di Orso
+  // STEP 5: LETTERE FAMILIARI & INDOVINELLI IN RIMA
   // -------------------------------------------------------------
   if (step === 5) {
+    if (tier >= 2 && level % 2 === 1) {
+      const riddle = KID_RIDDLES[(level + tier) % KID_RIDDLES.length];
+      const options: PuzzleOption[] = deterministicShuffle([
+        {
+          id: 'opt_riddle_corr',
+          label: riddle.correct.label,
+          emoji: riddle.correct.emoji,
+          sublabel: riddle.correct.sublabel,
+          isCorrect: true,
+        },
+        ...riddle.distractors.map((d, i) => ({
+          id: `opt_riddle_dist_${i}`,
+          label: d.label,
+          emoji: d.emoji,
+          sublabel: d.sublabel,
+          isCorrect: false,
+        })),
+      ], level);
+
+      return {
+        id: `lvl_${level}_riddle`,
+        levelNumber: level,
+        difficultyTier: tier,
+        category: 'letters',
+        type: 'riddle',
+        title: `Livello ${level}: Indovinello in Rima! 🧩`,
+        prompt: riddle.riddleText,
+        speechText: riddle.speech,
+        animalGuide: guide,
+        options,
+        rewardStars: 3,
+        rewardGems: 2,
+        funExplanation: riddle.explanation,
+      };
+    }
+
     const lettersPool = tier === 1 
-      ? INITIAL_LETTER_SPECIALS.slice(0, 2) // Solo E di Emma e A di Ape
+      ? INITIAL_LETTER_SPECIALS.slice(0, 2)
       : INITIAL_LETTER_SPECIALS;
     const letterItem = lettersPool[(level + tier) % lettersPool.length];
     const distractors = INITIAL_LETTER_SPECIALS
       .filter(l => l.letter !== letterItem.letter)
       .slice(0, 2);
 
-    const options: PuzzleOption[] = [
+    const options: PuzzleOption[] = deterministicShuffle([
       {
         id: `opt_let_corr_${letterItem.letter}`,
         label: letterItem.letter,
@@ -878,7 +1111,7 @@ export function generateProceduralPuzzle(level: number): Puzzle {
         sublabel: d.word,
         isCorrect: false,
       })),
-    ].sort(() => Math.random() - 0.5);
+    ], level);
 
     return {
       id: `lvl_${level}_letter`,
@@ -898,14 +1131,98 @@ export function generateProceduralPuzzle(level: number): Puzzle {
   }
 
   // -------------------------------------------------------------
-  // STEP 6: GRANDEZZE (Tier 1-2) O SOTTRAZIONE VISIVA CONCRETA (Tier 3+)
-  // Grammatica rigorosa: "una mela", "tre mele meno una mela fa due mele"
+  // STEP 6: PRIME PAROLINE IN INGLESE (ENGLISH PRESCHOOL DISCOVERY)
   // -------------------------------------------------------------
   if (step === 6) {
+    const englishPool = tier === 1
+      ? ENGLISH_WORDS_CATALOG.slice(0, 4) // Dog, Cat, Sun, Apple in Tier 1
+      : ENGLISH_WORDS_CATALOG;
+    const engItem = englishPool[(level + tier - 1) % englishPool.length];
+
+    const options: PuzzleOption[] = deterministicShuffle([
+      {
+        id: 'opt_eng_corr',
+        label: engItem.correct.label,
+        emoji: engItem.correct.emoji,
+        sublabel: engItem.correct.sublabel,
+        isCorrect: true,
+      },
+      ...engItem.distractors.map((d, i) => ({
+        id: `opt_eng_dist_${i}`,
+        label: d.label,
+        emoji: d.emoji,
+        sublabel: d.sublabel,
+        isCorrect: false,
+      })),
+    ], level);
+
+    return {
+      id: `lvl_${level}_english`,
+      levelNumber: level,
+      difficultyTier: tier,
+      category: 'english',
+      type: 'english_words',
+      title: `Livello ${level}: Inglese · "${engItem.wordInfo.en}" 🇬🇧`,
+      prompt: engItem.prompt,
+      speechText: engItem.speech,
+      animalGuide: guide,
+      englishWord: engItem.wordInfo,
+      options,
+      rewardStars: 3,
+      rewardGems: 2,
+      funExplanation: engItem.explanation,
+    };
+  }
+
+  // -------------------------------------------------------------
+  // STEP 7: LIVELLO MISURAZIONE QI (MATRICI LOGICHE & ANALOGIE WPPSI-IV)
+  // -------------------------------------------------------------
+  if (step === 7) {
+    const iqItem = IQ_PSYCHOMETRIC_CATALOG[(level + tier - 1) % IQ_PSYCHOMETRIC_CATALOG.length];
+    const options: PuzzleOption[] = deterministicShuffle([
+      {
+        id: 'opt_iq_corr',
+        label: iqItem.correct.label,
+        emoji: iqItem.correct.emoji,
+        sublabel: iqItem.correct.sublabel,
+        isCorrect: true,
+      },
+      ...iqItem.distractors.map((d, i) => ({
+        id: `opt_iq_dist_${i}`,
+        label: d.label,
+        emoji: d.emoji,
+        sublabel: d.sublabel,
+        isCorrect: false,
+      })),
+    ], level);
+
+    return {
+      id: `lvl_${level}_iq_matrix`,
+      levelNumber: level,
+      difficultyTier: tier,
+      category: 'logic',
+      type: 'iq_matrix',
+      title: `Livello ${level}: Sfida QI del Genietto 🧠`,
+      prompt: iqItem.prompt,
+      speechText: iqItem.speech,
+      animalGuide: guide,
+      patternItems: iqItem.patternItems,
+      iqParameterTag: iqItem.iqParameterTag,
+      options,
+      rewardStars: 3,
+      rewardGems: 3,
+      funExplanation: iqItem.explanation,
+    };
+  }
+
+  // -------------------------------------------------------------
+  // STEP 8: GRANDEZZE & HABITAT (Tier 1-2) O SOTTRAZIONE VISIVA (Tier 3+)
+  // Grammatica rigorosa: "una mela", "tre mele meno una mela fa due mele"
+  // -------------------------------------------------------------
+  if (step === 8) {
     if (tier >= 3) {
-      // Sottrazione Visiva Concreta con frutta o biscottini
-      const total = tier === 3 ? 3 : 4;
-      const minus = 1;
+      const total = tier === 3 ? 3 : tier === 4 ? 4 : 5;
+      const minus = tier >= 5 && level % 2 === 0 ? 2 : 1;
       const answer = total - minus;
       const theme = mathTheme;
 
@@ -913,19 +1230,21 @@ export function generateProceduralPuzzle(level: number): Puzzle {
       const formattedMinus = formatQuantityItalian(minus, theme);
       const formattedAnswer = formatQuantityItalian(answer, theme);
 
-      const options: PuzzleOption[] = [answer, answer + 1, Math.max(1, answer - 1)]
-        .map((val, idx) => ({
+      const candidateValues = answer <= 1 ? [1, 2, 3] : [answer - 1, answer, answer + 1];
+      const options: PuzzleOption[] = deterministicShuffle(
+        candidateValues.map((val, idx) => ({
           id: `opt_sub_${idx}`,
           label: `${val}`,
           emoji: theme.emoji,
           sublabel: formatQuantityItalian(val, theme).text,
           isCorrect: val === answer,
-        }))
-        .sort(() => Math.random() - 0.5);
+        })),
+        level
+      );
 
       const speechAction = theme.gender === 'f'
-        ? `Abbiamo ${formattedTotal.speech}. Ne togliamo ${theme.articleSingular}. Quante ${theme.plural} restano?`
-        : `Abbiamo ${formattedTotal.speech}. L'orsetto ne mangia ${theme.articleSingular}. Quanti ${theme.plural} restano?`;
+        ? `Abbiamo ${formattedTotal.speech}. Ne togliamo ${formattedMinus.speech}. Quante ${theme.plural} restano?`
+        : `Abbiamo ${formattedTotal.speech}. L'orsetto ne mangia ${formattedMinus.speech}. Quanti ${theme.plural} restano?`;
 
       return {
         id: `lvl_${level}_sub`,
@@ -933,7 +1252,7 @@ export function generateProceduralPuzzle(level: number): Puzzle {
         difficultyTier: tier,
         category: 'numbers',
         type: 'visual_subtraction',
-        title: `Livello ${level}: Quante ne Restano?`,
+        title: `Livello ${level}: ${theme.gender === 'f' ? 'Quante ne Restano?' : 'Quanti ne Restano?'}`,
         prompt: `${formattedTotal.text} - ${formattedMinus.text} = ?`,
         speechText: speechAction,
         animalGuide: guide,
@@ -950,10 +1269,43 @@ export function generateProceduralPuzzle(level: number): Puzzle {
         rewardGems: 2,
         funExplanation: `Esatto! ${formattedTotal.speech} meno ${formattedMinus.speech} fa ${formattedAnswer.speech}!`,
       };
+    } else if (level % 2 === 0) {
+      const item = ANIMAL_HABITATS[(level + tier) % ANIMAL_HABITATS.length];
+      const options: PuzzleOption[] = deterministicShuffle([
+        {
+          id: 'opt_hab_corr',
+          label: item.correct.label,
+          emoji: item.correct.emoji,
+          sublabel: item.correct.sublabel,
+          isCorrect: true,
+        },
+        ...item.distractors.map((d, i) => ({
+          id: `opt_hab_dist_${i}`,
+          label: d.label,
+          emoji: d.emoji,
+          sublabel: d.sublabel,
+          isCorrect: false,
+        })),
+      ], level);
+
+      return {
+        id: `lvl_${level}_habitat`,
+        levelNumber: level,
+        difficultyTier: tier,
+        category: 'logic',
+        type: 'animal_habitat',
+        title: `Livello ${level}: Dove Vive?`,
+        prompt: item.prompt,
+        speechText: item.speech,
+        animalGuide: guide,
+        options,
+        rewardStars: 2,
+        rewardGems: 1,
+        funExplanation: item.explanation,
+      };
     } else {
-      // Confronto grandezza visiva evidente (Tier 1-2)
       const item = SIZE_COMPARISONS[(level + tier) % SIZE_COMPARISONS.length];
-      const options: PuzzleOption[] = [
+      const options: PuzzleOption[] = deterministicShuffle([
         {
           id: 'opt_size_corr',
           label: item.correct.label,
@@ -968,7 +1320,7 @@ export function generateProceduralPuzzle(level: number): Puzzle {
           sublabel: d.sublabel,
           isCorrect: false,
         })),
-      ].sort(() => Math.random() - 0.5);
+      ], level);
 
       return {
         id: `lvl_${level}_size`,
@@ -989,127 +1341,12 @@ export function generateProceduralPuzzle(level: number): Puzzle {
   }
 
   // -------------------------------------------------------------
-  // STEP 7: TROVA L'INTRUSO EVIDENTE
-  // -------------------------------------------------------------
-  if (step === 7) {
-    const item = ODD_ONE_OUT_CATALOG[(level + tier) % ODD_ONE_OUT_CATALOG.length];
-    const options: PuzzleOption[] = [
-      {
-        id: 'opt_odd_corr',
-        label: item.correct.label,
-        emoji: item.correct.emoji,
-        sublabel: item.correct.sublabel,
-        isCorrect: true,
-      },
-      ...item.distractors.map((d, i) => ({
-        id: `opt_odd_dist_${i}`,
-        label: d.label,
-        emoji: d.emoji,
-        sublabel: d.sublabel,
-        isCorrect: false,
-      })),
-    ].sort(() => Math.random() - 0.5);
-
-    return {
-      id: `lvl_${level}_odd`,
-      levelNumber: level,
-      difficultyTier: tier,
-      category: 'logic',
-      type: 'odd_one_out',
-      title: `Livello ${level}: Trova l'Intruso!`,
-      prompt: item.prompt,
-      speechText: item.speech,
-      animalGuide: guide,
-      options,
-      rewardStars: 2,
-      rewardGems: 2,
-      funExplanation: item.explanation,
-    };
-  }
-
-  // -------------------------------------------------------------
-  // STEP 8: HABITAT & COSA MANGIANO GLI ANIMALI
-  // -------------------------------------------------------------
-  if (step === 8) {
-    if (level % 2 === 0) {
-      const item = ANIMAL_HABITATS[(level + tier) % ANIMAL_HABITATS.length];
-      const options: PuzzleOption[] = [
-        {
-          id: 'opt_hab_corr',
-          label: item.correct.label,
-          emoji: item.correct.emoji,
-          sublabel: item.correct.sublabel,
-          isCorrect: true,
-        },
-        ...item.distractors.map((d, i) => ({
-          id: `opt_hab_dist_${i}`,
-          label: d.label,
-          emoji: d.emoji,
-          sublabel: d.sublabel,
-          isCorrect: false,
-        })),
-      ].sort(() => Math.random() - 0.5);
-
-      return {
-        id: `lvl_${level}_habitat`,
-        levelNumber: level,
-        difficultyTier: tier,
-        category: 'logic',
-        type: 'animal_habitat',
-        title: `Livello ${level}: Dove Vive?`,
-        prompt: item.prompt,
-        speechText: item.speech,
-        animalGuide: guide,
-        options,
-        rewardStars: 2,
-        rewardGems: 1,
-        funExplanation: item.explanation,
-      };
-    } else {
-      const item = ANIMAL_FOOD[(level + tier) % ANIMAL_FOOD.length];
-      const options: PuzzleOption[] = [
-        {
-          id: 'opt_food_corr',
-          label: item.correct.label,
-          emoji: item.correct.emoji,
-          sublabel: item.correct.sublabel,
-          isCorrect: true,
-        },
-        ...item.distractors.map((d, i) => ({
-          id: `opt_food_dist_${i}`,
-          label: d.label,
-          emoji: d.emoji,
-          sublabel: d.sublabel,
-          isCorrect: false,
-        })),
-      ].sort(() => Math.random() - 0.5);
-
-      return {
-        id: `lvl_${level}_food`,
-        levelNumber: level,
-        difficultyTier: tier,
-        category: 'logic',
-        type: 'animal_food',
-        title: `Livello ${level}: Cosa Mangia l'Animale?`,
-        prompt: item.prompt,
-        speechText: item.speech,
-        animalGuide: guide,
-        options,
-        rewardStars: 2,
-        rewardGems: 1,
-        funExplanation: item.explanation,
-      };
-    }
-  }
-
-  // -------------------------------------------------------------
   // STEP 9: PATTERN RITMICO (Tier 1) O ADDIZIONE VISIVA CONCRETA (Tier 2+)
   // Grammatica perfetta: "una mela + una mela = due mele"
   // -------------------------------------------------------------
   if (tier >= 2) {
-    // Addizione visiva con frutta concreta
-    const a = tier === 2 ? 1 : 2;
-    const b = 1;
+    const a = tier === 2 ? 1 : tier === 3 ? 2 : 3;
+    const b = tier >= 4 && level % 2 === 0 ? 2 : 1;
     const answer = a + b;
     const theme = mathTheme;
 
@@ -1117,21 +1354,20 @@ export function generateProceduralPuzzle(level: number): Puzzle {
     const formattedB = formatQuantityItalian(b, theme);
     const formattedAnswer = formatQuantityItalian(answer, theme);
 
-    const options: PuzzleOption[] = [answer, answer + 1, Math.max(1, answer - 1)]
-      .map((val, idx) => ({
+    const candidateValues = answer <= 1 ? [1, 2, 3] : [answer - 1, answer, answer + 1];
+    const options: PuzzleOption[] = deterministicShuffle(
+      candidateValues.map((val, idx) => ({
         id: `opt_add_${idx}`,
         label: `${val}`,
         emoji: theme.emoji,
         sublabel: formatQuantityItalian(val, theme).text,
         isCorrect: val === answer,
-      }))
-      .sort(() => Math.random() - 0.5);
+      })),
+      level
+    );
 
-    const questionWord = theme.gender === 'f' ? 'quante' : 'quanti';
-    const speechAdd = a === 1 && b === 1
-      ? `Uniamo insieme: ${formattedA.speech} più ${formattedB.speech}. ${questionWord.charAt(0).toUpperCase() + questionWord.slice(1)} ${theme.plural} abbiamo in tutto?`
-      : `Uniamo insieme: ${formattedA.speech} più ${formattedB.speech}. ${questionWord.charAt(0).toUpperCase() + questionWord.slice(1)} ${theme.plural} abbiamo in tutto?`;
-
+    const questionWord = theme.gender === 'f' ? 'Quante' : 'Quanti';
+    const speechAdd = `Uniamo insieme: ${formattedA.speech} più ${formattedB.speech}. ${questionWord} ${theme.plural} abbiamo in tutto?`;
     const verbFa = (a === 1 && b === 1) ? 'fa' : 'fanno';
 
     return {
@@ -1158,15 +1394,14 @@ export function generateProceduralPuzzle(level: number): Puzzle {
       funExplanation: `Esatto! ${formattedA.speech} più ${formattedB.speech} ${verbFa} ${formattedAnswer.speech}!`,
     };
   } else {
-    // Tier 1: Pattern visivo semplice alternato (ABAB con Mela e Banana)
     const pA = '🍎';
     const pB = '🍌';
     const pattern = [pA, pB, pA, pB, '❓'];
 
-    const options: PuzzleOption[] = [
+    const options: PuzzleOption[] = deterministicShuffle([
       { id: 'opt_pat_a', label: 'Mela 🍎', emoji: pA, isCorrect: true },
       { id: 'opt_pat_b', label: 'Banana 🍌', emoji: pB, isCorrect: false },
-    ].sort(() => Math.random() - 0.5);
+    ], level);
 
     return {
       id: `lvl_${level}_pattern`,

@@ -12,6 +12,31 @@ export interface ProsodyOptions {
 }
 
 /**
+ * Enforces strict Italian grammatical gender concordance for numbers in spoken text.
+ * Guarantees "1 mela" is always pronounced "una mela" (never "uno mela").
+ */
+export function enforceItalianGenderConcordance(text: string): string {
+  let s = text;
+
+  // Feminine nouns beginning with vowel -> "un'"
+  s = s.replace(/\b(?:1|uno)\s+(arancia|ape|anatra|ombra|onda|uva)\b/gi, "un'$1");
+
+  // Feminine nouns -> "una"
+  s = s.replace(
+    /\b(?:1|uno)\s+(mela|fragolina|fragola|stellina|stella|farfallina|farfalla|carota|carotina|banana|pera|ciliegia|fetta|pallina|palla|macchinina| Nuvola|nuvola|rosa|chiocciola|chiocciolina|tartaruga|giraffa|pecorella|mucca|gallina|ranocchia|scimmietta|volpina|rondine|formica|formichina|scarpa|bicicletta)\b/gi,
+    'una $1'
+  );
+
+  // Masculine nouns -> "un"
+  s = s.replace(
+    /\b(?:1|uno)\s+(biscottino|biscotto|palloncino|pallone|delfino|orsetto|orso|coniglietto|coniglio|cagnolino|cane|gattino|gatto|pesciolino|pesce|fiorellino|fiore|sole|albero|cavallino|cavallo|topolino|topo|maialino|gallo|pulcino|uccellino|scoiattolo|elefante|leone)\b/gi,
+    'un $1'
+  );
+
+  return s;
+}
+
+/**
  * Transforms text into expressive Italian prosody for a 5-year-old child.
  * Injects natural pauses, intonational melody, and friendly rhythm into speech synthesis.
  */
@@ -19,14 +44,17 @@ export function formatItalianProsody(
   text: string,
   context: 'praise' | 'riddle' | 'instruction' | 'count' | 'general' = 'general'
 ): { prosodyText: string; defaultPitch: number; defaultRate: number } {
-  let s = text.trim();
+  let s = enforceItalianGenderConcordance(text.trim());
 
   // Verbalize math operators smoothly
   s = s
     .replace(/\+/g, ' più ')
-    .replace(/-/g, ' meno ')
+    .replace(/\s-\s/g, ' meno ')
     .replace(/=/g, ' uguale a ')
     .replace(/\s+/g, ' ');
+
+  // Re-run gender check in case math operator replacement exposed "1 mela"
+  s = enforceItalianGenderConcordance(s);
 
   // Natural vocative commas and breathing micro-pauses
   s = s
@@ -36,12 +64,13 @@ export function formatItalianProsody(
 
   const isPraise =
     context === 'praise' ||
-    /(bravissima|fantastico|evviva|super|meraviglios|perfett|campione|vinto|tris|splendid)/i.test(s);
+    /(bravissima|fantastico|evviva|super|meraviglios|perfett|campione|campionessa|vinto|tris|splendid)/i.test(s);
 
   const isRiddle =
     context === 'riddle' ||
     /(indovinello|chi sono|scopri chi|mistero)/i.test(s);
 
+  const isCount = context === 'count';
   const isQuestion = s.includes('?');
 
   if (isPraise) {
@@ -49,12 +78,13 @@ export function formatItalianProsody(
     s = s
       .replace(/!+/g, '! ')
       .replace(/\./g, '! ')
-      .replace(/(bravissima|evviva|fantastico|meraviglioso)/gi, '$1!... ');
+      .replace(/(bravissima|evviva|fantastico|meraviglioso|super)/gi, '$1!... ');
   } else if (isRiddle) {
     // Storytelling cadence with dramatic, curious pauses
     s = s
       .replace(/:\s*/g, '... ')
       .replace(/;\s*/g, '... ')
+      .replace(/,\s*/g, ', ... ')
       .replace(/(chi sono\??)/gi, '... Chi sono?');
   } else if (isQuestion) {
     // Question inflection
@@ -78,6 +108,9 @@ export function formatItalianProsody(
   } else if (isRiddle) {
     defaultPitch = 1.12; // Storyteller tone
     defaultRate = 0.84;  // Relaxed, mysterious tempo
+  } else if (isCount) {
+    defaultPitch = 1.18;
+    defaultRate = 0.94;
   } else if (isQuestion) {
     defaultPitch = 1.16;
     defaultRate = 0.88;
@@ -90,14 +123,6 @@ class SoundManager {
   private ctx: AudioContext | null = null;
   public soundEnabled: boolean = true;
   public voiceEnabled: boolean = true;
-  public musicEnabled: boolean = true;
-  public isMusicPlaying: boolean = false;
-  private musicGainNode: GainNode | null = null;
-  private musicFilterNode: BiquadFilterNode | null = null;
-  private musicInterval: any = null;
-  private musicNextTime: number = 0;
-  private musicStep: number = 0;
-  private musicListeners: Set<(enabled: boolean, isPlaying: boolean) => void> = new Set();
   private voices: SpeechSynthesisVoice[] = [];
   private selectedVoice: SpeechSynthesisVoice | null = null;
   private currentUtterance: SpeechSynthesisUtterance | null = null;
@@ -106,6 +131,8 @@ class SoundManager {
   private speechListeners: Set<(isSpeaking: boolean) => void> = new Set();
   public isCurrentlySpeaking: boolean = false;
   private speechSequenceId: number = 0;
+  private pendingTimer: ReturnType<typeof setTimeout> | null = null;
+  private failsafeTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -123,7 +150,7 @@ class SoundManager {
         // ignore
       }
 
-      // Unlock audio and start music on first user touch/click (Android / iOS / Desktop)
+      // Unlock audio on first user touch/click (Android / iOS / Desktop)
       const unlockListener = () => {
         this.unlockAudio();
       };
@@ -143,27 +170,9 @@ class SoundManager {
     };
   }
 
-  // Subscribe to background music state changes
-  onMusicChange(listener: (enabled: boolean, isPlaying: boolean) => void) {
-    this.musicListeners.add(listener);
-    return () => {
-      this.musicListeners.delete(listener);
-    };
-  }
-
-  private notifyMusicListeners() {
-    this.musicListeners.forEach(fn => {
-      try {
-        fn(this.musicEnabled, this.isMusicPlaying);
-      } catch {
-        // ignore
-      }
-    });
-  }
-
   private setSpeaking(val: boolean) {
+    if (this.isCurrentlySpeaking === val) return;
     this.isCurrentlySpeaking = val;
-    this.updateMusicDucking();
     this.speechListeners.forEach(fn => {
       try {
         fn(val);
@@ -173,57 +182,45 @@ class SoundManager {
     });
   }
 
-  private updateMusicDucking() {
-    if (!this.ctx || !this.musicGainNode) return;
-    try {
-      const now = this.ctx.currentTime;
-      const targetGain = !this.musicEnabled
-        ? 0
-        : this.isCurrentlySpeaking
-        ? 0.012
-        : 0.045;
-      this.musicGainNode.gain.cancelScheduledValues(now);
-      this.musicGainNode.gain.linearRampToValueAtTime(targetGain, now + 0.35);
-    } catch {
-      // ignore
-    }
-  }
-
   private initVoices() {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     try {
       const allVoices = window.speechSynthesis.getVoices() || [];
+      if (allVoices.length === 0) return;
       this.voices = allVoices;
 
-      // Select ONE single consistent, sweet, warm and natural Italian voice
-      // Priority for natural prosody:
-      // 1. Neural & Enhanced Italian voices (Google italiano, Natural, Neural, Alice Enhanced, Federica, Elsa)
-      // 2. Exact it-IT female voices (Alice, Federica, Chiara, Elsa, Cosimo)
-      // 3. Any it-IT voice
-      // 4. Any it* prefix voice
       const itVoices = allVoices.filter(v => v.lang.toLowerCase().startsWith('it'));
       if (itVoices.length > 0) {
+        // Explicitly filter out known male voices so we never switch between male and female
+        const isMaleVoice = (name: string) =>
+          /(cosimo|luca|giorgio|diego|nicola|paolo|male|maschile|uomo)/i.test(name);
+
+        const femaleOrNeutralVoices = itVoices.filter(v => !isMaleVoice(v.name));
+        const pool = femaleOrNeutralVoices.length > 0 ? femaleOrNeutralVoices : itVoices;
+
         const preferred =
-          itVoices.find(v => {
+          pool.find(v => {
             const name = v.name.toLowerCase();
             return (
-              (name.includes('natural') || name.includes('neural') || name.includes('online')) &&
-              (name.includes('elsa') || name.includes('isabella') || name.includes('alice') || name.includes('federica'))
+              (name.includes('natural') || name.includes('neural') || name.includes('online') || name.includes('enhanced') || name.includes('premium')) &&
+              (name.includes('elsa') || name.includes('isabella') || name.includes('alice') || name.includes('federica') || name.includes('italiano'))
             );
           }) ||
-          itVoices.find(v => v.name.toLowerCase().includes('google italiano')) ||
-          itVoices.find(v => {
+          pool.find(v => v.name.toLowerCase().includes('google italiano')) ||
+          pool.find(v => {
             const name = v.name.toLowerCase();
             return (
               name.includes('alice') ||
               name.includes('federica') ||
-              name.includes('chiara') ||
               name.includes('elsa') ||
-              name.includes('lucia')
+              name.includes('isabella') ||
+              name.includes('chiara') ||
+              name.includes('lucia') ||
+              name.includes('fabiola')
             );
           }) ||
-          itVoices.find(v => v.lang.toLowerCase() === 'it-it') ||
-          itVoices[0];
+          pool.find(v => v.lang.toLowerCase() === 'it-it') ||
+          pool[0];
 
         this.selectedVoice = preferred;
       }
@@ -254,14 +251,12 @@ class SoundManager {
 
       // Prime SpeechSynthesis on mobile
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        if (!this.selectedVoice) {
+          this.initVoices();
+        }
         if (window.speechSynthesis.paused) {
           window.speechSynthesis.resume();
         }
-      }
-
-      // Autostart soothing focus background music if enabled
-      if (this.musicEnabled && !this.isMusicPlaying) {
-        this.startMusic();
       }
     } catch {
       // ignore
@@ -282,181 +277,7 @@ class SoundManager {
     }
   }
 
-  // =========================================================================
-  // RELAXING FOCUS BACKGROUND MUSIC FOR CHILDREN (PROCEDURAL LULLABY CHIMES)
-  // Peaceful, focus-enhancing ambient celesta & Rhodes arpeggio at 68 BPM.
-  // 100% synthetic via Web Audio: zero network lag, zero buffering, 100% offline.
-  // Smoothly ducks when Emma speaks, restored when speech finishes.
-  // =========================================================================
-  startMusic() {
-    if (!this.musicEnabled) return;
-    try {
-      this.initCtx();
-      if (!this.ctx) return;
-      if (this.ctx.state === 'suspended') {
-        this.ctx.resume().catch(() => {});
-      }
-
-      if (!this.musicFilterNode) {
-        this.musicFilterNode = this.ctx.createBiquadFilter();
-        this.musicFilterNode.type = 'lowpass';
-        this.musicFilterNode.frequency.setValueAtTime(1100, this.ctx.currentTime);
-        this.musicFilterNode.Q.setValueAtTime(0.8, this.ctx.currentTime);
-      }
-
-      if (!this.musicGainNode) {
-        this.musicGainNode = this.ctx.createGain();
-        this.musicGainNode.gain.setValueAtTime(
-          this.isCurrentlySpeaking ? 0.012 : 0.045,
-          this.ctx.currentTime
-        );
-        this.musicFilterNode.connect(this.musicGainNode);
-        this.musicGainNode.connect(this.ctx.destination);
-      } else {
-        const now = this.ctx.currentTime;
-        this.musicGainNode.gain.cancelScheduledValues(now);
-        this.musicGainNode.gain.linearRampToValueAtTime(
-          this.isCurrentlySpeaking ? 0.012 : 0.045,
-          now + 0.3
-        );
-      }
-
-      if (this.isMusicPlaying && this.musicInterval) return;
-
-      this.isMusicPlaying = true;
-      this.musicNextTime = this.ctx.currentTime + 0.1;
-      this.musicStep = 0;
-
-      // Lookahead scheduler every 200ms
-      this.musicInterval = setInterval(() => {
-        this.scheduleMusicNotes();
-      }, 200);
-
-      this.notifyMusicListeners();
-    } catch {
-      // ignore
-    }
-  }
-
-  stopMusic() {
-    this.isMusicPlaying = false;
-    if (this.musicInterval) {
-      clearInterval(this.musicInterval);
-      this.musicInterval = null;
-    }
-    if (this.ctx && this.musicGainNode) {
-      try {
-        const now = this.ctx.currentTime;
-        this.musicGainNode.gain.cancelScheduledValues(now);
-        this.musicGainNode.gain.linearRampToValueAtTime(0, now + 0.3);
-      } catch {
-        // ignore
-      }
-    }
-    this.notifyMusicListeners();
-  }
-
-  toggleMusic(): boolean {
-    this.musicEnabled = !this.musicEnabled;
-    if (this.musicEnabled) {
-      this.startMusic();
-    } else {
-      this.stopMusic();
-    }
-    return this.musicEnabled;
-  }
-
-  private scheduleMusicNotes() {
-    if (!this.ctx || !this.isMusicPlaying || !this.musicFilterNode) return;
-    const stepDuration = 0.44; // ~68 BPM peaceful focus rhythm
-    const lookahead = 0.6; // schedule 600ms ahead
-
-    // 16-step soothing progression in C major pentatonic
-    const pattern: Array<Array<{ freq: number; dur: number; gain: number; type?: OscillatorType }>> = [
-      // Step 0: C3 bass + G4 chord + C5 chime
-      [
-        { freq: 130.81, dur: 1.8, gain: 0.16, type: 'sine' },
-        { freq: 392.00, dur: 1.4, gain: 0.10, type: 'triangle' },
-        { freq: 523.25, dur: 1.6, gain: 0.14, type: 'triangle' },
-      ],
-      // Step 1: E5
-      [{ freq: 659.25, dur: 1.2, gain: 0.11, type: 'sine' }],
-      // Step 2: E4 chord note
-      [{ freq: 329.63, dur: 1.2, gain: 0.09, type: 'triangle' }],
-      // Step 3: D5
-      [{ freq: 587.33, dur: 1.3, gain: 0.12, type: 'sine' }],
-      // Step 4: A2 bass + E4 chord + C5 chime
-      [
-        { freq: 110.00, dur: 1.8, gain: 0.16, type: 'sine' },
-        { freq: 329.63, dur: 1.4, gain: 0.10, type: 'triangle' },
-        { freq: 523.25, dur: 1.5, gain: 0.13, type: 'triangle' },
-      ],
-      // Step 5: B4
-      [{ freq: 493.88, dur: 1.2, gain: 0.11, type: 'sine' }],
-      // Step 6: C4 chord
-      [{ freq: 261.63, dur: 1.2, gain: 0.09, type: 'triangle' }],
-      // Step 7: A4
-      [{ freq: 440.00, dur: 1.4, gain: 0.12, type: 'sine' }],
-      // Step 8: F2 bass + C4 chord + G4 chime
-      [
-        { freq: 87.31, dur: 1.8, gain: 0.16, type: 'sine' },
-        { freq: 261.63, dur: 1.4, gain: 0.10, type: 'triangle' },
-        { freq: 392.00, dur: 1.5, gain: 0.13, type: 'triangle' },
-      ],
-      // Step 9: E5
-      [{ freq: 659.25, dur: 1.3, gain: 0.11, type: 'sine' }],
-      // Step 10: A3 chord
-      [{ freq: 220.00, dur: 1.2, gain: 0.09, type: 'triangle' }],
-      // Step 11: D5
-      [{ freq: 587.33, dur: 1.4, gain: 0.12, type: 'sine' }],
-      // Step 12: G2 bass + D4 chord + B4 chime
-      [
-        { freq: 98.00, dur: 1.8, gain: 0.16, type: 'sine' },
-        { freq: 293.66, dur: 1.4, gain: 0.10, type: 'triangle' },
-        { freq: 493.88, dur: 1.5, gain: 0.13, type: 'triangle' },
-      ],
-      // Step 13: D5
-      [{ freq: 587.33, dur: 1.2, gain: 0.10, type: 'sine' }],
-      // Step 14: B3 chord
-      [{ freq: 246.94, dur: 1.2, gain: 0.09, type: 'triangle' }],
-      // Step 15: C5 chime resolution
-      [{ freq: 523.25, dur: 1.7, gain: 0.14, type: 'triangle' }],
-    ];
-
-    while (this.musicNextTime < this.ctx.currentTime + lookahead) {
-      const notes = pattern[this.musicStep % pattern.length];
-      const noteTime = this.musicNextTime;
-
-      notes.forEach(n => {
-        try {
-          const osc = this.ctx!.createOscillator();
-          const gain = this.ctx!.createGain();
-
-          osc.type = n.type || 'sine';
-          osc.frequency.setValueAtTime(n.freq, noteTime);
-
-          // Attack: 0.03s
-          gain.gain.setValueAtTime(0.0001, noteTime);
-          gain.gain.linearRampToValueAtTime(n.gain, noteTime + 0.03);
-          // Smooth exponential decay
-          gain.gain.exponentialRampToValueAtTime(0.0001, noteTime + n.dur);
-
-          osc.connect(gain);
-          gain.connect(this.musicFilterNode!);
-
-          osc.start(noteTime);
-          osc.stop(noteTime + n.dur);
-        } catch {
-          // ignore
-        }
-      });
-
-      this.musicNextTime += stepDuration;
-      this.musicStep = (this.musicStep + 1) % pattern.length;
-    }
-  }
-
-  // Tactile button pop sound (Gentle, kid-safe volume 0.12)
+  // Tactile button pop sound (Gentle, kid-safe normalized volume 0.12)
   playPop() {
     if (!this.soundEnabled) return;
     try {
@@ -531,7 +352,7 @@ class SoundManager {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, startTime);
 
-        gain.gain.setValueAtTime(0.14, startTime);
+        gain.gain.setValueAtTime(0.12, startTime);
         gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.35);
 
         osc.connect(gain);
@@ -569,7 +390,7 @@ class SoundManager {
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(item.freq, startTime);
 
-        gain.gain.setValueAtTime(0.14, startTime);
+        gain.gain.setValueAtTime(0.12, startTime);
         gain.gain.exponentialRampToValueAtTime(0.001, startTime + item.dur);
 
         osc.connect(gain);
@@ -643,9 +464,75 @@ class SoundManager {
     }
   }
 
+  // Play a single warm xylophone/piano musical note (for Musica & Ritmo levels)
+  playMusicalNote(freq: number, duration = 0.32) {
+    if (!this.soundEnabled || freq <= 0) return;
+    try {
+      this.initCtx();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+
+      const osc = this.ctx.createOscillator();
+      const harmonic = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const harmonicGain = this.ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, now);
+
+      harmonic.type = 'sine';
+      harmonic.frequency.setValueAtTime(freq * 2, now);
+
+      gain.gain.setValueAtTime(0.16, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+      harmonicGain.gain.setValueAtTime(0.05, now);
+      harmonicGain.gain.exponentialRampToValueAtTime(0.001, now + duration * 0.65);
+
+      osc.connect(gain);
+      harmonic.connect(harmonicGain);
+      gain.connect(this.ctx.destination);
+      harmonicGain.connect(this.ctx.destination);
+
+      osc.start(now);
+      harmonic.start(now);
+      osc.stop(now + duration);
+      harmonic.stop(now + duration);
+    } catch {
+      // ignore
+    }
+  }
+
+  // Play a rhythmic or melodic sequence of notes (for Musica & Ritmo levels)
+  playRhythmSequence(notes: { freq: number; duration: number }[]) {
+    if (!this.soundEnabled || !notes || notes.length === 0) return;
+    try {
+      this.initCtx();
+      if (!this.ctx) return;
+      let offsetMs = 0;
+      notes.forEach((n) => {
+        const durSec = Math.max(0.15, n.duration || 0.3);
+        setTimeout(() => {
+          this.playMusicalNote(n.freq, durSec);
+        }, offsetMs);
+        offsetMs += Math.round((durSec + 0.08) * 1000);
+      });
+    } catch {
+      // ignore
+    }
+  }
+
   // Stop any currently playing speech or voice audio
   stopSpeech() {
     this.speechSequenceId++;
+    if (this.pendingTimer) {
+      clearTimeout(this.pendingTimer);
+      this.pendingTimer = null;
+    }
+    if (this.failsafeTimer) {
+      clearTimeout(this.failsafeTimer);
+      this.failsafeTimer = null;
+    }
     this.setSpeaking(false);
 
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -661,8 +548,8 @@ class SoundManager {
   // =========================================================================
   // CONSISTENT, SINGLE-VOICE ITALIAN SPEECH SYNTHESIS ENGINE WITH PROSODY
   // Eliminates:
-  // 1. Male/female alternating repeats (Unified single Italian voice)
-  // 2. Volume swings (Normalized 0.95 volume, zero overlapping beeps)
+  // 1. Male/female alternating repeats (Unified single Italian female voice)
+  // 2. Volume swings (Normalized 0.95 volume, zero overlapping utterances)
   // 3. Race conditions and abort double-fallbacks (Sequence tracking)
   // 4. Robotic monotone (Dynamic Italian prosodic phrasing & modulation)
   // =========================================================================
@@ -690,14 +577,19 @@ class SoundManager {
 
     const cleanText = text.trim();
     this.unlockAudio();
-    this.stopSpeech();
 
+    const wasSpeaking =
+      typeof window !== 'undefined' &&
+      'speechSynthesis' in window &&
+      (window.speechSynthesis.speaking || window.speechSynthesis.pending);
+
+    this.stopSpeech();
     const currentSeq = this.speechSequenceId;
-    this.setSpeaking(true);
 
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      this.setSpeaking(true);
       this.playAnimalChirp(3);
-      setTimeout(() => {
+      this.pendingTimer = setTimeout(() => {
         if (this.speechSequenceId === currentSeq) {
           this.setSpeaking(false);
           if (options.onEnd) options.onEnd();
@@ -706,66 +598,87 @@ class SoundManager {
       return;
     }
 
-    try {
-      if (window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
-      }
+    const startUtterance = () => {
+      if (this.speechSequenceId !== currentSeq) return;
 
-      // Apply authentic Italian prosodic phrasing
-      const prosody = formatItalianProsody(cleanText, options.context);
-
-      const utterance = new SpeechSynthesisUtterance(prosody.prosodyText);
-      utterance.lang = 'it-IT';
-      utterance.rate = options.rate || prosody.defaultRate;
-      utterance.pitch = Math.min(1.26, Math.max(1.08, options.pitch || prosody.defaultPitch));
-      utterance.volume = 0.95; // Consistent, normalized volume
-
-      // Guarantee consistent single Italian voice
-      if (!this.selectedVoice) {
-        this.initVoices();
-      }
-      if (this.selectedVoice) {
-        utterance.voice = this.selectedVoice;
-      }
-
-      let isFinished = false;
-      const finishSpeech = () => {
-        if (isFinished) return;
-        isFinished = true;
-        if (this.speechSequenceId === currentSeq) {
-          this.currentUtterance = null;
-          this.setSpeaking(false);
-          if (options.onEnd) options.onEnd();
+      try {
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
         }
-      };
 
-      utterance.onend = finishSpeech;
-      utterance.onerror = (e) => {
-        if (e.error === 'canceled' || e.error === 'interrupted') {
-          return;
+        // Apply authentic Italian prosodic phrasing & gender concordance
+        const prosody = formatItalianProsody(cleanText, options.context);
+
+        const utterance = new SpeechSynthesisUtterance(prosody.prosodyText);
+        utterance.lang = 'it-IT';
+        utterance.rate = options.rate || prosody.defaultRate;
+        utterance.pitch = Math.min(1.24, Math.max(1.06, options.pitch || prosody.defaultPitch));
+        utterance.volume = 0.95; // Consistent, normalized volume
+
+        // Guarantee consistent single Italian voice
+        if (!this.selectedVoice) {
+          this.initVoices();
         }
-        finishSpeech();
-      };
+        if (this.selectedVoice) {
+          utterance.voice = this.selectedVoice;
+        }
 
-      this.currentUtterance = utterance;
-      window.speechSynthesis.speak(utterance);
+        let isFinished = false;
+        const finishSpeech = () => {
+          if (isFinished) return;
+          isFinished = true;
+          if (this.failsafeTimer) {
+            clearTimeout(this.failsafeTimer);
+            this.failsafeTimer = null;
+          }
+          if (this.speechSequenceId === currentSeq) {
+            this.currentUtterance = null;
+            this.setSpeaking(false);
+            if (options.onEnd) options.onEnd();
+          }
+        };
 
-      // Failsafe timeout in case browser speech engine drops the onend callback
-      const estimatedDurationMs = Math.max(1800, (prosody.prosodyText.length / 7) * 1000);
-      setTimeout(() => {
-        if (this.speechSequenceId === currentSeq && !isFinished) {
+        utterance.onstart = () => {
+          if (this.speechSequenceId === currentSeq) {
+            this.setSpeaking(true);
+          }
+        };
+
+        utterance.onend = finishSpeech;
+        utterance.onerror = (e) => {
+          if (e.error === 'canceled' || e.error === 'interrupted') {
+            return;
+          }
           finishSpeech();
-        }
-      }, estimatedDurationMs);
+        };
 
-    } catch {
-      this.playAnimalChirp(3);
-      setTimeout(() => {
-        if (this.speechSequenceId === currentSeq) {
-          this.setSpeaking(false);
-          if (options.onEnd) options.onEnd();
-        }
-      }, 800);
+        this.currentUtterance = utterance;
+        this.setSpeaking(true);
+        window.speechSynthesis.speak(utterance);
+
+        // Failsafe timeout in case browser speech engine drops the onend callback
+        const estimatedDurationMs = Math.max(2000, (prosody.prosodyText.length / 6.5) * 1000);
+        this.failsafeTimer = setTimeout(() => {
+          if (this.speechSequenceId === currentSeq && !isFinished) {
+            finishSpeech();
+          }
+        }, estimatedDurationMs);
+      } catch {
+        this.playAnimalChirp(3);
+        this.pendingTimer = setTimeout(() => {
+          if (this.speechSequenceId === currentSeq) {
+            this.setSpeaking(false);
+            if (options.onEnd) options.onEnd();
+          }
+        }, 800);
+      }
+    };
+
+    // Short 35ms settle delay after cancel() prevents Web Speech double-voice & dropped utterances
+    if (wasSpeaking) {
+      this.pendingTimer = setTimeout(startUtterance, 35);
+    } else {
+      startUtterance();
     }
   }
 

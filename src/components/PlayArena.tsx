@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { GameCategory, Puzzle, UserProgress } from '../types/game';
 import { generateProceduralPuzzle, getEncouragementPhrase } from '../utils/infiniteLevels';
 import { soundManager } from '../utils/audio';
@@ -10,10 +10,8 @@ import {
   ChevronLeft,
   Brain,
   ShieldCheck,
-  CheckCircle2,
-  Heart,
   Music,
-  VolumeX
+  Globe
 } from 'lucide-react';
 
 interface PlayArenaProps {
@@ -29,21 +27,32 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
   onOpenParents,
   onExitToTitle,
 }) => {
-  const currentPuzzle: Puzzle = generateProceduralPuzzle(progress.currentLevel);
+  const currentPuzzle: Puzzle = useMemo(
+    () => generateProceduralPuzzle(progress.currentLevel),
+    [progress.currentLevel]
+  );
+
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [isAnswerCorrect, setIsAnswerCorrect] = useState<boolean | null>(null);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [itemCountClicked, setItemCountClicked] = useState<number>(0);
   const [showCelebration, setShowCelebration] = useState<boolean>(false);
   const [attemptCount, setAttemptCount] = useState<number>(0);
-  const [musicPlaying, setMusicPlaying] = useState<boolean>(soundManager.musicEnabled);
 
-  // Sync music state
-  useEffect(() => {
-    return soundManager.onMusicChange((enabled) => {
-      setMusicPlaying(enabled);
-    });
-  }, []);
+  const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasAdvancedRef = useRef<boolean>(false);
+
+  const clearTimers = () => {
+    if (advanceTimerRef.current) {
+      clearTimeout(advanceTimerRef.current);
+      advanceTimerRef.current = null;
+    }
+    if (resetTimerRef.current) {
+      clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = null;
+    }
+  };
 
   // Sync speaking state
   useEffect(() => {
@@ -51,6 +60,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
       setIsSpeaking(speaking);
     });
     return () => {
+      clearTimers();
       unsub();
       soundManager.stopSpeech();
     };
@@ -58,17 +68,24 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
 
   // When level changes, reset puzzle state and speak instructions
   useEffect(() => {
+    clearTimers();
+    hasAdvancedRef.current = false;
     setSelectedOptionId(null);
     setIsAnswerCorrect(null);
     setItemCountClicked(0);
     setShowCelebration(false);
     setAttemptCount(0);
 
+    // If it's a music/rhythm puzzle, play the melody preview first
+    if (currentPuzzle.type === 'music_rhythm' && currentPuzzle.rhythmNotes) {
+      soundManager.playRhythmSequence(currentPuzzle.rhythmNotes);
+    }
+
     // Speak instructions clearly
     triggerSpeech(currentPuzzle.speechText);
-  }, [progress.currentLevel]);
+  }, [progress.currentLevel, currentPuzzle]);
 
-  const triggerSpeech = (text: string, context?: 'praise' | 'riddle' | 'instruction') => {
+  const triggerSpeech = (text: string, context?: 'praise' | 'riddle' | 'instruction' | 'count') => {
     const isRiddle = currentPuzzle.type === 'riddle';
     soundManager.speak(text, {
       context: context || (isRiddle ? 'riddle' : 'instruction'),
@@ -79,11 +96,33 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
   const handleReplaySpeech = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     soundManager.playPop();
+    if (currentPuzzle.type === 'music_rhythm' && currentPuzzle.rhythmNotes) {
+      soundManager.playRhythmSequence(currentPuzzle.rhythmNotes);
+    }
     triggerSpeech(currentPuzzle.speechText);
   };
 
-  const handleOptionSelect = (optionId: string, isCorrect: boolean) => {
-    if (isAnswerCorrect) return; // already solved
+  const advanceToNextLevel = (firstTry: boolean) => {
+    if (hasAdvancedRef.current) return;
+    hasAdvancedRef.current = true;
+    clearTimers();
+    onSolveLevel(currentPuzzle.rewardStars, currentPuzzle.rewardGems, currentPuzzle.category, firstTry);
+  };
+
+  const handleOptionSelect = (
+    optionId: string,
+    isCorrect: boolean,
+    customPraisePrefix?: string,
+    noteFreq?: number
+  ) => {
+    if (isAnswerCorrect || hasAdvancedRef.current) return;
+    clearTimers();
+
+    if (noteFreq) {
+      soundManager.playMusicalNote(noteFreq, 0.35);
+    }
+
+    const firstTry = attemptCount === 0;
     setSelectedOptionId(optionId);
     setAttemptCount(prev => prev + 1);
 
@@ -94,19 +133,19 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
       setShowCelebration(true);
 
       const phrase = getEncouragementPhrase(true);
-      triggerSpeech(phrase, 'praise');
+      const fullPraise = customPraisePrefix ? `${customPraisePrefix} ${phrase}` : phrase;
+      triggerSpeech(fullPraise, 'praise');
 
-      const firstTry = attemptCount === 0;
-      setTimeout(() => {
-        onSolveLevel(currentPuzzle.rewardStars, currentPuzzle.rewardGems, currentPuzzle.category, firstTry);
-      }, 1500);
+      advanceTimerRef.current = setTimeout(() => {
+        advanceToNextLevel(firstTry);
+      }, 1700);
     } else {
       soundManager.playEncouragement();
       setIsAnswerCorrect(false);
       const gentleError = getEncouragementPhrase(false);
       triggerSpeech(gentleError, 'instruction');
 
-      setTimeout(() => {
+      resetTimerRef.current = setTimeout(() => {
         setIsAnswerCorrect(null);
         setSelectedOptionId(null);
       }, 1200);
@@ -115,34 +154,40 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
 
   // Interactive tap for counting items
   const handleItemTap = () => {
-    if (isAnswerCorrect) return;
+    if (isAnswerCorrect || hasAdvancedRef.current) return;
     const nextCount = itemCountClicked + 1;
     setItemCountClicked(nextCount);
     soundManager.playPop();
     confetti.burst(undefined, undefined, 8);
 
-    // Grammatically correct Italian speech: "Una!" if feminine (mela, fragolina, stellina), "Uno!" if masculine
-    const tapSpoken = nextCount === 1 
-      ? (currentPuzzle.itemGender === 'f' ? 'Una!' : 'Uno!')
-      : `${nextCount}!`;
-    triggerSpeech(tapSpoken);
+    const countWords: Record<number, string> = {
+      1: currentPuzzle.itemGender === 'f' ? 'Una!' : 'Uno!',
+      2: 'Due!',
+      3: 'Tre!',
+      4: 'Quattro!',
+      5: 'Cinque!',
+      6: 'Sei!',
+      7: 'Sette!',
+      8: 'Otto!',
+    };
+    const tapSpoken = countWords[nextCount] || `${nextCount}!`;
 
     if (nextCount === currentPuzzle.targetCount) {
-      setTimeout(() => {
-        handleOptionSelect('counted_success', true);
-      }, 350);
+      handleOptionSelect('counted_success', true, tapSpoken);
+    } else {
+      triggerSpeech(tapSpoken, 'count');
     }
   };
 
   const categoryMeta = {
     logic: {
-      title: 'Logica & Indovinelli',
+      title: currentPuzzle.type === 'iq_matrix' ? 'Sfida Cognitiva QI' : 'Logica & Indovinelli',
       bg: 'from-[#1e103c] via-[#2d1b54] to-[#120826]',
       badge: 'bg-purple-500/30 text-purple-200 border-purple-400',
       icon: '🧠',
     },
     letters: {
-      title: 'Lettere, Suoni & Versi',
+      title: 'Lettere, Suoni & Rime',
       bg: 'from-[#0b2823] via-[#133d36] to-[#081b17]',
       badge: 'bg-emerald-500/30 text-emerald-200 border-emerald-400',
       icon: '🔤',
@@ -158,7 +203,19 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
       bg: 'from-[#340e2b] via-[#4c163f] to-[#1e0719]',
       badge: 'bg-pink-500/30 text-pink-200 border-pink-400',
       icon: '🎨',
-    }
+    },
+    music: {
+      title: 'Musica, Note & Ritmo',
+      bg: 'from-[#311038] via-[#4a154b] to-[#1a0826]',
+      badge: 'bg-amber-500/30 text-amber-200 border-amber-400',
+      icon: '🎵',
+    },
+    english: {
+      title: 'Prime Paroline in Inglese',
+      bg: 'from-[#0f172a] via-[#1e3a8a] to-[#090d16]',
+      badge: 'bg-sky-500/30 text-sky-200 border-sky-400',
+      icon: '🇬🇧',
+    },
   }[currentPuzzle.category];
 
   return (
@@ -204,26 +261,6 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
           <button
             onClick={() => {
               soundManager.playPop();
-              const nextMusic = soundManager.toggleMusic();
-              setMusicPlaying(nextMusic);
-            }}
-            className={`p-1.5 sm:p-2 rounded-xl border transition-all cursor-pointer shadow-xs active:scale-95 ${
-              musicPlaying
-                ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-amber-400/20'
-                : 'bg-white/10 hover:bg-white/20 text-slate-400 border-white/20'
-            }`}
-            title={musicPlaying ? 'Disattiva musica rilassante' : 'Attiva musica rilassante'}
-          >
-            {musicPlaying ? (
-              <Music className="w-4 h-4 text-slate-950 animate-bounce" />
-            ) : (
-              <VolumeX className="w-4 h-4" />
-            )}
-          </button>
-
-          <button
-            onClick={() => {
-              soundManager.playPop();
               onOpenParents();
             }}
             className="p-1.5 sm:p-2 bg-white/10 hover:bg-white/20 active:scale-95 text-slate-300 rounded-xl border border-white/20 cursor-pointer shadow-xs"
@@ -237,13 +274,13 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
       {/* ============================================================== */}
       {/* CHILD PROMPT CARD: COMPACT SPEECH CLOUD WITH ANIMAL AVATAR      */}
       {/* ============================================================== */}
-      <div className="relative z-10 px-2 sm:px-4 shrink-0 max-w-3xl w-full mx-auto my-1 landscape:my-0.5">
-        <div className="bg-gradient-to-b from-white via-white to-amber-50 rounded-2xl sm:rounded-3xl p-2 sm:p-3.5 landscape:p-1.5 landscape:py-1 border-2 sm:border-4 border-amber-300 shadow-xl flex items-center gap-2 sm:gap-4 text-slate-900 relative overflow-hidden">
+      <div className="relative z-10 px-2 sm:px-4 shrink-0 max-w-3xl w-full mx-auto my-1">
+        <div className="bg-gradient-to-b from-white via-white to-amber-50 rounded-3xl p-2.5 sm:p-3.5 border-3 sm:border-4 border-amber-300 shadow-xl flex items-center gap-2.5 sm:gap-4 text-slate-900 relative overflow-hidden">
           
           {/* Animated Mascot Guide Avatar */}
           <button 
             onClick={handleReplaySpeech}
-            className={`w-11 h-11 sm:w-16 sm:h-16 landscape:w-9 landscape:h-9 rounded-2xl bg-gradient-to-tr from-amber-400 via-pink-400 to-purple-500 p-0.5 border-2 border-amber-400 flex items-center justify-center text-2xl sm:text-4xl landscape:text-xl shrink-0 shadow-lg cursor-pointer transition-transform ${
+            className={`w-14 h-14 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-tr from-amber-400 via-pink-400 to-purple-500 p-0.5 border-2 border-amber-400 flex items-center justify-center text-3xl sm:text-4xl shrink-0 shadow-lg cursor-pointer transition-transform ${
               isSpeaking ? 'animate-bounce scale-105' : 'hover:scale-105 active:scale-95'
             }`}
             title="Tocca per ascoltare la voce!"
@@ -255,8 +292,8 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
 
           {/* Speech Prompt Text & Big Listen Button */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <span className="font-kids font-bold text-xs sm:text-sm landscape:text-[11px] text-purple-700">
+            <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
+              <span className="font-kids font-bold text-xs sm:text-sm text-purple-700">
                 {currentPuzzle.animalGuide.name}
               </span>
               {currentPuzzle.type === 'riddle' && (
@@ -264,9 +301,24 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                   Indovinello 🧩
                 </span>
               )}
+              {currentPuzzle.type === 'iq_matrix' && currentPuzzle.iqParameterTag && (
+                <span className="text-[10px] bg-indigo-100 text-indigo-900 font-bold px-2 py-0.5 rounded-full border border-indigo-300">
+                  🧠 Test QI · {currentPuzzle.iqParameterTag}
+                </span>
+              )}
+              {currentPuzzle.type === 'music_rhythm' && (
+                <span className="text-[10px] bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded-full border border-amber-300">
+                  🎵 Musica & Ritmo
+                </span>
+              )}
+              {currentPuzzle.type === 'english_words' && (
+                <span className="text-[10px] bg-sky-100 text-sky-900 font-bold px-2 py-0.5 rounded-full border border-sky-300">
+                  🇬🇧 English Fun
+                </span>
+              )}
             </div>
 
-            <p className="text-xs sm:text-lg md:text-xl landscape:text-xs text-slate-900 font-kids font-bold leading-tight drop-shadow-xs line-clamp-2">
+            <p className="text-sm sm:text-lg md:text-xl text-slate-900 font-kids font-bold leading-tight drop-shadow-xs line-clamp-2">
               "{currentPuzzle.prompt}"
             </p>
           </div>
@@ -274,7 +326,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
           {/* Direct Speaker Button */}
           <button
             onClick={handleReplaySpeech}
-            className={`p-1.5 sm:px-4 sm:py-2 landscape:p-1 landscape:px-2 rounded-xl sm:rounded-2xl font-kids font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer shrink-0 border-b-3 ${
+            className={`p-2.5 sm:px-4 sm:py-2 rounded-2xl font-kids font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer shrink-0 border-b-3 ${
               isSpeaking
                 ? 'bg-gradient-to-r from-emerald-400 to-green-500 text-slate-950 border-emerald-700 animate-pulse'
                 : 'bg-gradient-to-r from-amber-300 to-yellow-400 text-slate-950 border-amber-600 btn-chunky'
@@ -282,7 +334,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
             title="Ascolta la voce"
           >
             <Volume2 className="w-4 h-4 text-slate-950 fill-current animate-bounce" />
-            <span className="hidden sm:inline landscape:inline">{isSpeaking ? 'Ascolta...' : 'VOCE 🔊'}</span>
+            <span className="hidden sm:inline">{isSpeaking ? 'Ascolta...' : 'VOCE 🔊'}</span>
           </button>
         </div>
       </div>
@@ -292,21 +344,75 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
       {/* ============================================================== */}
       <div className="relative z-10 flex-1 min-h-0 flex flex-col items-center justify-center p-1.5 sm:p-3 max-w-3xl w-full mx-auto overflow-hidden">
         
-        {/* 1. PATTERN SEQUENCE DISPLAY */}
-        {currentPuzzle.type === 'pattern_sequence' && currentPuzzle.patternItems && (
-          <div className="mb-2 flex flex-wrap items-center justify-center gap-2 sm:gap-4 p-2.5 sm:p-4 bg-white/95 rounded-3xl border-3 border-amber-300 shadow-xl max-w-md w-full">
+        {/* 1. PATTERN SEQUENCE OR IQ MATRIX DISPLAY */}
+        {(currentPuzzle.type === 'pattern_sequence' || currentPuzzle.type === 'iq_matrix') && currentPuzzle.patternItems && (
+          <div className="mb-2 flex flex-wrap items-center justify-center gap-1.5 sm:gap-3 p-2 sm:p-3.5 bg-white/95 rounded-3xl border-3 border-amber-300 shadow-xl max-w-lg w-full">
             {currentPuzzle.patternItems.map((item, idx) => (
               <div
                 key={idx}
-                className={`w-12 h-12 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-3xl sm:text-5xl shadow-sm border-2 ${
+                className={`w-11 h-11 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center text-2xl sm:text-4xl shadow-sm border-2 ${
                   item === '❓'
                     ? 'bg-amber-100 border-dashed border-amber-400 text-amber-500 animate-bounce font-kids font-bold'
+                    : item === '➔'
+                    ? 'bg-purple-50 border-purple-200 text-purple-600 text-xl sm:text-2xl font-bold'
                     : 'bg-slate-50 border-purple-200'
                 }`}
               >
                 {item}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* 1b. INTERACTIVE MUSIC & RHYTHM XYLOPHONE BAR */}
+        {currentPuzzle.type === 'music_rhythm' && currentPuzzle.rhythmNotes && (
+          <div className="mb-2 flex flex-wrap items-center justify-center gap-2 sm:gap-3 p-2.5 sm:p-3.5 bg-white/95 rounded-3xl border-3 border-amber-400 shadow-xl max-w-lg w-full">
+            {currentPuzzle.rhythmNotes.map((note, idx) => (
+              <button
+                key={idx}
+                onClick={() => soundManager.playMusicalNote(note.freq, note.duration)}
+                className={`px-3 py-2 rounded-2xl flex flex-col items-center justify-center border-2 border-b-4 transition-transform active:scale-95 cursor-pointer ${
+                  note.label === '❓'
+                    ? 'bg-amber-100 border-dashed border-amber-500 text-amber-700 animate-bounce'
+                    : 'bg-gradient-to-b from-purple-100 to-pink-100 border-purple-300 border-b-purple-500 text-purple-950'
+                }`}
+                title="Tocca per suonare la nota!"
+              >
+                <span className="text-2xl sm:text-3xl leading-none">{note.emoji}</span>
+                <span className="text-xs font-kids font-extrabold mt-0.5">{note.label}</span>
+              </button>
+            ))}
+            <button
+              onClick={() => soundManager.playRhythmSequence(currentPuzzle.rhythmNotes!)}
+              className="px-3.5 py-2 rounded-2xl bg-gradient-to-r from-pink-500 to-purple-600 text-white font-kids font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer border-b-3 border-purple-900"
+            >
+              <Music className="w-4 h-4 text-yellow-300 animate-bounce" />
+              <span>Suona Ritmo 🎵</span>
+            </button>
+          </div>
+        )}
+
+        {/* 1c. BILINGUAL ENGLISH FLASHCARD BANNER */}
+        {currentPuzzle.type === 'english_words' && currentPuzzle.englishWord && (
+          <div
+            onClick={() => triggerSpeech(`${currentPuzzle.englishWord!.en}! In italiano: ${currentPuzzle.englishWord!.it}!`)}
+            className="mb-2 px-4 py-2 sm:py-2.5 bg-white/95 rounded-3xl border-3 border-sky-400 shadow-xl flex items-center justify-center gap-3 text-slate-900 cursor-pointer active:scale-98 transition-transform max-w-md w-full"
+          >
+            <span className="text-3xl sm:text-5xl">{currentPuzzle.englishWord.emoji}</span>
+            <div className="text-left">
+              <div className="flex items-center gap-1.5">
+                <Globe className="w-3.5 h-3.5 text-sky-600" />
+                <span className="text-[11px] font-kids font-bold text-sky-700 uppercase">
+                  {currentPuzzle.englishWord.categoryLabel}
+                </span>
+              </div>
+              <div className="text-base sm:text-xl font-kids font-extrabold text-slate-900">
+                🇬🇧 <span className="text-pink-600">{currentPuzzle.englishWord.en}</span> = 🇮🇹 <span className="text-emerald-700">{currentPuzzle.englishWord.it}</span>
+              </div>
+              <div className="text-xs font-fun font-bold text-purple-700">
+                🔊 {currentPuzzle.englishWord.phoneticHint}
+              </div>
+            </div>
           </div>
         )}
 
@@ -375,7 +481,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
               })}
             </div>
             <div className="px-5 py-1.5 rounded-full bg-white/95 text-slate-900 border-2 border-amber-300 text-sm sm:text-base font-kids font-bold shadow-md flex items-center gap-2">
-              <span>Toccate:</span>
+              <span>{currentPuzzle.itemGender === 'm' ? 'Toccati:' : 'Toccate:'}</span>
               <span className="text-pink-600 text-xl font-bold">{itemCountClicked}</span>
               <span>/ {currentPuzzle.targetCount}</span>
               <Sparkles className="w-4 h-4 text-amber-500 animate-spin" />
@@ -383,9 +489,9 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
           </div>
         )}
 
-        {/* 4. JUMBO TACTILE MULTIPLE CHOICE CARDS (FITS MOBILE & TABLETS IN PORTRAIT & LANDSCAPE) */}
+        {/* 4. JUMBO TACTILE MULTIPLE CHOICE CARDS (FITS MOBILE & TABLETS) */}
         {currentPuzzle.options && (
-          <div className={`grid gap-2 sm:gap-4 landscape:gap-2 w-full max-h-[52vh] landscape:max-h-[58vh] ${
+          <div className={`grid gap-2.5 sm:gap-4 w-full max-h-[52vh] ${
             currentPuzzle.options.length === 2
               ? 'grid-cols-2 max-w-md'
               : currentPuzzle.options.length === 4
@@ -397,8 +503,8 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
               return (
                 <button
                   key={opt.id}
-                  onClick={() => handleOptionSelect(opt.id, opt.isCorrect)}
-                  className={`p-2 sm:p-4 landscape:p-1.5 landscape:py-1 rounded-2xl sm:rounded-3xl border-3 border-b-6 transition-all duration-150 flex flex-col items-center justify-center gap-0.5 sm:gap-1.5 cursor-pointer shadow-xl btn-chunky select-none active:translate-y-1.5 ${
+                  onClick={() => handleOptionSelect(opt.id, opt.isCorrect, undefined, opt.noteFreq)}
+                  className={`p-2.5 sm:p-4 rounded-3xl border-3 border-b-6 transition-all duration-150 flex flex-col items-center justify-center gap-1 sm:gap-1.5 cursor-pointer shadow-xl btn-chunky select-none active:translate-y-1.5 ${
                     isSelected && opt.isCorrect
                       ? 'bg-gradient-to-b from-emerald-100 to-emerald-200 border-emerald-500 border-b-4 border-b-emerald-700 translate-y-1 scale-102 ring-4 ring-emerald-400 shadow-[0_10px_20px_rgba(16,185,129,0.4)]'
                       : isSelected && !opt.isCorrect
@@ -407,11 +513,11 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                   }`}
                 >
                   {opt.emoji && (
-                    <span className="text-3xl sm:text-6xl md:text-7xl landscape:text-2xl sm:landscape:text-4xl drop-shadow-sm text-center leading-none">
+                    <span className="text-4xl sm:text-6xl md:text-7xl drop-shadow-sm text-center leading-none">
                       {opt.emoji}
                     </span>
                   )}
-                  <span className={`text-sm sm:text-xl md:text-2xl landscape:text-xs sm:landscape:text-base font-kids font-bold tracking-wide text-center leading-tight ${
+                  <span className={`text-base sm:text-xl md:text-2xl font-kids font-bold tracking-wide text-center leading-tight ${
                     isSelected && opt.isCorrect
                       ? 'text-emerald-950 font-extrabold'
                       : isSelected && !opt.isCorrect
@@ -421,7 +527,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                     {opt.label}
                   </span>
                   {opt.sublabel && (
-                    <span className="text-[10px] sm:text-xs landscape:text-[9px] font-fun text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full font-bold text-center border border-purple-200 truncate max-w-full">
+                    <span className="text-[10px] sm:text-xs font-fun text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full font-bold text-center border border-purple-200 truncate max-w-full">
                       {opt.sublabel}
                     </span>
                   )}
@@ -455,7 +561,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
         <div 
           onClick={() => {
             soundManager.playPop();
-            onSolveLevel(currentPuzzle.rewardStars, currentPuzzle.rewardGems, currentPuzzle.category, attemptCount === 0);
+            advanceToNextLevel(attemptCount <= 1);
           }}
           className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 cursor-pointer animate-fade-in"
         >

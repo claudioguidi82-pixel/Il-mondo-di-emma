@@ -5,18 +5,15 @@ import {
   Sparkles, 
   Star, 
   RotateCcw, 
-  Trophy, 
   ArrowRight, 
   Heart,
-  Gamepad2,
-  Volume2,
-  CheckCircle2,
-  Gift
+  ChevronLeft
 } from 'lucide-react';
 
 interface SvagoArenaProps {
   levelNumber: number;
   onComplete: () => void;
+  onExitToTitle?: () => void;
 }
 
 type BoardCell = 'X' | 'O' | null;
@@ -24,6 +21,7 @@ type BoardCell = 'X' | 'O' | null;
 export const SvagoArena: React.FC<SvagoArenaProps> = ({
   levelNumber,
   onComplete,
+  onExitToTitle,
 }) => {
   // Determine svago game type based on level
   // 10 -> Tris Classico
@@ -118,10 +116,20 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
 
   // Victory common state
   const [isVictoryCelebration, setIsVictoryCelebration] = useState<boolean>(false);
+  const hasCompletedRef = useRef<boolean>(false);
+
+  const safeComplete = () => {
+    if (hasCompletedRef.current) return;
+    hasCompletedRef.current = true;
+    soundManager.stopSpeech();
+    soundManager.playSuccess();
+    onComplete();
+  };
 
   // Initialize selected svago game
   useEffect(() => {
     setIsVictoryCelebration(false);
+    hasCompletedRef.current = false;
 
     if (isTrisEasy || isTrisSmart) {
       setBoard(Array(9).fill(null));
@@ -134,7 +142,6 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
       soundManager.speakInstruction(
         `Livello ${levelNumber}: momento di svago! Scoppia le bolle magiche toccandole prima che volino via!`
       );
-      // Spawn initial bubbles
       spawnInitialBubbles();
     } else if (isMemoryExpress) {
       initMemoryCards();
@@ -148,6 +155,10 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
       );
       spawnInitialStars();
     }
+
+    return () => {
+      soundManager.stopSpeech();
+    };
   }, [levelNumber]);
 
   // ==========================================
@@ -500,6 +511,19 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
       {/* Top Banner Header */}
       <div className="flex items-center justify-between px-3 sm:px-5 py-2 bg-slate-950/80 border-b border-white/10 backdrop-blur-md shrink-0 gap-2">
         <div className="flex items-center gap-2">
+          {onExitToTitle && (
+            <button
+              onClick={() => {
+                soundManager.playPop();
+                soundManager.stopSpeech();
+                onExitToTitle();
+              }}
+              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 active:scale-95 rounded-2xl text-white font-fun font-bold text-xs sm:text-sm border border-white/20 flex items-center gap-1 cursor-pointer transition-all shadow-sm"
+            >
+              <ChevronLeft className="w-4 h-4 text-pink-300" />
+              <span>Esci</span>
+            </button>
+          )}
           <span className="text-xl sm:text-2xl animate-bounce">🎈</span>
           <div>
             <div className="flex items-center gap-1.5">
@@ -521,10 +545,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
         </div>
 
         <button
-          onClick={() => {
-            soundManager.playSuccess();
-            onComplete();
-          }}
+          onClick={safeComplete}
           className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-kids font-bold text-xs sm:text-sm rounded-2xl shadow-md border-b-3 border-emerald-700 active:translate-y-1 transition-all flex items-center gap-1 cursor-pointer shrink-0"
         >
           <span>Continua</span>

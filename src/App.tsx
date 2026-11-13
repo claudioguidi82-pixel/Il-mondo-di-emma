@@ -1,22 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { GameCategory, UserProgress, SavedDrawing } from './types/game';
 import { loadUserProgress, saveUserProgress } from './data/gameData';
-import { EmmaCharacter } from './components/EmmaCharacter';
 import { PlayArena } from './components/PlayArena';
 import { SvagoArena } from './components/SvagoArena';
 import { StudioDisegno } from './components/StudioDisegno';
 import { ParentModal } from './components/ParentModal';
 import { soundManager } from './utils/audio';
 import { confetti } from './utils/confetti';
-import { getEmmaCurrentAge } from './utils/infiniteLevels';
 import { 
   Play, 
   Star, 
   ShieldCheck, 
-  Sparkles,
   Palette,
-  Music,
-  VolumeX
+  FileDown
 } from 'lucide-react';
 
 export default function App() {
@@ -24,17 +20,11 @@ export default function App() {
   const [currentView, setCurrentView] = useState<'title' | 'play' | 'studio'>('title');
   const [isParentsOpen, setIsParentsOpen] = useState(false);
 
-  // Sync sound and background music settings to sound manager
+  // Sync sound settings to sound manager
   useEffect(() => {
     soundManager.soundEnabled = progress.soundEnabled;
     soundManager.voiceEnabled = progress.voiceEnabled;
-    soundManager.musicEnabled = progress.musicEnabled;
-    if (progress.musicEnabled) {
-      soundManager.startMusic();
-    } else {
-      soundManager.stopMusic();
-    }
-  }, [progress.soundEnabled, progress.voiceEnabled, progress.musicEnabled]);
+  }, [progress.soundEnabled, progress.voiceEnabled]);
 
   const updateProgress = (updater: (prev: UserProgress) => UserProgress) => {
     setProgress(prev => {
@@ -44,13 +34,10 @@ export default function App() {
     });
   };
 
-  const ageInfo = getEmmaCurrentAge();
-
   const handleStartGame = () => {
     soundManager.playSuccess();
     confetti.burst();
     setCurrentView('play');
-    // Let PlayArena deliver the warm welcome and instructions smoothly without audio collisions
   };
 
   const handleOpenStudio = () => {
@@ -126,11 +113,14 @@ export default function App() {
         letters: { correct: 0, total: 0 },
         numbers: { correct: 0, total: 0 },
         shapes: { correct: 0, total: 0 },
+        music: { correct: 0, total: 0 },
+        english: { correct: 0, total: 0 },
       },
       trisGamesPlayed: 0,
       trisGamesWon: 0,
       soundEnabled: true,
       voiceEnabled: true,
+      musicEnabled: true,
       totalPuzzlesSolved: 0,
       totalAttempts: 0,
       dailyRewardClaimed: false,
@@ -155,121 +145,65 @@ export default function App() {
         <img
           src="/assets/aistudio/file_00000000aaf47246b99b88d542f65591_02f69f18.png"
           alt="Emma"
-          className={`w-full h-full object-cover object-[60%_35%] landscape:object-[72%_30%] transition-all duration-700 ease-out ${
+          className={`w-full h-full object-cover object-[65%_48%] transition-all duration-700 ease-out ${
             currentView === 'title'
               ? 'scale-100 brightness-100 contrast-100'
-              : 'scale-105 brightness-[0.25] blur-xs'
+              : 'scale-105 brightness-[0.28] blur-xs'
           }`}
         />
         
-        {/* Soft edge gradients ONLY at very top & bottom edges so Emma in the center is 100% visible */}
+        {/* Subtle edge gradients ONLY at top & bottom edges so Emma in the center is 100% visible */}
         {currentView === 'title' ? (
           <>
-            <div className="absolute top-0 inset-x-0 h-24 sm:h-32 bg-gradient-to-b from-black/75 via-black/30 to-transparent pointer-events-none" />
-            <div className="absolute bottom-0 inset-x-0 h-40 sm:h-56 bg-gradient-to-t from-black/85 via-black/40 to-transparent pointer-events-none" />
+            <div className="absolute top-0 inset-x-0 h-24 bg-gradient-to-b from-black/55 via-black/20 to-transparent pointer-events-none" />
+            <div className="absolute bottom-0 inset-x-0 h-44 bg-gradient-to-t from-black/75 via-black/30 to-transparent pointer-events-none" />
           </>
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-b from-[#080212]/95 via-[#14062c]/90 to-[#070112]/95" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#080212]/90 via-[#14062c]/85 to-[#070112]/90" />
         )}
       </div>
 
       {/* ========================================================================= */}
-      {/* VIEW 1: HOME VIEW - RESPONSIVE FOR SMARTPHONE & TABLET (PORTRAIT & LANDSCAPE) */}
+      {/* VIEW 1: HOME VIEW - CLEAN TOP TITLE, UNIFIED TAB (LIVELLO STELLINE ANNI   */}
+      {/* DATA), EMMA PHOTO 100% VISIBLE, AND BOTTOM PARENTS TAB                    */}
       {/* ========================================================================= */}
       {currentView === 'title' && (
-        <div className="relative z-10 h-full w-full flex flex-col justify-between p-3 sm:p-5 landscape:flex-row landscape:items-center landscape:justify-between landscape:max-w-5xl landscape:p-4 sm:landscape:p-6 landscape:gap-6 max-w-lg mx-auto overflow-hidden">
+        <div className="relative z-10 h-full w-full flex flex-col justify-between p-3 sm:p-5 max-w-lg mx-auto overflow-hidden">
           
-          {/* FLOATING MUSIC TOGGLE BUTTON (ACCESSIBLE IN ALL SCREEN SIZES & ORIENTATIONS) */}
-          <div className="absolute top-2.5 right-2.5 sm:top-4 sm:right-4 z-30">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                soundManager.playPop();
-                const nextState = soundManager.toggleMusic();
-                updateProgress(prev => ({ ...prev, musicEnabled: nextState }));
-              }}
-              className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full border transition-all cursor-pointer shadow-lg active:scale-95 flex items-center gap-1.5 backdrop-blur-md ${
-                progress.musicEnabled
-                  ? 'bg-amber-400/90 hover:bg-amber-400 border-amber-200 text-slate-950 shadow-amber-500/25 ring-2 ring-amber-300/40'
-                  : 'bg-black/55 hover:bg-black/75 border-white/25 text-slate-300'
-              }`}
-              title={progress.musicEnabled ? 'Disattiva musica rilassante' : 'Attiva musica rilassante'}
-            >
-              {progress.musicEnabled ? (
-                <>
-                  <Music className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-950 animate-bounce" />
-                  <span className="text-[11px] sm:text-xs font-kids font-bold">Musica 🎵</span>
-                </>
-              ) : (
-                <>
-                  <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400" />
-                  <span className="text-[11px] sm:text-xs font-kids font-bold">Musica 🔇</span>
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* 1. TITLE & MILESTONE (LEFT COLUMN IN LANDSCAPE / TOP IN PORTRAIT) */}
-          <div className="flex flex-col items-center landscape:items-start text-center landscape:text-left pt-2 sm:pt-4 landscape:pt-0 shrink-0 landscape:w-[46%]">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl landscape:text-2xl lg:landscape:text-4xl font-kids font-extrabold tracking-tight text-white leading-tight drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]">
+          {/* 1. TOP FLOATING TITLE & UNIFIED MILESTONE TAB (LIVELLO · STELLINE · ANNI · DATA) */}
+          <div className="flex flex-col items-center text-center pt-1 shrink-0">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-kids font-extrabold tracking-tight text-white leading-tight drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]">
               Il Mondo di <span className="text-yellow-300 drop-shadow-[0_4px_18px_rgba(0,0,0,0.95)]">Emma</span> 🌸
             </h1>
             
-            <div className="mt-1.5 inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-black/45 backdrop-blur-md border border-white/25 text-white font-kids text-xs font-bold shadow-lg">
+            <div className="mt-1.5 inline-flex flex-wrap items-center justify-center gap-2 px-4 py-1.5 rounded-full bg-black/55 backdrop-blur-md border border-white/35 text-white font-kids text-xs sm:text-sm font-bold shadow-lg">
               <span className="text-pink-300">👑 Livello {progress.currentLevel}</span>
               <span className="text-white/40">·</span>
-              <span className="text-yellow-200 flex items-center gap-1">
-                <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                {progress.stars} Stelle
+              <span className="inline-flex items-center gap-1 text-amber-300">
+                <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400 animate-pulse" />
+                <span>{progress.stars}</span>
               </span>
-            </div>
-
-            {/* In Landscape on Smartphone & Tablet: Action Buttons sit directly under the title in this column! */}
-            <div className="hidden landscape:flex flex-col w-full mt-3 sm:mt-4 space-y-2">
-              <button
-                onClick={handleStartGame}
-                className="btn-3d-emerald btn-chunky w-full py-2.5 sm:py-3.5 px-4 sm:px-5 active:scale-95 text-slate-950 font-kids font-extrabold text-base sm:text-xl rounded-2xl flex items-center justify-center gap-2.5 cursor-pointer tracking-wide shadow-xl"
-              >
-                <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-slate-950 shrink-0 animate-pulse" />
-                <span>INIZIA A GIOCARE! ➔</span>
-              </button>
-
-              <button
-                onClick={handleOpenStudio}
-                className="btn-3d-purple btn-chunky w-full py-2 sm:py-2.5 px-3.5 sm:px-4 active:scale-95 text-white font-kids font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-lg"
-              >
-                <Palette className="w-4 h-4 text-yellow-300 shrink-0" />
-                <span>🎨 STUDIO DISEGNO MAGICO ✨</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  soundManager.playPop();
-                  setIsParentsOpen(true);
-                }}
-                className="w-full flex items-center justify-center gap-2 py-1.5 sm:py-2 px-3 bg-black/55 hover:bg-black/75 backdrop-blur-md rounded-xl border border-white/25 text-xs font-fun font-bold text-slate-200 hover:text-white shadow-md cursor-pointer active:scale-98 transition-all"
-                title="Area Genitori & Relazione Pedagogica"
-              >
-                <ShieldCheck className="w-4 h-4 text-pink-300" />
-                <span>Area Genitori & Relazione 🛡️</span>
-              </button>
+              <span className="text-white/40">·</span>
+              <span className="text-yellow-200">5 Anni</span>
+              <span className="text-white/40">·</span>
+              <span className="text-cyan-200">22/08/2021</span>
             </div>
           </div>
 
-          {/* 2. CENTER IN PORTRAIT / RIGHT IN LANDSCAPE: 100% UNOBSTRUCTED VIEW OF EMMA (TAP TO HEAR EMMA) */}
+          {/* 2. CENTER: COMPLETELY OPEN TO SHOW EMMA (TAP TO HEAR EMMA) */}
           <div 
             onClick={() => {
               soundManager.playTwinkle();
               soundManager.speakPraise('Evviva Emma! Benvenuta nel tuo mondo magico! Giochiamo insieme!');
             }}
-            className="flex-1 w-full landscape:w-[50%] h-full flex items-center justify-center cursor-pointer my-auto"
+            className="flex-1 w-full flex items-center justify-center cursor-pointer my-auto"
             title="Tocca Emma per un saluto magico!"
           >
-            {/* Open center / right area - Emma's photo is 100% visible and unblocked */}
+            {/* Open center area - Emma's photo is 100% visible and unblocked */}
           </div>
 
-          {/* 3. BOTTOM ACTION CONTROLS IN PORTRAIT (Hidden in landscape since they are placed in the left column) */}
-          <div className="w-full flex flex-col items-center shrink-0 space-y-2.5 landscape:hidden">
+          {/* 3. BOTTOM ACTION CONTROLS + TAB GENITORI AT THE VERY BOTTOM */}
+          <div className="w-full flex flex-col items-center shrink-0 space-y-2.5">
             {/* PRIMARY BUTTON 1: VOLUMETRIC 3D TOY "INIZIA A GIOCARE!" */}
             <button
               onClick={handleStartGame}
@@ -288,17 +222,18 @@ export default function App() {
               <span>🎨 STUDIO DISEGNO MAGICO ✨</span>
             </button>
 
-            {/* AREA GENITORI - SOSTITUISCE COMPLETAMENTE IL VECCHIO BANNER DEI RISULTATI */}
+            {/* BOTTOM-MOST TAB: TAB GENITORI (RELAZIONE PEDAGOGICA, QI & REPORT PDF) */}
             <button
               onClick={() => {
                 soundManager.playPop();
                 setIsParentsOpen(true);
               }}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-black/55 hover:bg-black/75 backdrop-blur-md rounded-2xl border border-white/25 text-xs sm:text-sm font-fun font-bold text-slate-200 hover:text-white shadow-lg cursor-pointer active:scale-98 transition-all"
-              title="Area Genitori & Relazione Pedagogica"
+              className="w-full flex items-center justify-center gap-2.5 py-2.5 px-4 bg-black/65 hover:bg-black/80 active:scale-98 backdrop-blur-md rounded-2xl border border-pink-300/45 text-xs sm:text-sm font-kids font-bold text-white shadow-xl cursor-pointer transition-all"
+              title="Apri Area Genitori, Valutazione QI e Scarica Report PDF"
             >
-              <ShieldCheck className="w-4 h-4 text-pink-300" />
-              <span>Area Genitori & Relazione Pedagogica 🛡️</span>
+              <ShieldCheck className="w-4 h-4 text-pink-400 shrink-0" />
+              <span className="text-pink-100">AREA GENITORI · RELAZIONE, QI & REPORT PDF</span>
+              <FileDown className="w-4 h-4 text-yellow-300 shrink-0" />
             </button>
           </div>
 
@@ -314,6 +249,7 @@ export default function App() {
             <SvagoArena
               levelNumber={progress.currentLevel}
               onComplete={handleTrisComplete}
+              onExitToTitle={() => setCurrentView('title')}
             />
           ) : (
             <PlayArena
@@ -338,17 +274,16 @@ export default function App() {
       )}
 
       {/* ========================================================================= */}
-      {/* PARENTS AREA MODAL (PEDAGOGICAL EVALUATION, CHARTS & DOWNLOAD REPORT)     */}
+      {/* PARENTS AREA MODAL (PEDAGOGICAL EVALUATION, CHARTS & DOWNLOAD PDF REPORT) */}
       {/* ========================================================================= */}
       {isParentsOpen && (
         <ParentModal
           progress={progress}
-          onUpdateAudio={(sound, voice, music) => {
+          onUpdateAudio={(sound, voice) => {
             updateProgress(prev => ({
               ...prev,
               soundEnabled: sound,
               voiceEnabled: voice,
-              musicEnabled: music !== undefined ? music : prev.musicEnabled,
             }));
           }}
           onResetProgress={handleResetProgress}
