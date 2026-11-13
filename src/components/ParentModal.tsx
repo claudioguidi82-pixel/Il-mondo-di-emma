@@ -18,9 +18,22 @@ import {
   Activity,
   Volume2,
   VolumeX,
+  Sparkles,
+  ShieldCheck,
+  Clock,
+  Layers,
 } from 'lucide-react';
-import { UserProgress, GameCategory } from '../types/game';
+import {
+  UserProgress,
+  GameCategory,
+  CompetencyBandLabel,
+} from '../types/game';
 import { getEmmaCurrentAge } from '../utils/infiniteLevels';
+import {
+  computeFullEvaluationReport,
+  getDifficultyWeightInfo,
+} from '../utils/evaluationEngine';
+import { getSecurityComplianceReport } from '../utils/security';
 
 interface ParentModalProps {
   progress: UserProgress;
@@ -37,9 +50,14 @@ interface DomainMetric {
   emoji: string;
   completed: number;
   correctFirstTry: number;
-  accuracy: number;
-  masteryIndex: number;
-  levelLabel: string;
+  assistedCount: number;
+  ip: number;          // Indice di Prestazione (0-100)
+  ia: number;          // Indice di Autonomia (0-100)
+  ir: number;          // Ritenzione nel tempo (0-100)
+  it: number;          // Trasferimento (0-100)
+  ic: number;          // Indice di Competenza (0-100)
+  ieDelta: number;     // Evoluzione rispetto alla rilevazione precedente
+  levelLabel: CompetencyBandLabel;
   barColor: string;
   hexColor: string;
   hexDark: string;
@@ -47,24 +65,6 @@ interface DomainMetric {
   milestoneGoal: string;
   pedagogicalNote: string;
   familyAdvice: string;
-}
-
-interface IQAnalysisResult {
-  unlocked: boolean;
-  iqScore: number;
-  iqRange: string;
-  percentile: string;
-  classification: string;
-  indices: {
-    code: string;
-    shortTitle: string;
-    label: string;
-    scaledScore: number;
-    percentScore: number;
-    colorHex: string;
-    desc: string;
-  }[];
-  clinicalNote: string;
 }
 
 /**
@@ -252,13 +252,11 @@ function draw3DHorizontalBar(
   darkColor: string,
   topColor: string
 ) {
-  // Background track
   fillStrokeRoundRect(ctx, x, y, trackW, h, 7, '#f1f5f9', '#cbd5e1', 1);
 
   const w = Math.max(12, Math.min(trackW, fillW));
   if (fillW <= 0) return;
 
-  // 1. Top 3D Parallelogram Bevel
   ctx.beginPath();
   ctx.moveTo(x, y);
   ctx.lineTo(x + depth, y - depth * 0.6);
@@ -268,7 +266,6 @@ function draw3DHorizontalBar(
   ctx.fillStyle = topColor;
   ctx.fill();
 
-  // 2. Right 3D Extruded Side Cap
   ctx.beginPath();
   ctx.moveTo(x + w, y);
   ctx.lineTo(x + w + depth, y - depth * 0.6);
@@ -278,10 +275,8 @@ function draw3DHorizontalBar(
   ctx.fillStyle = darkColor;
   ctx.fill();
 
-  // 3. Front Main Bar Face
   fillStrokeRoundRect(ctx, x, y, w, h, 5, mainColor);
 
-  // Specular top gloss
   ctx.fillStyle = 'rgba(255,255,255,0.28)';
   ctx.fillRect(x + 3, y + 2, Math.max(4, w - 6), 4);
 }
@@ -337,12 +332,12 @@ function draw3DDonutGauge(
   cy: number,
   radius: number,
   thickness: number,
-  percentage: number,
+  score: number,
   mainColor: string,
   darkColor: string
 ) {
   const startAngle = -Math.PI / 2;
-  const endAngle = startAngle + (Math.PI * 2 * Math.max(3, percentage)) / 100;
+  const endAngle = startAngle + (Math.PI * 2 * Math.max(3, score)) / 100;
 
   ctx.beginPath();
   ctx.arc(cx, cy + 4, radius, 0, Math.PI * 2);
@@ -356,7 +351,7 @@ function draw3DDonutGauge(
   ctx.lineWidth = thickness;
   ctx.stroke();
 
-  if (percentage > 0) {
+  if (score > 0) {
     ctx.beginPath();
     ctx.arc(cx, cy + 3.5, radius, startAngle, endAngle);
     ctx.strokeStyle = darkColor;
@@ -373,64 +368,10 @@ function draw3DDonutGauge(
   }
 
   ctx.fillStyle = '#0f172a';
-  ctx.font = '900 14px sans-serif';
+  ctx.font = '900 13px sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText(`${percentage}%`, cx, cy + 5);
+  ctx.fillText(`${score}/100`, cx, cy + 5);
   ctx.textAlign = 'left';
-}
-
-/**
- * Computes exact Wechsler normative percentile from an IQ score (Mean = 100, SD = 15).
- */
-function iqToPercentile(iq: number): number {
-  const z = (iq - 100) / 15;
-  const sign = z < 0 ? -1 : 1;
-  const x = Math.abs(z) / Math.SQRT2;
-  const t = 1 / (1 + 0.3275911 * x);
-  const erf =
-    1 -
-    (((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t) *
-      Math.exp(-x * x);
-  const cdf = 0.5 * (1 + sign * erf);
-  return Math.max(1, Math.min(99, Math.round(cdf * 100)));
-}
-
-/**
- * Computes a realistic, non-inflated Wechsler index score (Mean 100, SD 15)
- * weighted by Bayesian-shrunk accuracy, total sample size confidence, and Tier difficulty.
- */
-function computeCalibratedIndexIQ(
-  correct: number,
-  total: number,
-  totalGlobalSolved: number,
-  currentTier: number,
-  extraBonus: number = 0
-): { iq: number; pct: number } {
-  // Expected normative 1st-try accuracy for age-calibrated preschool exercises is ~75%
-  const priorWeight = 3.5;
-  const priorAcc = 0.75;
-  const shrunkAcc =
-    total > 0
-      ? (correct + priorWeight * priorAcc) / (total + priorWeight)
-      : priorAcc;
-
-  // Sample-size confidence grows gradually from ~0.28 at 10 puzzles toward 0.85+ after 100+ puzzles
-  const sampleConfidence =
-    totalGlobalSolved > 0 ? totalGlobalSolved / (totalGlobalSolved + 26) : 0;
-
-  // Difficulty complexity factor: Tier 1-2 is age-5 baseline (cannot jump into gifted/Einstein range)
-  const difficultyScale = Math.min(1.0, 0.42 + Math.max(0, currentTier - 1) * 0.13);
-
-  // Max positive deviation scales strictly with both difficulty and statistical sample confidence
-  const maxGain = 26 * difficultyScale * (0.4 + 0.6 * sampleConfidence);
-  const maxDrop = 22 * (0.5 + 0.5 * sampleConfidence);
-
-  const zDiff = (shrunkAcc - priorAcc) / 0.25; // +1.0 at 100% shrunkAcc, -1.0 at 50% shrunkAcc
-  const delta = zDiff >= 0 ? zDiff * maxGain : zDiff * maxDrop;
-
-  const iq = Math.round(Math.max(75, Math.min(132, 100 + delta + extraBonus)));
-  const pct = Math.round(Math.max(0, Math.min(100, shrunkAcc * 100)));
-  return { iq, pct };
 }
 
 export const ParentModal: React.FC<ParentModalProps> = ({
@@ -440,49 +381,26 @@ export const ParentModal: React.FC<ParentModalProps> = ({
   onClose,
 }) => {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [showResetGate, setShowResetGate] = useState(false);
+  const [gateInput, setGateInput] = useState('');
+  const [gateError, setGateError] = useState(false);
   const ageInfo = useMemo(() => getEmmaCurrentAge(), []);
 
-  // CRITICAL ZERO BASELINE RULE:
-  // Levels 1 to 10 = 0% (0 for QI).
-  // First measurement step activates AFTER Level 10 (i.e. from Level 11+, when completedLevelsCount >= 10)
-  // and updates level by level!
-  const completedLevelsCount = Math.max(0, progress.currentLevel - 1);
-  const isMeasurementUnlocked = completedLevelsCount >= 10;
-  const currentTier = Math.floor((progress.currentLevel - 1) / 10) + 1;
+  // Complete Mathematical & CHC Evaluation Report (0-100) + Monthly/Annual Progress Rows
+  const evalReport = useMemo(
+    () => computeFullEvaluationReport(progress),
+    [progress]
+  );
 
-  // Consistent Global Accuracy derived directly from tangible per-category first-try telemetry
-  const { totalCatCorrect, totalCatAttempts } = useMemo(() => {
-    const cats: GameCategory[] = ['logic', 'letters', 'numbers', 'shapes', 'music', 'english'];
-    return cats.reduce(
-      (acc, id) => {
-        const st = progress.categoryStats[id] || { correct: 0, total: 0 };
-        return {
-          totalCatCorrect: acc.totalCatCorrect + st.correct,
-          totalCatAttempts: acc.totalCatAttempts + st.total,
-        };
-      },
-      { totalCatCorrect: 0, totalCatAttempts: 0 }
-    );
-  }, [progress.categoryStats]);
+  // Updated Security & Child-Privacy Compliance Report
+  const securityCriteria = useMemo(
+    () => getSecurityComplianceReport(progress),
+    [progress]
+  );
 
-  const overallAccuracy = useMemo(() => {
-    if (!isMeasurementUnlocked) return 0;
-    if (totalCatAttempts > 0) {
-      return Math.round((totalCatCorrect / totalCatAttempts) * 100);
-    }
-    if (progress.totalPuzzlesSolved === 0) return 0;
-    const effectiveAttempts = Math.max(
-      progress.totalPuzzlesSolved,
-      progress.totalAttempts || 0
-    );
-    return Math.round((progress.totalPuzzlesSolved / effectiveAttempts) * 100);
-  }, [
-    isMeasurementUnlocked,
-    totalCatCorrect,
-    totalCatAttempts,
-    progress.totalPuzzlesSolved,
-    progress.totalAttempts,
-  ]);
+  const isMeasurementUnlocked = evalReport.isUnlocked;
+  const completedLevelsCount = evalReport.completedLevelsCount;
+  const currentTier = evalReport.currentTier;
 
   const domainMetrics: DomainMetric[] = useMemo(() => {
     const domainDefinitions: {
@@ -500,363 +418,147 @@ export const ParentModal: React.FC<ParentModalProps> = ({
     }[] = [
       {
         id: 'logic',
-        title: '1. Logica, Indovinelli & Test QI',
-        clinicalName: 'Logica, Indovinelli & Test QI (Matrici)',
-        shortLabel: 'Logica/QI',
+        title: '1. Logica, Sequenze & Associazioni (Gf)',
+        clinicalName: 'Ragionamento Fluido, Sequenze & Logica (Gf)',
+        shortLabel: 'Logica (Gf)',
         emoji: '🧠',
         barColor: 'from-violet-500 to-purple-500',
         hexColor: '#7c3aed',
         hexDark: '#4c1d95',
         hexTop: '#a78bfa',
-        milestoneGoal: `Livello ${progress.currentLevel} (Tier ${currentTier}): Matrici logiche analogiche per il QI, deduzione figurata e indovinelli.`,
+        milestoneGoal: `Livello ${progress.currentLevel} (${evalReport.currentDifficultyLabel}, peso ${evalReport.currentWeight}): Sequenze logiche, analogie figurate, intrusi e indovinelli.`,
         familyAdvice:
           'Proponete giochi di analogia quotidiana: "Il pesciolino sta nel mare come l\'uccellino sta nel...?"',
       },
       {
         id: 'letters',
-        title: '2. Linguaggio, Fonetica & Lettere',
-        clinicalName: 'Linguaggio, Fonetica & Lettere Familiari',
-        shortLabel: 'Lettere',
+        title: '2. Linguaggio, Fonetica & Lettere (Gc)',
+        clinicalName: 'Linguaggio, Fonetica & Lettere Familiari (Gc)',
+        shortLabel: 'Lettere (Gc)',
         emoji: '🔤',
         barColor: 'from-emerald-500 to-teal-500',
         hexColor: '#10b981',
         hexDark: '#047857',
         hexTop: '#34d399',
-        milestoneGoal: `Livello ${progress.currentLevel} (Tier ${currentTier}): Riconoscimento suoni iniziali, lettera E di Emma e rime fonetiche.`,
+        milestoneGoal: `Livello ${progress.currentLevel} (${evalReport.currentDifficultyLabel}, peso ${evalReport.currentWeight}): Riconoscimento suoni iniziali, lettera E di Emma e rime fonetiche.`,
         familyAdvice:
           'Enfatizzate il suono iniziale delle parole quotidiane: "Mmm-Mela!", "Sss-Sole!", "Eee-Emma!".',
       },
       {
         id: 'numbers',
-        title: '3. Senso del Numero & Calcolo Visivo',
-        clinicalName: 'Senso del Numero, Quantità & Calcolo Visivo',
+        title: '3. Senso del Numero & Calcolo Visivo (Gwm)',
+        clinicalName: 'Senso del Numero, Quantità & Calcolo Visivo (Gwm)',
         shortLabel: 'Numeri',
         emoji: '🔢',
         barColor: 'from-sky-500 to-blue-600',
         hexColor: '#0284c7',
         hexDark: '#0369a1',
         hexTop: '#38bdf8',
-        milestoneGoal: `Livello ${progress.currentLevel} (Tier ${currentTier}): Conteggio 1-a-1 con il dito, somme/sottrazioni visive e concordanza M/F.`,
+        milestoneGoal: `Livello ${progress.currentLevel} (${evalReport.currentDifficultyLabel}, peso ${evalReport.currentWeight}): Conteggio 1-a-1 con il dito, somme/sottrazioni visive e concordanza M/F.`,
         familyAdvice:
           'Coinvolgetela apparecchiando: "Prendi una mela rossa e due mele gialle, quante mele sono?"',
       },
       {
         id: 'shapes',
-        title: '4. Spazio, Sagome, Forme & Colori',
-        clinicalName: 'Spazio, Sagome, Forme & Colori',
-        shortLabel: 'Forme',
+        title: '4. Abilità Visuo-Spaziali & Forme (Gv)',
+        clinicalName: 'Abilità Visuo-Spaziali, Forme & Colori (Gv)',
+        shortLabel: 'Spazio (Gv)',
         emoji: '🔷',
         barColor: 'from-pink-500 to-rose-500',
         hexColor: '#db2777',
         hexDark: '#9d174d',
         hexTop: '#f472b6',
-        milestoneGoal: `Livello ${progress.currentLevel} (Tier ${currentTier}): Figure geometriche piane, orientamento spaziale e mescolanze cromatiche.`,
+        milestoneGoal: `Livello ${progress.currentLevel} (${evalReport.currentDifficultyLabel}, peso ${evalReport.currentWeight}): Figure geometriche, orientamento spaziale e mescolanze cromatiche.`,
         familyAdvice:
           'Cercate insieme le forme negli oggetti di casa: "Il piatto è un cerchio, il fazzoletto è un quadrato!"',
       },
       {
         id: 'music',
-        title: '5. Musica, Strumenti & Ritmo Sonoro',
-        clinicalName: 'Musica, Note & Ritmo Sonoro',
+        title: '5. Memoria Uditiva, Musica & Ritmo (Gwm)',
+        clinicalName: 'Memoria di Lavoro Uditiva, Note & Ritmo (Gwm)',
         shortLabel: 'Musica',
         emoji: '🎵',
         barColor: 'from-amber-400 to-orange-500',
         hexColor: '#d97706',
         hexDark: '#92400e',
         hexTop: '#fbbf24',
-        milestoneGoal: `Livello ${progress.currentLevel} (Tier ${currentTier}): Percezione melodica (Do-Re-Mi), pattern ritmici e timbro degli strumenti.`,
+        milestoneGoal: `Livello ${progress.currentLevel} (${evalReport.currentDifficultyLabel}, peso ${evalReport.currentWeight}): Percezione melodica (Do-Re-Mi), pattern ritmici e timbro degli strumenti.`,
         familyAdvice:
           'Battete le mani a ritmo (Bum-Clap-Bum-Clap) chiedendo a Emma di continuare la sequenza sonora.',
       },
       {
         id: 'english',
-        title: '6. Inglese Prescolare & Prime Paroline',
-        clinicalName: 'Inglese Prescolare & Prime Paroline',
+        title: '6. Inglese Prescolare & Vocabolario (Gc)',
+        clinicalName: 'Inglese Prescolare & Prime Paroline (Gc)',
         shortLabel: 'Inglese',
         emoji: '🇬🇧',
         barColor: 'from-cyan-500 to-indigo-500',
         hexColor: '#0891b2',
         hexDark: '#155e75',
         hexTop: '#22d3ee',
-        milestoneGoal: `Livello ${progress.currentLevel} (Tier ${currentTier}): Prime paroline in inglese (Dog, Cat, Sun, Apple, Star, Red, Blue, Heart).`,
+        milestoneGoal: `Livello ${progress.currentLevel} (${evalReport.currentDifficultyLabel}, peso ${evalReport.currentWeight}): Prime paroline in inglese (Dog, Cat, Sun, Apple, Star, Red, Blue, Heart).`,
         familyAdvice:
           'Salutate al mattino con "Good morning!" e indicate i colori dicendo: "Guarda, Red come la fragola!"',
       },
     ];
 
-    // Tier difficulty ceiling for mastery index (0.78 at Tier 2 -> 1.00 at Tier 6+)
-    const tierFactor = Math.min(1, 0.72 + (currentTier - 1) * 0.06);
-
     return domainDefinitions.map((def) => {
-      const catStat = progress.categoryStats[def.id] || {
-        correct: 0,
-        total: 0,
-      };
+      const dm = evalReport.domains[def.id];
 
       if (!isMeasurementUnlocked) {
         return {
           ...def,
-          completed: catStat.total,
-          correctFirstTry: catStat.correct,
-          accuracy: 0,
-          masteryIndex: 0,
-          levelLabel: 'Calibrazione (0%)',
+          completed: dm.totalExercises,
+          correctFirstTry: dm.autonomousCorrectCount,
+          assistedCount: dm.assistedSuccessCount,
+          ip: 0,
+          ia: 0,
+          ir: 0,
+          it: 0,
+          ic: 0,
+          ieDelta: 0,
+          levelLabel: 'In esplorazione',
           pedagogicalNote:
-            'Parametro a 0% nei primi 10 livelli. Il 1° step di misurazione parte dopo il Livello 10 e si aggiorna livello per livello.',
+            'In attesa del primo livello completato: ogni esercizio sonda simultaneamente più parametri CHC (primario, secondario e latenza di risposta) per determinare subito i valori.',
         };
       }
 
-      if (catStat.total === 0) {
+      if (dm.totalExercises === 0) {
         return {
           ...def,
           completed: 0,
           correctFirstTry: 0,
-          accuracy: 0,
-          masteryIndex: 0,
-          levelLabel: 'Da Iniziare',
-          pedagogicalNote: `Nessuna prova ancora registrata in questo ambito al Livello ${progress.currentLevel}. Completa una sfida dedicata per iniziare la rilevazione.`,
+          assistedCount: 0,
+          ip: 0,
+          ia: 0,
+          ir: 0,
+          it: 0,
+          ic: 0,
+          ieDelta: 0,
+          levelLabel: 'In esplorazione',
+          pedagogicalNote: `Nessun esercizio ancora registrato in questo ambito al Livello ${progress.currentLevel}.`,
         };
       }
 
-      const rawAcc = Math.round((catStat.correct / catStat.total) * 100);
-      // Bayesian smoothed accuracy (3 virtual 50% trials) so 1/1 doesn't jump unrealistically to 100%
-      const smoothedAcc = (catStat.correct + 1.5) / (catStat.total + 3.0);
-      // Experience confidence factor (N / (N + 2.5))
-      const volumeFactor = catStat.total / (catStat.total + 2.5);
-
-      const masteryIndex = Math.round(
-        Math.min(100, Math.max(8, (smoothedAcc * 80 + volumeFactor * 20) * tierFactor))
-      );
-
-      let levelLabel = 'In Avvio';
-      if (masteryIndex >= 80) levelLabel = 'Eccellente';
-      else if (masteryIndex >= 62) levelLabel = 'Buono';
-      else if (masteryIndex >= 45) levelLabel = 'Nella Norma';
-      else if (masteryIndex >= 28) levelLabel = 'In Consolidamento';
-
-      const perfTone =
-        rawAcc >= 80
-          ? 'con sicurezza al primo tentativo'
-          : rawAcc >= 55
-          ? 'con discreta continuità e qualche tentativo di verifica'
-          : 'con esplorazione graduale per tentativi ed errori';
-
-      const notesByDomain: Record<GameCategory, string> = {
-        logic: `Al Livello ${progress.currentLevel}, affronta matrici analogiche e indovinelli logici ${perfTone} (${catStat.correct}/${catStat.total} al 1° tocco, Indice ${masteryIndex}%).`,
-        letters: `Al Livello ${progress.currentLevel}, riconosce la lettera E di Emma, fonemi iniziali e rime ${perfTone} (${catStat.correct}/${catStat.total} al 1° tocco, Indice ${masteryIndex}%).`,
-        numbers: `Al Livello ${progress.currentLevel}, esegue il conteggio tattile e le prime operazioni visive ${perfTone} (${catStat.correct}/${catStat.total} al 1° tocco, Indice ${masteryIndex}%).`,
-        shapes: `Al Livello ${progress.currentLevel}, discrimina forme geometriche, sagome e colori ${perfTone} (${catStat.correct}/${catStat.total} al 1° tocco, Indice ${masteryIndex}%).`,
-        music: `Al Livello ${progress.currentLevel}, segue sequenze ritmiche e riconosce gli strumenti ${perfTone} (${catStat.correct}/${catStat.total} al 1° tocco, Indice ${masteryIndex}%).`,
-        english: `Al Livello ${progress.currentLevel}, associa le prime paroline inglesi a figure e suoni ${perfTone} (${catStat.correct}/${catStat.total} al 1° tocco, Indice ${masteryIndex}%).`,
-      };
+      const deltaStr = dm.ieDelta >= 0 ? `+${dm.ieDelta}` : `${dm.ieDelta}`;
+      const pedagogicalNote = `Competenza IC ${dm.ic}/100 (${dm.bandLabel}, Evoluzione ${deltaStr}). Prestazione ponderata IP ${dm.ip}/100 (${dm.autonomousCorrectCount}/${dm.totalExercises} autonomi al 1° tentativo, ${dm.assistedSuccessCount} con supporto), Autonomia IA ${dm.ia}/100, Ritenzione IR ${dm.ir}/100, Trasferimento IT ${dm.it}/100.`;
 
       return {
         ...def,
-        completed: catStat.total,
-        correctFirstTry: catStat.correct,
-        accuracy: rawAcc,
-        masteryIndex,
-        levelLabel,
-        pedagogicalNote: notesByDomain[def.id],
+        completed: dm.totalExercises,
+        correctFirstTry: dm.autonomousCorrectCount,
+        assistedCount: dm.assistedSuccessCount,
+        ip: dm.ip,
+        ia: dm.ia,
+        ir: dm.ir,
+        it: dm.it,
+        ic: dm.ic,
+        ieDelta: dm.ieDelta,
+        levelLabel: dm.bandLabel,
+        pedagogicalNote,
       };
     });
-  }, [
-    progress.categoryStats,
-    progress.currentLevel,
-    currentTier,
-    isMeasurementUnlocked,
-  ]);
-
-  // WPPSI-IV INSPIRED REALISTIC IQ ENGINE (Mean = 100, SD = 15; 0% on Levels 1-10)
-  // Calibrated with Bayesian sample shrinkage + Tier difficulty scaling (prevents Einstein-level inflation on early levels)
-  const iqAnalysis: IQAnalysisResult = useMemo(() => {
-    if (!isMeasurementUnlocked) {
-      return {
-        unlocked: false,
-        iqScore: 0,
-        iqRange: '0% (Liv. 1–10)',
-        percentile: '0° percentile',
-        classification: 'Calibrazione Iniziale (0% fino al Livello 10)',
-        indices: [
-          {
-            code: 'Gf',
-            shortTitle: '1. Ragionamento (Gf)',
-            label: 'Matrici Logiche & Ragionamento Fluido (Gf)',
-            scaledScore: 0,
-            percentScore: 0,
-            colorHex: '#7c3aed',
-            desc: '0% fino al Livello 10',
-          },
-          {
-            code: 'Gwm',
-            shortTitle: '2. Memoria/Ritmo (Gwm)',
-            label: 'Memoria di Lavoro & Ritmo Sonoro (Gwm)',
-            scaledScore: 0,
-            percentScore: 0,
-            colorHex: '#0284c7',
-            desc: '0% fino al Livello 10',
-          },
-          {
-            code: 'Gc',
-            shortTitle: '3. Verbale/Inglese (Gc)',
-            label: 'Comprensione Verbale & Inglese L2 (Gc)',
-            scaledScore: 0,
-            percentScore: 0,
-            colorHex: '#10b981',
-            desc: '0% fino al Livello 10',
-          },
-          {
-            code: 'Gv',
-            shortTitle: '4. Visuo-Spazio (Gv)',
-            label: 'Elaborazione Visuo-Spaziale & Forme (Gv)',
-            scaledScore: 0,
-            percentScore: 0,
-            colorHex: '#db2777',
-            desc: '0% fino al Livello 10',
-          },
-          {
-            code: 'Gs',
-            shortTitle: '5. Velocità/Precis. (Gs)',
-            label: 'Velocità Esecutiva & Precisione 1° Tocco (Gs)',
-            scaledScore: 0,
-            percentScore: 0,
-            colorHex: '#d97706',
-            desc: '0% fino al Livello 10',
-          },
-        ],
-        clinicalNote:
-          'Regola Misurazione Attiva: Partenza 0% nei Livelli 1–10. Il primo step di misurazione si sblocca dopo il Livello 10 e cresce realisticamente con la difficoltà dei Tier (media normativa: 100, DS: 15).',
-      };
-    }
-
-    const stLogic = progress.categoryStats.logic || { correct: 0, total: 0 };
-    const stLetters = progress.categoryStats.letters || { correct: 0, total: 0 };
-    const stNumbers = progress.categoryStats.numbers || { correct: 0, total: 0 };
-    const stShapes = progress.categoryStats.shapes || { correct: 0, total: 0 };
-    const stMusic = progress.categoryStats.music || { correct: 0, total: 0 };
-    const stEnglish = progress.categoryStats.english || { correct: 0, total: 0 };
-
-    const totalSolved = Math.max(1, totalCatAttempts || progress.totalPuzzlesSolved);
-
-    const gf = computeCalibratedIndexIQ(
-      stLogic.correct,
-      stLogic.total,
-      totalSolved,
-      currentTier
-    );
-    const gwm = computeCalibratedIndexIQ(
-      stMusic.correct + stNumbers.correct,
-      stMusic.total + stNumbers.total,
-      totalSolved,
-      currentTier
-    );
-    const gc = computeCalibratedIndexIQ(
-      stLetters.correct + stEnglish.correct,
-      stLetters.total + stEnglish.total,
-      totalSolved,
-      currentTier
-    );
-    const gv = computeCalibratedIndexIQ(
-      stShapes.correct,
-      stShapes.total,
-      totalSolved,
-      currentTier,
-      Math.min(2, Math.floor(progress.trisGamesWon / 2))
-    );
-    const gs = computeCalibratedIndexIQ(
-      totalCatCorrect,
-      totalCatAttempts,
-      totalSolved,
-      currentTier
-    );
-
-    const compositeIQ = Math.round(
-      (gf.iq + gwm.iq + gc.iq + gv.iq + gs.iq) / 5
-    );
-    const pctNum = iqToPercentile(compositeIQ);
-    const percentile = `${pctNum}° percentile`;
-
-    // Standard Wechsler / WPPSI-IV clinical classification bands (Mean 100, SD 15)
-    let classification = 'Nella Norma per Età (5 Anni — Sviluppo Armonico)';
-    if (compositeIQ >= 130) {
-      classification = 'Molto Superiore (Alto Potenziale Cognitivo)';
-    } else if (compositeIQ >= 120) {
-      classification = 'Superiore (Spiccata Prontezza Cognitiva)';
-    } else if (compositeIQ >= 110) {
-      classification = 'Medio-Superiore (Buon Potenziale Evolutivo)';
-    } else if (compositeIQ < 85) {
-      classification = 'In Consolidamento (Allenamento Graduale Consigliato)';
-    } else if (compositeIQ < 90) {
-      classification = 'Medio-Inferiore (Sviluppo Regolare in Rafforzamento)';
-    }
-
-    // Confidence interval narrows as more puzzles are completed
-    const ciHalf = totalSolved >= 60 ? 3 : totalSolved >= 25 ? 4 : 5;
-
-    return {
-      unlocked: true,
-      iqScore: compositeIQ,
-      iqRange: `${compositeIQ - ciHalf}–${compositeIQ + ciHalf}`,
-      percentile,
-      classification,
-      indices: [
-        {
-          code: 'Gf',
-          shortTitle: '1. Ragionamento (Gf)',
-          label: '1. Matrici Logiche & Ragionamento Fluido (Gf)',
-          scaledScore: gf.iq,
-          percentScore: gf.pct,
-          colorHex: '#7c3aed',
-          desc: 'Deduzione di pattern, matrici analogiche e problem solving.',
-        },
-        {
-          code: 'Gwm',
-          shortTitle: '2. Memoria/Ritmo (Gwm)',
-          label: '2. Memoria di Lavoro & Ritmo Sonoro (Gwm)',
-          scaledScore: gwm.iq,
-          percentScore: gwm.pct,
-          colorHex: '#0284c7',
-          desc: 'Tenuta sequenziale di note musicali, ritmi e quantità numeriche.',
-        },
-        {
-          code: 'Gc',
-          shortTitle: '3. Verbale/Inglese (Gc)',
-          label: '3. Comprensione Verbale & Inglese L2 (Gc)',
-          scaledScore: gc.iq,
-          percentScore: gc.pct,
-          colorHex: '#10b981',
-          desc: 'Consapevolezza fonologica italiana e acquisizione vocaboli inglesi.',
-        },
-        {
-          code: 'Gv',
-          shortTitle: '4. Visuo-Spazio (Gv)',
-          label: '4. Elaborazione Visuo-Spaziale & Forme (Gv)',
-          scaledScore: gv.iq,
-          percentScore: gv.pct,
-          colorHex: '#db2777',
-          desc: 'Riconoscimento sagome, geometria piana e strategia Tris 3D.',
-        },
-        {
-          code: 'Gs',
-          shortTitle: '5. Velocità/Precis. (Gs)',
-          label: '5. Velocità Esecutiva & Precisione (Gs)',
-          scaledScore: gs.iq,
-          percentScore: gs.pct,
-          colorHex: '#d97706',
-          desc: 'Accuratezza al primo tentativo e costanza attentiva.',
-        },
-      ],
-      clinicalNote: `Stima Psicometrica Tarata (Scala Wechsler: media 100, DS 15) su ${totalSolved} prove al Tier ${currentTier}. Le prove iniziali pesano verso la media normativa (100) e si differenziano progressivamente con la difficoltà e l'accuratezza reale.`,
-    };
-  }, [
-    isMeasurementUnlocked,
-    progress.categoryStats,
-    progress.totalPuzzlesSolved,
-    progress.trisGamesWon,
-    currentTier,
-    totalCatCorrect,
-    totalCatAttempts,
-  ]);
+  }, [evalReport, progress.currentLevel, isMeasurementUnlocked]);
 
   // In-App SVG Radar Coordinates
   const radarCoordinates = useMemo(() => {
@@ -865,9 +567,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
     const count = domainMetrics.length;
     return domainMetrics.map((m, idx) => {
       const angle = (Math.PI * 2 * idx) / count - Math.PI / 2;
-      const ratio = isMeasurementUnlocked
-        ? Math.max(0.08, m.masteryIndex / 100)
-        : 0;
+      const ratio = isMeasurementUnlocked ? Math.max(0.08, m.ic / 100) : 0;
       const r = maxRadius * ratio;
       return {
         ...m,
@@ -883,9 +583,11 @@ export const ParentModal: React.FC<ParentModalProps> = ({
 
   /**
    * GENERATES THE PROFESSIONAL 2-PAGE A4 PDF REPORT FOR "EMMA GUIDI"
-   * - Fixes 100% of the QI button overlap shown in the user's screenshot by placing the 3D QI Badge
-   *   in a dedicated right column (x: 912..1168) and strictly wrapping the left text within x: 76..880.
-   * - Includes 3D Radar Chart, 3D Extruded Isometric Bars, 3D Donut Gauges, and Page 2 3D Column Studio.
+   * Implements:
+   * - Four Core Indicators (0-100): IP, IC, IA, IE
+   * - CHC 5-Domain Cognitive Profile (0-100, never called QI)
+   * - Annual & Monthly App Progress Table (Confronto Punto di Partenza vs Attuale + Righe Fisse per Età)
+   * - 3D Hexagonal Radar, 3D Extruded Bars, 3D Isometric Columns, and 5 Stability Criteria
    */
   const handleDownloadPdfReport = async () => {
     setIsGeneratingPdf(true);
@@ -899,7 +601,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       });
 
       // =========================================================================
-      // PAGE 1: QUADRO ESECUTIVO COMPLETO (ZERO OVERLAP, GRAFICI 3D & 6 RELAZIONI)
+      // PAGE 1: PROFILO DELLE ABILITÀ CHC (0-100), 4 INDICATORI & GRAFICI 3D
       // =========================================================================
       const canvas1 = document.createElement('canvas');
       canvas1.width = W;
@@ -907,178 +609,190 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       const ctx1 = canvas1.getContext('2d');
       if (!ctx1) return;
 
-      // Soft warm clinical paper background
       ctx1.fillStyle = '#f8fafc';
       ctx1.fillRect(0, 0, W, H);
 
-      // -------------------------------------------------------------------------
-      // 1. TOP ROYAL HEADER BANNER (x: 48, y: 36, w: 1144, h: 118)
-      // -------------------------------------------------------------------------
+      // 1. TOP HEADER BANNER (x: 48, y: 36, w: 1144, h: 118)
       const headerGrad = ctx1.createLinearGradient(48, 36, 1192, 154);
       headerGrad.addColorStop(0, '#4c0519');
       headerGrad.addColorStop(0.5, '#581c87');
       headerGrad.addColorStop(1, '#1e1b4b');
       fillStrokeRoundRect(ctx1, 48, 36, 1144, 118, 22, headerGrad, '#f472b6', 2);
 
-      // Left Header Text (strictly within x: 76..890)
       ctx1.fillStyle = '#fde047';
-      ctx1.font = '900 26px sans-serif';
+      ctx1.font = '900 24px sans-serif';
       ctx1.fillText(
-        'Il Mondo di Emma — Relazione Pedagogica, Grafici 3D & Valutazione QI',
+        'Il Mondo di Emma — Profilo Cognitivo CHC (0–100) & Relazione Competenze',
         76,
-        76
+        74
       );
 
       ctx1.fillStyle = '#ffffff';
-      ctx1.font = 'bold 15px sans-serif';
+      ctx1.font = 'bold 14.5px sans-serif';
       ctx1.fillText(
-        `Allieva: EMMA GUIDI   |   Nata il: 22/08/2021 (${ageInfo.displayText})   |   Livello Attuale: Livello ${progress.currentLevel} (Tier ${currentTier})`,
+        `Allieva: EMMA GUIDI   |   Nata il: 22/08/2021 (${ageInfo.displayText})   |   Livello: ${progress.currentLevel} (${evalReport.currentDifficultyLabel}, peso w=${evalReport.currentWeight})`,
         76,
-        106
+        104
       );
 
       ctx1.fillStyle = '#e2e8f0';
-      ctx1.font = '13px sans-serif';
+      ctx1.font = '12.5px sans-serif';
       ctx1.fillText(
-        `Data Report: ${dateStr}  ·  Regola Misurazione: Partenza 0% (Liv. 1–10), 1° Step dopo Livello 10, aggiornamento livello per livello`,
+        `Data: ${dateStr}  ·  Aggiornamento Mensile: ${evalReport.currentMonthStartLabel}  ·  Formule: IP = Σ(wᵢ·cᵢ)/Σwᵢ×100  |  IC = 0,50·IP + 0,20·IA + 0,15·IR + 0,15·IT`,
         76,
-        134
+        132
       );
 
-      // Right Header Telemetry Pill (x: 970, y: 52, w: 202, h: 86)
+      // Right Header Telemetry Pill
       fillStrokeRoundRect(
         ctx1,
-        970,
-        52,
-        202,
-        86,
+        966,
+        50,
+        206,
+        90,
         16,
-        'rgba(15, 23, 42, 0.55)',
+        'rgba(15, 23, 42, 0.58)',
         '#fbbf24',
         1.5
       );
       ctx1.fillStyle = '#fde047';
       ctx1.font = 'bold 11px sans-serif';
       ctx1.textAlign = 'center';
-      ctx1.fillText('TELEMETRIA RILEVATA APP', 1071, 74);
+      ctx1.fillText('DATI TRACCIATI NELL’APP', 1069, 72);
       ctx1.fillStyle = '#ffffff';
-      ctx1.font = '900 17px sans-serif';
+      ctx1.font = '900 16px sans-serif';
       ctx1.fillText(
-        `Prove: ${progress.totalPuzzlesSolved} · Stelle: ${progress.stars}`,
-        1071,
-        100
+        `Esercizi: ${evalReport.significantExercises} · Sessioni: ${evalReport.sessionsCount}`,
+        1069,
+        97
       );
       ctx1.fillStyle = '#67e8f9';
-      ctx1.font = 'bold 12px sans-serif';
+      ctx1.font = 'bold 11.5px sans-serif';
       ctx1.fillText(
-        `Precisione: ${overallAccuracy}% · Tris: ${progress.trisGamesWon}`,
-        1071,
-        124
+        `Autonomi: ${evalReport.autonomousTotal} · Assistiti: ${evalReport.assistedTotal}`,
+        1069,
+        121
       );
       ctx1.textAlign = 'left';
 
-      // -------------------------------------------------------------------------
-      // 2. VALUTAZIONE PSICOMETRICA DEL QUOZIENTE COGNITIVO (QI) — ZERO OVERLAP!
-      //    Card Box: x: 48, y: 170, w: 1144, h: 252
-      // -------------------------------------------------------------------------
+      // 2. QUADRO SINTETICO DI VALUTAZIONE: COMPETENZA GENERALE, EVOLUZIONE, 4 INDICATORI & PROFILO CHC
+      //    Card Box: x: 48, y: 168, w: 1144, h: 256
       fillStrokeRoundRect(
         ctx1,
         48,
-        170,
+        168,
         1144,
-        252,
+        256,
         22,
         '#fdf4ff',
         '#c084fc',
         2
       );
 
-      // TOP SUB-ROW OF QI CARD (y: 170..280):
-      // Left Text Column is STRICTLY CONFINED to x: 76..880 (maxWidth = 800px)!
       ctx1.save();
       ctx1.beginPath();
-      ctx1.rect(72, 176, 815, 104);
+      ctx1.rect(72, 174, 650, 104);
       ctx1.clip();
 
       ctx1.fillStyle = '#4c1d95';
-      ctx1.font = '900 19px sans-serif';
+      ctx1.font = '900 18px sans-serif';
       ctx1.fillText(
-        'VALUTAZIONE PSICOMETRICA DEL QUOZIENTE COGNITIVO (QI) — EMMA GUIDI',
+        'PROFILO DELLE ABILITÀ COGNITIVE (TEORIA CHC 0–100) & 4 INDICATORI — EMMA GUIDI',
         76,
-        204
+        200
       );
 
       ctx1.fillStyle = '#6b21a8';
-      ctx1.font = 'bold 14px sans-serif';
+      ctx1.font = 'bold 13.5px sans-serif';
       ctx1.fillText(
-        `Categoria Psicometrica: ${iqAnalysis.classification}   |   Percentile: ${iqAnalysis.percentile}`,
+        `Prestazione IP: ${evalReport.ip}/100   |   Competenza IC: ${evalReport.ic}/100   |   Autonomia IA: ${evalReport.ia}/100   |   Ritenzione IR: ${evalReport.ir}/100   |   Trasferimento IT: ${evalReport.it}/100`,
         76,
-        230
+        225
       );
 
       ctx1.fillStyle = '#475569';
-      ctx1.font = '12.5px sans-serif';
+      ctx1.font = '12px sans-serif';
       drawWrappedText(
         ctx1,
-        iqAnalysis.clinicalNote,
+        `Confronto Inizio Mese (${evalReport.activeAgeRow.ageLabel}): Punto di partenza IC ${evalReport.activeAgeRow.startIc}/100 (Liv. ${evalReport.activeAgeRow.startLevel}) → Attuale IC ${evalReport.activeAgeRow.currentIc}/100 (Liv. ${evalReport.activeAgeRow.currentLevel}, Progresso +${evalReport.activeAgeRow.deltaIc} pt). Profilo cognitivo interno basato sul modello CHC (non sostituisce un test QI clinico standardizzato).`,
         76,
-        252,
-        795,
-        17,
+        246,
+        635,
+        16,
         2
       );
       ctx1.restore();
 
-      // Right 3D QI Badge (x: 904, y: 184, w: 266, h: 88) — Completely separate from left text!
-      // 3D Extruded Shadow under QI Badge
-      fillStrokeRoundRect(ctx1, 908, 190, 266, 88, 18, '#3b0764');
-
-      const qiBadgeGrad = ctx1.createLinearGradient(904, 184, 1170, 272);
-      qiBadgeGrad.addColorStop(0, '#6b21a8');
-      qiBadgeGrad.addColorStop(1, '#3b0764');
+      // Badge 1: COMPETENZA GENERALE (x: 734, y: 182, w: 224, h: 88)
+      fillStrokeRoundRect(ctx1, 738, 188, 224, 88, 18, '#3b0764');
+      const compBadgeGrad = ctx1.createLinearGradient(734, 182, 958, 270);
+      compBadgeGrad.addColorStop(0, '#6b21a8');
+      compBadgeGrad.addColorStop(1, '#3b0764');
       fillStrokeRoundRect(
         ctx1,
-        904,
-        184,
-        266,
+        734,
+        182,
+        224,
         88,
         18,
-        qiBadgeGrad,
+        compBadgeGrad,
         '#facc15',
-        2.5
+        2.2
       );
 
-      ctx1.fillStyle = '#fde047';
-      ctx1.font = '900 34px sans-serif';
+      ctx1.fillStyle = '#e9d5ff';
+      ctx1.font = 'bold 11px sans-serif';
       ctx1.textAlign = 'center';
-      ctx1.fillText(
-        isMeasurementUnlocked ? `QI ${iqAnalysis.iqScore}` : 'QI 0%',
-        1037,
-        230
+      ctx1.fillText('COMPETENZA GENERALE', 846, 204);
+      ctx1.fillStyle = '#fde047';
+      ctx1.font = '900 30px sans-serif';
+      ctx1.fillText(`${evalReport.ic}/100`, 846, 236);
+      ctx1.fillStyle = '#ffffff';
+      ctx1.font = 'bold 12px sans-serif';
+      ctx1.fillText(evalReport.assignedBandLabel, 846, 258);
+
+      // Badge 2: EVOLUZIONE (x: 972, y: 182, w: 198, h: 88)
+      fillStrokeRoundRect(ctx1, 976, 188, 198, 88, 18, '#064e3b');
+      const evoBadgeGrad = ctx1.createLinearGradient(972, 182, 1170, 270);
+      evoBadgeGrad.addColorStop(0, '#059669');
+      evoBadgeGrad.addColorStop(1, '#065f46');
+      fillStrokeRoundRect(
+        ctx1,
+        972,
+        182,
+        198,
+        88,
+        18,
+        evoBadgeGrad,
+        '#6ee7b7',
+        2.2
       );
 
-      ctx1.fillStyle = '#f3e8ff';
-      ctx1.font = 'bold 12px sans-serif';
+      ctx1.fillStyle = '#d1fae5';
+      ctx1.font = 'bold 11px sans-serif';
+      ctx1.fillText('EVOLUZIONE (IE)', 1071, 204);
+      ctx1.fillStyle = '#fde047';
+      ctx1.font = '900 30px sans-serif';
+      const ieSign = evalReport.ieDelta >= 0 ? '+' : '';
+      ctx1.fillText(`${ieSign}${evalReport.ieDelta}`, 1071, 236);
+      ctx1.fillStyle = '#ffffff';
+      ctx1.font = 'bold 11px sans-serif';
       ctx1.fillText(
-        isMeasurementUnlocked
-          ? `Aggiornato al Livello ${progress.currentLevel} (Range ${iqAnalysis.iqRange})`
-          : `Calibrazione 0% (Sblocco dopo Liv. 10)`,
-        1037,
-        256
+        `Da ${evalReport.previousIc}/100 a ${evalReport.ic}/100`,
+        1071,
+        258
       );
       ctx1.textAlign = 'left';
 
-      // BOTTOM SUB-ROW OF QI CARD: 5 WPPSI-IV 3D PARAMETER BOXES (y: 288, h: 116)
+      // BOTTOM SUB-ROW: 5 CHC ABILITY BOXES (0-100) (y: 286, h: 122)
       const boxGap = 14;
-      const boxW = (1144 - 56 - boxGap * 4) / 5; // 206.4px each
-      iqAnalysis.indices.forEach((ind, i) => {
+      const boxW = (1144 - 56 - boxGap * 4) / 5;
+      evalReport.chcAbilities.forEach((ab, i) => {
         const bx = 76 + i * (boxW + boxGap);
-        const by = 288;
-        const bh = 116;
+        const by = 286;
+        const bh = 122;
 
-        // 3D Card Shadow
         fillStrokeRoundRect(ctx1, bx + 3, by + 4, boxW, bh, 14, '#e9d5ff');
-        // White Card
         fillStrokeRoundRect(
           ctx1,
           bx,
@@ -1087,28 +801,25 @@ export const ParentModal: React.FC<ParentModalProps> = ({
           bh,
           14,
           '#ffffff',
-          ind.colorHex,
+          ab.colorHex,
           1.8
         );
 
-        // Big Standard Score centered
-        ctx1.fillStyle = ind.colorHex;
-        ctx1.font = '900 28px sans-serif';
+        ctx1.fillStyle = ab.colorHex;
+        ctx1.font = '900 26px sans-serif';
         ctx1.textAlign = 'center';
+        ctx1.fillText(`${ab.score}/100`, bx + boxW / 2, by + 36);
+
+        ctx1.fillStyle = '#0f172a';
+        ctx1.font = 'bold 13px sans-serif';
         ctx1.fillText(
-          isMeasurementUnlocked ? `${ind.scaledScore}` : '0%',
+          `${ab.shortTitle} (${ab.code})`,
           bx + boxW / 2,
-          by + 40
+          by + 58
         );
 
-        // Short Title
-        ctx1.fillStyle = '#1e293b';
-        ctx1.font = 'bold 12.5px sans-serif';
-        ctx1.fillText(ind.shortTitle, bx + boxW / 2, by + 64);
-
-        // 3D Mini Progress Bar inside each IQ box
         const miniBarX = bx + 16;
-        const miniBarY = by + 78;
+        const miniBarY = by + 70;
         const miniBarW = boxW - 32;
         fillStrokeRoundRect(
           ctx1,
@@ -1119,7 +830,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
           5,
           '#f1f5f9'
         );
-        const fillW = Math.round((miniBarW * ind.percentScore) / 100);
+        const fillW = Math.round((miniBarW * ab.score) / 100);
         if (fillW > 0) {
           fillStrokeRoundRect(
             ctx1,
@@ -1128,28 +839,32 @@ export const ParentModal: React.FC<ParentModalProps> = ({
             fillW,
             10,
             5,
-            ind.colorHex
+            ab.colorHex
           );
         }
 
-        ctx1.fillStyle = '#64748b';
-        ctx1.font = 'bold 10px sans-serif';
+        ctx1.fillStyle = '#475569';
+        ctx1.font = 'bold 10.5px sans-serif';
         ctx1.fillText(
-          `Indice Ponderato: ${ind.percentScore}%`,
+          `${ab.bandLabel} · IP ${ab.ip} · IA ${ab.ia}`,
           bx + boxW / 2,
-          by + 105
+          by + 98
+        );
+
+        ctx1.fillStyle = '#64748b';
+        ctx1.font = '10px sans-serif';
+        ctx1.fillText(
+          ab.description.slice(0, 34),
+          bx + boxW / 2,
+          by + 114
         );
         ctx1.textAlign = 'left';
       });
 
-      // -------------------------------------------------------------------------
       // 3. MIDDLE CHARTS ROW: 3D HEXAGONAL RADAR (LEFT) + 3D EXTRUDED BARS (RIGHT)
-      //    y: 438, h: 428
-      // -------------------------------------------------------------------------
       const chartsY = 438;
       const chartsH = 428;
 
-      // LEFT CARD: 3D Hexagonal Radar (x: 48, w: 460)
       fillStrokeRoundRect(
         ctx1,
         48,
@@ -1165,11 +880,11 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       ctx1.fillStyle = '#0f172a';
       ctx1.font = '900 18px sans-serif';
       ctx1.textAlign = 'center';
-      ctx1.fillText('Mappa Radar 3D (6 Materie)', 278, chartsY + 34);
+      ctx1.fillText('Mappa Radar 3D delle Competenze (0–100)', 278, chartsY + 34);
       ctx1.fillStyle = '#64748b';
       ctx1.font = '12.5px sans-serif';
       ctx1.fillText(
-        `Profilo Multidimensionale di Emma Guidi · Livello ${progress.currentLevel}`,
+        `Indice di Competenza (IC) per Materia · Livello ${progress.currentLevel}`,
         278,
         chartsY + 54
       );
@@ -1179,7 +894,6 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       const rCy = chartsY + 236;
       const rMax = 112;
 
-      // 3D Extruded Base Plate Hexagon Shadow
       ctx1.beginPath();
       for (let i = 0; i < 6; i++) {
         const angle = (Math.PI * 2 * i) / 6 - Math.PI / 2;
@@ -1192,7 +906,6 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       ctx1.fillStyle = '#f1f5f9';
       ctx1.fill();
 
-      // Radar Concentric Hexagons
       [0.25, 0.5, 0.75, 1].forEach((lvl) => {
         ctx1.beginPath();
         for (let i = 0; i < 6; i++) {
@@ -1208,7 +921,6 @@ export const ParentModal: React.FC<ParentModalProps> = ({
         ctx1.stroke();
       });
 
-      // Axes & Well-Spaced Non-Overlapping Labels
       domainMetrics.forEach((m, i) => {
         const angle = (Math.PI * 2 * i) / 6 - Math.PI / 2;
         const ax = rCx + rMax * Math.cos(angle);
@@ -1221,13 +933,12 @@ export const ParentModal: React.FC<ParentModalProps> = ({
         ctx1.lineWidth = 1;
         ctx1.stroke();
 
-        // Label positioning with custom radial distances so top/bottom/sides never clip
         const dist = i === 0 || i === 3 ? rMax + 26 : rMax + 46;
         const lx = rCx + dist * Math.cos(angle);
         const ly = rCy + dist * Math.sin(angle);
 
-        const labelText = `${m.shortLabel} (${m.masteryIndex}%)`;
-        ctx1.font = 'bold 12px sans-serif';
+        const labelText = `${m.shortLabel} (${m.ic}/100)`;
+        ctx1.font = 'bold 11.5px sans-serif';
         const tw = ctx1.measureText(labelText).width + 14;
         fillStrokeRoundRect(
           ctx1,
@@ -1247,13 +958,11 @@ export const ParentModal: React.FC<ParentModalProps> = ({
         ctx1.textAlign = 'left';
       });
 
-      // 3D Extruded Radar Polygon
       if (isMeasurementUnlocked) {
-        // Lower 3D shadow layer
         ctx1.beginPath();
         domainMetrics.forEach((m, i) => {
           const angle = (Math.PI * 2 * i) / 6 - Math.PI / 2;
-          const ratio = Math.max(0.08, m.masteryIndex / 100);
+          const ratio = Math.max(0.08, m.ic / 100);
           const px = rCx + rMax * ratio * Math.cos(angle);
           const py = rCy + 6 + rMax * ratio * Math.sin(angle);
           if (i === 0) ctx1.moveTo(px, py);
@@ -1263,11 +972,10 @@ export const ParentModal: React.FC<ParentModalProps> = ({
         ctx1.fillStyle = 'rgba(124, 58, 237, 0.28)';
         ctx1.fill();
 
-        // Main Top Glossy Polygon
         ctx1.beginPath();
         domainMetrics.forEach((m, i) => {
           const angle = (Math.PI * 2 * i) / 6 - Math.PI / 2;
-          const ratio = Math.max(0.08, m.masteryIndex / 100);
+          const ratio = Math.max(0.08, m.ic / 100);
           const px = rCx + rMax * ratio * Math.cos(angle);
           const py = rCy + rMax * ratio * Math.sin(angle);
           if (i === 0) ctx1.moveTo(px, py);
@@ -1280,10 +988,9 @@ export const ParentModal: React.FC<ParentModalProps> = ({
         ctx1.lineWidth = 3;
         ctx1.stroke();
 
-        // 3D Vertex Spheres
         domainMetrics.forEach((m, i) => {
           const angle = (Math.PI * 2 * i) / 6 - Math.PI / 2;
-          const ratio = Math.max(0.08, m.masteryIndex / 100);
+          const ratio = Math.max(0.08, m.ic / 100);
           const px = rCx + rMax * ratio * Math.cos(angle);
           const py = rCy + rMax * ratio * Math.sin(angle);
           ctx1.beginPath();
@@ -1312,7 +1019,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       ctx1.fillStyle = '#0f172a';
       ctx1.font = '900 18px sans-serif';
       ctx1.fillText(
-        `Grafici Analitici 3D & Telemetria per Materia (Livello ${progress.currentLevel})`,
+        `Indice di Competenza (IC) & Prestazione (IP) per Materia (Liv. ${progress.currentLevel})`,
         552,
         chartsY + 34
       );
@@ -1320,29 +1027,26 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       domainMetrics.forEach((m, idx) => {
         const rowY = chartsY + 64 + idx * 59;
         const barTrackW = 610;
-        const fillW = Math.round((barTrackW * m.masteryIndex) / 100);
+        const fillW = Math.round((barTrackW * m.ic) / 100);
 
-        // Subject Title (left)
         ctx1.fillStyle = '#0f172a';
         ctx1.font = 'bold 13.5px sans-serif';
         ctx1.fillText(m.title, 552, rowY);
 
-        // Tangible Telemetry + Score (right-aligned, never overlapping title)
         ctx1.fillStyle = '#64748b';
         ctx1.font = 'bold 11.5px sans-serif';
         ctx1.textAlign = 'right';
         ctx1.fillText(
-          `Prove: ${m.correctFirstTry}/${m.completed} (Acc. ${m.accuracy}%)`,
-          1098,
+          `IP: ${m.ip}/100 · IA: ${m.ia}/100 · Autonomi: ${m.correctFirstTry}/${m.completed}`,
+          1090,
           rowY
         );
 
         ctx1.fillStyle = m.hexColor;
-        ctx1.font = '900 15px sans-serif';
-        ctx1.fillText(`${m.masteryIndex}%`, 1162, rowY);
+        ctx1.font = '900 14.5px sans-serif';
+        ctx1.fillText(`${m.ic}/100`, 1162, rowY);
         ctx1.textAlign = 'left';
 
-        // 3D Isometric Horizontal Bar
         draw3DHorizontalBar(
           ctx1,
           552,
@@ -1357,14 +1061,11 @@ export const ParentModal: React.FC<ParentModalProps> = ({
         );
       });
 
-      // -------------------------------------------------------------------------
       // 4. RELAZIONE PEDAGOGICA DETTAGLIATA PER EMMA GUIDI (6 SUBJECT CARDS 2x3)
-      //    y: 888 -> 1672
-      // -------------------------------------------------------------------------
       ctx1.fillStyle = '#0f172a';
       ctx1.font = '900 18px sans-serif';
       ctx1.fillText(
-        `RELAZIONE PEDAGOGICA DETTAGLIATA & STUDIO AI PER EMMA GUIDI — LIVELLO ${progress.currentLevel} (Accuratezza Globale: ${overallAccuracy}%)`,
+        `RELAZIONE PEDAGOGICA DETTAGLIATA PER MATERIA — EMMA GUIDI (Competenza Generale: ${evalReport.ic}/100 · ${evalReport.assignedBandLabel})`,
         48,
         896
       );
@@ -1381,7 +1082,6 @@ export const ParentModal: React.FC<ParentModalProps> = ({
         const cx = 48 + col * (cardW + colGap);
         const cy = gridStartY + row * (cardH + rowGap);
 
-        // 3D Shadow under card
         fillStrokeRoundRect(
           ctx1,
           cx + 3,
@@ -1392,7 +1092,6 @@ export const ParentModal: React.FC<ParentModalProps> = ({
           '#e2e8f0'
         );
 
-        // Main Subject Card
         fillStrokeRoundRect(
           ctx1,
           cx,
@@ -1405,44 +1104,39 @@ export const ParentModal: React.FC<ParentModalProps> = ({
           1.6
         );
 
-        // Top colored accent bar inside card
         fillStrokeRoundRect(ctx1, cx + 16, cy + 12, 6, cardH - 24, 3, m.hexColor);
 
-        // Left 3D Donut Gauge inside Card (center at cx + 68, cy + 122)
         draw3DDonutGauge(
           ctx1,
           cx + 68,
           cy + 114,
           36,
           11,
-          m.masteryIndex,
+          m.ic,
           m.hexColor,
           m.hexDark
         );
         ctx1.fillStyle = '#64748b';
         ctx1.font = 'bold 9.5px sans-serif';
         ctx1.textAlign = 'center';
-        ctx1.fillText(`1° Tent: ${m.correctFirstTry}/${m.completed}`, cx + 68, cy + 168);
-        ctx1.fillText(`Acc: ${m.accuracy}%`, cx + 68, cy + 182);
+        ctx1.fillText(`IP: ${m.ip}/100 · IA: ${m.ia}/100`, cx + 68, cy + 168);
+        ctx1.fillText(`Auton.: ${m.correctFirstTry}/${m.completed}`, cx + 68, cy + 182);
         ctx1.textAlign = 'left';
 
-        // Right Text Column inside Card (strictly clipped to x: cx + 118 .. cx + cardW - 16)
         const tx = cx + 118;
-        const tw = cardW - 136; // 424px width
+        const tw = cardW - 136;
 
         ctx1.save();
         ctx1.beginPath();
         ctx1.rect(tx - 2, cy + 10, tw + 6, cardH - 20);
         ctx1.clip();
 
-        // Card Header: Title (left) + Status Pill (right)
         ctx1.fillStyle = '#0f172a';
-        ctx1.font = '900 15px sans-serif';
+        ctx1.font = '900 14.5px sans-serif';
         ctx1.fillText(m.clinicalName, tx, cy + 32);
 
-        // Status Pill at top-right of card
-        const statusStr = `${m.levelLabel} (${m.masteryIndex}%)`;
-        ctx1.font = 'bold 11.5px sans-serif';
+        const statusStr = `${m.levelLabel} (${m.ic}/100)`;
+        ctx1.font = 'bold 11px sans-serif';
         const stW = ctx1.measureText(statusStr).width + 16;
         fillStrokeRoundRect(
           ctx1,
@@ -1458,7 +1152,6 @@ export const ParentModal: React.FC<ParentModalProps> = ({
         ctx1.fillStyle = m.hexDark;
         ctx1.fillText(statusStr, cx + cardW - stW - 6, cy + 30);
 
-        // Traguardo
         ctx1.fillStyle = '#334155';
         ctx1.font = 'bold 12px sans-serif';
         let nextY = drawWrappedText(
@@ -1471,12 +1164,11 @@ export const ParentModal: React.FC<ParentModalProps> = ({
           2
         );
 
-        // Osservazione AI
         ctx1.fillStyle = '#1e293b';
         ctx1.font = '12px sans-serif';
         nextY = drawWrappedText(
           ctx1,
-          `Osservazione AI: ${m.pedagogicalNote}`,
+          `Analisi Indicatori: ${m.pedagogicalNote}`,
           tx,
           nextY + 6,
           tw,
@@ -1484,7 +1176,6 @@ export const ParentModal: React.FC<ParentModalProps> = ({
           3
         );
 
-        // Consiglio Famiglia Guidi
         ctx1.fillStyle = '#475569';
         ctx1.font = 'italic 11.5px sans-serif';
         drawWrappedText(
@@ -1523,7 +1214,8 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       ctx1.textAlign = 'left';
 
       // =========================================================================
-      // PAGE 2: STUDIO GRAFICO ISOMETRICO 3D & TELEMETRIA ANALITICA DELL'APP
+      // PAGE 2: PROGRESSI OTTENUTI GRAZIE ALL'APP (INIZIO MESE & STORICO ANNUALE),
+      //         ISTOGRAMMA 3D & PROSPETTO DEI 4 INDICATORI + 5 CRITERI
       // =========================================================================
       const canvas2 = document.createElement('canvas');
       canvas2.width = W;
@@ -1542,27 +1234,183 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       fillStrokeRoundRect(ctx2, 48, 36, 1144, 110, 22, header2Grad, '#38bdf8', 2);
 
       ctx2.fillStyle = '#fde047';
-      ctx2.font = '900 24px sans-serif';
+      ctx2.font = '900 22px sans-serif';
       ctx2.fillText(
-        'STUDIO STATISTICO 3D & PARAMETRI TANGIBILI RILEVATI DALL’APP — EMMA GUIDI',
+        'PROGRESSI OTTENUTI GRAZIE ALL’APP (MENSILE & ANNUALE PER ETÀ) & STUDIO 3D — EMMA GUIDI',
         76,
         78
       );
       ctx2.fillStyle = '#e2e8f0';
-      ctx2.font = 'bold 14px sans-serif';
+      ctx2.font = 'bold 13.5px sans-serif';
       ctx2.fillText(
-        `Allieva: EMMA GUIDI (22/08/2021)  ·  Livello ${progress.currentLevel} (Tier ${currentTier})  ·  Data: ${dateStr}  ·  Pagina 2 di 2`,
+        `Allieva: EMMA GUIDI (22/08/2021)  ·  Aggiornamento Inizio Mese: ${evalReport.currentMonthStartLabel}  ·  Prossimo Compleanno Riga Fissa: ${evalReport.nextBirthdayDateLabel}  ·  Pag. 2/2`,
         76,
         112
       );
 
-      // SECTION A: 3D ISOMETRIC VERTICAL COLUMN CHART (x: 48, y: 168, w: 1144, h: 520)
+      // SECTION A: TABELLA PROGRESSI OTTENUTI GRAZIE ALL'UTILIZZO DELL'APP
+      //            (Confronto Punto di Partenza vs Attuale + Righe Fisse ad ogni compleanno)
+      //            (x: 48, y: 164, w: 1144, h: 356)
       fillStrokeRoundRect(
         ctx2,
         48,
-        168,
+        164,
         1144,
-        520,
+        356,
+        22,
+        '#ffffff',
+        '#10b981',
+        2
+      );
+
+      ctx2.fillStyle = '#065f46';
+      ctx2.font = '900 18px sans-serif';
+      ctx2.fillText(
+        'REGISTRO DEI PROGRESSI OTTENUTI GRAZIE ALL’UTILIZZO DELL’APP (CONFRONTO PARTENZA VS ATTUALE)',
+        76,
+        198
+      );
+      ctx2.fillStyle = '#475569';
+      ctx2.font = '12.5px sans-serif';
+      ctx2.fillText(
+        `Si aggiorna ogni inizio mese (${evalReport.currentMonthStartLabel}, prossimo: ${evalReport.nextMonthlyUpdateLabel}). Ogni anno compiuto da Emma (22/08) diventa una riga fissa e se ne aggiunge una nuova.`,
+        76,
+        220
+      );
+
+      // Annual Table Header
+      const atX = 76;
+      const atY = 236;
+      const atW = 1088;
+      fillStrokeRoundRect(ctx2, atX, atY, atW, 38, 10, '#064e3b');
+      ctx2.fillStyle = '#ffffff';
+      ctx2.font = 'bold 12px sans-serif';
+      ctx2.fillText('ETÀ & PERIODO', atX + 14, atY + 24);
+      ctx2.fillText('STATO RIGA', atX + 220, atY + 24);
+      ctx2.fillText('PUNTO DI PARTENZA', atX + 395, atY + 24);
+      ctx2.fillText('VALORE ATTUALE / FINALE', atX + 635, atY + 24);
+      ctx2.fillText('PROGRESSO APP (Δ)', atX + 890, atY + 24);
+
+      evalReport.annualProgressRows.forEach((row, idx) => {
+        const ry = atY + 46 + idx * 62;
+        fillStrokeRoundRect(
+          ctx2,
+          atX,
+          ry,
+          atW,
+          54,
+          10,
+          row.isLockedFixedRow ? '#f8fafc' : '#ecfdf5',
+          row.isLockedFixedRow ? '#cbd5e1' : '#10b981',
+          1.4
+        );
+
+        ctx2.fillStyle = '#0f172a';
+        ctx2.font = '900 13.5px sans-serif';
+        ctx2.fillText(`${row.ageLabel} (${row.periodLabel})`, atX + 14, ry + 23);
+        ctx2.fillStyle = '#64748b';
+        ctx2.font = 'bold 11px sans-serif';
+        ctx2.fillText(`Agg. Mese: ${row.lastMonthlyUpdateLabel}`, atX + 14, ry + 42);
+
+        // Status badge
+        ctx2.fillStyle = row.isLockedFixedRow ? '#475569' : '#047857';
+        ctx2.font = '900 12px sans-serif';
+        ctx2.fillText(
+          row.isLockedFixedRow
+            ? `RIGA FISSA CONSOLIDATA`
+            : `RIGA ATTIVA (IN CORSO)`,
+          atX + 220,
+          ry + 24
+        );
+        ctx2.fillStyle = '#64748b';
+        ctx2.font = '11px sans-serif';
+        ctx2.fillText(
+          row.isLockedFixedRow
+            ? `Fissata il ${row.lockedAtDate}`
+            : `Si aggiorna ogni 1° del mese`,
+          atX + 220,
+          ry + 42
+        );
+
+        // Punto di partenza
+        ctx2.fillStyle = '#334155';
+        ctx2.font = 'bold 12.5px sans-serif';
+        ctx2.fillText(
+          `IC ${row.startIc}/100 · IP ${row.startIp}/100 · IA ${row.startIa}/100`,
+          atX + 395,
+          ry + 23
+        );
+        ctx2.fillStyle = '#64748b';
+        ctx2.font = '11px sans-serif';
+        ctx2.fillText(
+          `Liv. ${row.startLevel} (${row.startBand})`,
+          atX + 395,
+          ry + 42
+        );
+
+        // Valore attuale / finale
+        ctx2.fillStyle = '#0f172a';
+        ctx2.font = '900 12.5px sans-serif';
+        ctx2.fillText(
+          `IC ${row.currentIc}/100 · IP ${row.currentIp}/100 · IA ${row.currentIa}/100`,
+          atX + 635,
+          ry + 23
+        );
+        ctx2.fillStyle = '#047857';
+        ctx2.font = 'bold 11px sans-serif';
+        ctx2.fillText(
+          `Liv. ${row.currentLevel} (${row.currentBand})`,
+          atX + 635,
+          ry + 42
+        );
+
+        // Progresso ottenuto grazie all'App (Delta)
+        const dIcSign = row.deltaIc >= 0 ? '+' : '';
+        const dIpSign = row.deltaIp >= 0 ? '+' : '';
+        ctx2.fillStyle = '#047857';
+        ctx2.font = '900 13.5px sans-serif';
+        ctx2.fillText(
+          `ΔIC ${dIcSign}${row.deltaIc} pt · ΔIP ${dIpSign}${row.deltaIp} pt`,
+          atX + 890,
+          ry + 23
+        );
+        ctx2.fillStyle = '#0f172a';
+        ctx2.font = 'bold 11px sans-serif';
+        ctx2.fillText(
+          `+${row.deltaLevels} Livelli superati`,
+          atX + 890,
+          ry + 42
+        );
+      });
+
+      // Next Birthday Future Row Preview inside Section A
+      const nextPreviewY = atY + 46 + evalReport.annualProgressRows.length * 62;
+      fillStrokeRoundRect(
+        ctx2,
+        atX,
+        nextPreviewY,
+        atW,
+        46,
+        10,
+        '#f8fafc',
+        '#94a3b8',
+        1.2
+      );
+      ctx2.fillStyle = '#475569';
+      ctx2.font = 'bold 12px sans-serif';
+      ctx2.fillText(
+        `PROSSIMA NUOVA RIGA AUTOMATICA (${evalReport.emmaCurrentAgeYears + 1} Anni): Al compleanno del ${evalReport.nextBirthdayDateLabel}, la riga "${evalReport.emmaCurrentAgeYears} Anni" diventerà fissa e si aggiungerà la nuova riga.`,
+        atX + 16,
+        nextPreviewY + 28
+      );
+
+      // SECTION B: 3D ISOMETRIC VERTICAL COLUMN CHART (x: 48, y: 536, w: 1144, h: 430)
+      fillStrokeRoundRect(
+        ctx2,
+        48,
+        536,
+        1144,
+        430,
         22,
         '#ffffff',
         '#cbd5e1',
@@ -1570,38 +1418,29 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       );
 
       ctx2.fillStyle = '#0f172a';
-      ctx2.font = '900 19px sans-serif';
+      ctx2.font = '900 18px sans-serif';
       ctx2.fillText(
-        'ISTOGRAMMA ISOMETRICO 3D: INDICE DI PADRONANZA VS PRECISIONE AL 1° TENTATIVO',
+        'ISTOGRAMMA ISOMETRICO 3D: INDICE DI COMPETENZA (IC) VS INDICE DI PRESTAZIONE (IP)',
         78,
-        206
-      );
-      ctx2.fillStyle = '#64748b';
-      ctx2.font = '13px sans-serif';
-      ctx2.fillText(
-        'Rappresentazione tridimensionale a colonne estruse dei parametri tangibili registrati durante le sessioni di gioco',
-        78,
-        230
+        570
       );
 
-      // Legend top right
       ctx2.fillStyle = '#7c3aed';
-      ctx2.fillRect(830, 190, 18, 18);
+      ctx2.fillRect(810, 554, 16, 16);
       ctx2.fillStyle = '#0f172a';
-      ctx2.font = 'bold 12px sans-serif';
-      ctx2.fillText('Colonna 1: Indice Padronanza (%)', 856, 204);
+      ctx2.font = 'bold 11.5px sans-serif';
+      ctx2.fillText('Colonna 1: Competenza IC (0–100)', 834, 567);
 
       ctx2.fillStyle = '#0ea5e9';
-      ctx2.fillRect(1045, 190, 18, 18);
+      ctx2.fillRect(1035, 554, 16, 16);
       ctx2.fillStyle = '#0f172a';
-      ctx2.fillText('Colonna 2: Acc. 1° Colpo', 1070, 204);
+      ctx2.fillText('Colonna 2: Prestazione IP', 1058, 567);
 
       const cLeft = 110;
-      const cBottom = 600;
-      const cHeight = 320;
+      const cBottom = 895;
+      const cHeight = 250;
       const cWidth = 1030;
 
-      // Grid lines
       [0, 25, 50, 75, 100].forEach((val) => {
         const gy = cBottom - (cHeight * val) / 100;
         ctx2.beginPath();
@@ -1612,9 +1451,9 @@ export const ParentModal: React.FC<ParentModalProps> = ({
         ctx2.stroke();
 
         ctx2.fillStyle = '#64748b';
-        ctx2.font = 'bold 12px sans-serif';
+        ctx2.font = 'bold 11.5px sans-serif';
         ctx2.textAlign = 'right';
-        ctx2.fillText(`${val}%`, cLeft - 12, gy + 4);
+        ctx2.fillText(`${val}/100`, cLeft - 12, gy + 4);
         ctx2.textAlign = 'left';
       });
 
@@ -1622,74 +1461,70 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       domainMetrics.forEach((m, idx) => {
         const gx = cLeft + idx * groupStep + 28;
         const barW = 42;
-        const hMastery = (cHeight * m.masteryIndex) / 100;
-        const hAcc = (cHeight * (isMeasurementUnlocked ? m.accuracy : 0)) / 100;
+        const hIc = (cHeight * m.ic) / 100;
+        const hIp = (cHeight * m.ip) / 100;
 
-        // Column 1: Mastery Index 3D
         draw3DExtrudedColumn(
           ctx2,
           gx,
           cBottom,
           barW,
-          hMastery,
-          14,
+          hIc,
+          13,
           m.hexColor,
           m.hexDark,
           m.hexTop
         );
 
-        // Column 2: First-try Accuracy 3D
         draw3DExtrudedColumn(
           ctx2,
           gx + barW + 18,
           cBottom,
           barW,
-          hAcc,
-          14,
+          hIp,
+          13,
           '#0ea5e9',
           '#0369a1',
           '#38bdf8'
         );
 
-        // Values above columns
         ctx2.fillStyle = m.hexDark;
-        ctx2.font = '900 13px sans-serif';
+        ctx2.font = '900 12.5px sans-serif';
         ctx2.textAlign = 'center';
         ctx2.fillText(
-          `${m.masteryIndex}%`,
+          `${m.ic}`,
           gx + barW / 2 + 5,
-          cBottom - Math.max(8, hMastery) - 16
+          cBottom - Math.max(8, hIc) - 14
         );
 
         ctx2.fillStyle = '#0369a1';
         ctx2.fillText(
-          `${isMeasurementUnlocked ? m.accuracy : 0}%`,
+          `${m.ip}`,
           gx + barW + 18 + barW / 2 + 5,
-          cBottom - Math.max(8, hAcc) - 16
+          cBottom - Math.max(8, hIp) - 14
         );
 
-        // X Axis Labels
         ctx2.fillStyle = '#0f172a';
-        ctx2.font = '900 13px sans-serif';
-        ctx2.fillText(m.shortLabel, gx + barW + 9, cBottom + 26);
+        ctx2.font = '900 12.5px sans-serif';
+        ctx2.fillText(m.shortLabel, gx + barW + 9, cBottom + 24);
 
         ctx2.fillStyle = '#64748b';
-        ctx2.font = 'bold 11px sans-serif';
+        ctx2.font = 'bold 10.5px sans-serif';
         ctx2.fillText(
-          `Prove: ${m.correctFirstTry}/${m.completed}`,
+          `Auton.: ${m.correctFirstTry}/${m.completed}`,
           gx + barW + 9,
-          cBottom + 44
+          cBottom + 42
         );
         ctx2.textAlign = 'left';
       });
 
-      // SECTION B: TABELLA TELEMETRICA TANGIBILE E PARAMETRI WPPSI-IV (y: 710, h: 480)
+      // SECTION C: PROSPETTO ANALITICO DEI 4 INDICATORI & 5 CRITERI DI STABILITÀ (y: 982, h: 688)
       fillStrokeRoundRect(
         ctx2,
         48,
-        710,
+        982,
         1144,
-        480,
+        688,
         22,
         '#ffffff',
         '#cbd5e1',
@@ -1697,35 +1532,35 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       );
 
       ctx2.fillStyle = '#0f172a';
-      ctx2.font = '900 19px sans-serif';
+      ctx2.font = '900 18px sans-serif';
       ctx2.fillText(
-        'PROSPETTO ANALITICO DEI PARAMETRI TANGIBILI RILEVATI DALL’APP',
+        'PROSPETTO ANALITICO TRACCIABILE PER MATERIA (IP, IC, IA, IR, IT, EVOLUZIONE IE)',
         78,
-        748
+        1016
       );
 
-      // Table Header
       const tX = 76;
-      const tY = 770;
+      const tY = 1032;
       const tW = 1088;
-      fillStrokeRoundRect(ctx2, tX, tY, tW, 42, 10, '#1e293b');
+      fillStrokeRoundRect(ctx2, tX, tY, tW, 38, 10, '#1e293b');
       ctx2.fillStyle = '#ffffff';
-      ctx2.font = 'bold 13px sans-serif';
-      ctx2.fillText('DOMINIO COGNITIVO / MATERIA', tX + 18, tY + 26);
-      ctx2.fillText('PROVE SUPERATE', tX + 390, tY + 26);
-      ctx2.fillText('1° TENTATIVO', tX + 555, tY + 26);
-      ctx2.fillText('ACCURATEZZA', tX + 700, tY + 26);
-      ctx2.fillText('PADRONANZA', tX + 845, tY + 26);
-      ctx2.fillText('STATO CLINICO', tX + 975, tY + 26);
+      ctx2.font = 'bold 12px sans-serif';
+      ctx2.fillText('MATERIA / AREA COGNITIVA', tX + 16, tY + 24);
+      ctx2.fillText('AUTONOMI / ASSIST.', tX + 355, tY + 24);
+      ctx2.fillText('PREST. (IP)', tX + 515, tY + 24);
+      ctx2.fillText('AUTON. (IA)', tX + 625, tY + 24);
+      ctx2.fillText('IR / IT', tX + 735, tY + 24);
+      ctx2.fillText('COMPET. (IC)', tX + 835, tY + 24);
+      ctx2.fillText('LIVELLO ASSEGNATO', tX + 950, tY + 24);
 
       domainMetrics.forEach((m, idx) => {
-        const ry = tY + 50 + idx * 58;
+        const ry = tY + 46 + idx * 50;
         fillStrokeRoundRect(
           ctx2,
           tX,
           ry,
           tW,
-          50,
+          44,
           10,
           idx % 2 === 0 ? '#f8fafc' : '#f1f5f9',
           '#e2e8f0',
@@ -1733,79 +1568,74 @@ export const ParentModal: React.FC<ParentModalProps> = ({
         );
 
         ctx2.fillStyle = m.hexColor;
-        ctx2.fillRect(tX + 12, ry + 12, 8, 26);
+        ctx2.fillRect(tX + 12, ry + 10, 8, 24);
 
         ctx2.fillStyle = '#0f172a';
-        ctx2.font = 'bold 13.5px sans-serif';
-        ctx2.fillText(m.clinicalName, tX + 28, ry + 30);
+        ctx2.font = 'bold 13px sans-serif';
+        ctx2.fillText(m.clinicalName, tX + 28, ry + 27);
 
-        ctx2.font = 'bold 14px sans-serif';
-        ctx2.fillText(`${m.completed} prove`, tX + 410, ry + 30);
-        ctx2.fillText(`${m.correctFirstTry} esatte`, tX + 570, ry + 30);
+        ctx2.font = 'bold 12.5px sans-serif';
         ctx2.fillText(
-          `${isMeasurementUnlocked ? m.accuracy : 0}%`,
-          tX + 725,
-          ry + 30
+          `${m.correctFirstTry} aut. · ${m.assistedCount} ass.`,
+          tX + 355,
+          ry + 27
         );
+        ctx2.fillText(`${m.ip}/100`, tX + 525, ry + 27);
+        ctx2.fillText(`${m.ia}/100`, tX + 635, ry + 27);
+        ctx2.fillText(`${m.ir} / ${m.it}`, tX + 735, ry + 27);
 
         ctx2.fillStyle = m.hexDark;
-        ctx2.font = '900 15px sans-serif';
-        ctx2.fillText(`${m.masteryIndex}%`, tX + 868, ry + 30);
+        ctx2.font = '900 14px sans-serif';
+        const dStr = m.ieDelta >= 0 ? `+${m.ieDelta}` : `${m.ieDelta}`;
+        ctx2.fillText(`${m.ic}/100 (${dStr})`, tX + 835, ry + 27);
 
         ctx2.fillStyle = '#334155';
-        ctx2.font = 'bold 12px sans-serif';
-        ctx2.fillText(m.levelLabel, tX + 975, ry + 30);
+        ctx2.font = 'bold 11.5px sans-serif';
+        ctx2.fillText(m.levelLabel, tX + 950, ry + 27);
       });
 
-      // SECTION C: PIANO DI POTENZIAMENTO PERSONALIZZATO PER EMMA GUIDI (y: 1212, h: 440)
+      // 5 STABILITY CRITERIA BOX AT BOTTOM OF PAGE 2
+      const critBoxY = 1390;
       fillStrokeRoundRect(
         ctx2,
-        48,
-        1212,
-        1144,
-        440,
-        22,
-        '#ffffff',
+        76,
+        critBoxY,
+        1088,
+        256,
+        16,
+        '#fdf4ff',
         '#c084fc',
-        2
+        1.6
       );
 
       ctx2.fillStyle = '#4c1d95';
-      ctx2.font = '900 19px sans-serif';
+      ctx2.font = '900 16px sans-serif';
       ctx2.fillText(
-        'STUDIO DIAGNOSTICO AI & PIANO DI POTENZIAMENTO COGNITIVO PER EMMA GUIDI',
-        78,
-        1252
+        'VERIFICA DEI 5 CRITERI DI STABILITÀ PER IL PASSAGGIO AL LIVELLO DI PADRONANZA SUCCESSIVO',
+        96,
+        critBoxY + 30
       );
+      ctx2.fillStyle = '#6b21a8';
+      ctx2.font = 'bold 12.5px sans-serif';
+      ctx2.fillText(evalReport.stabilitySummaryNote, 96, critBoxY + 52);
 
-      const recommendations = [
-        {
-          title: '1. Potenziamento Ragionamento Fluido & Matrici QI (Gf)',
-          body: `Al Livello ${progress.currentLevel}, Emma Guidi affronta quesiti di seriazione, analogie visuo-percettive e classificazioni logiche. Si consiglia di accompagnare le sessioni chiedendo alla bambina di verbalizzare il "perché" della risposta scelta: questo trasforma l'intuizione visiva in pensiero ipotetico-deduttivo strutturato.`,
-        },
-        {
-          title: '2. Sviluppo Memoria di Lavoro Uditiva, Musica & Subitizing (Gwm)',
-          body: `Le prove di Musica & Ritmo (sequenze Do-Re-Mi-Sol) e il conteggio tattile 1-a-1 stimolano il loop fonologico e il taccuino visuo-spaziale. Riprodurre brevi ritmi battendo le mani o contando oggetti reali consolida la prontezza per il calcolo mentale della scuola primaria.`,
-        },
-        {
-          title: '3. Bilinguismo Precoce Inglese L2 & Consapevolezza Fonologica (Gc)',
-          body: `L'esposizione ludica ai primi vocaboli inglesi (colori, animali, elementi della natura) in parallelo al riconoscimento dei fonemi iniziali italiani sfrutta la finestra di massima neuroplasticità linguistica dei 5 anni (${ageInfo.displayText}).`,
-        },
-        {
-          title: '4. Pianificazione Esecutiva, Spazio 3D & Creatività Grafica (Gv / Gs)',
-          body: `I livelli di Svago 3D (Tris strategico contro Orsetto, Memory delle coppie, Studio Disegno) mostrano ${progress.trisGamesWon} vittorie al Tris e ${progress.savedDrawings?.length || 0} elaborati artistici salvati, evidenziando un'ottima integrazione visuo-motoria e autoregolazione attentiva.`,
-        },
-      ];
+      evalReport.stabilityCriteria.forEach((crit, i) => {
+        const cy = critBoxY + 80 + i * 33;
+        ctx2.fillStyle = crit.met ? '#059669' : '#d97706';
+        ctx2.font = '900 13px sans-serif';
+        ctx2.fillText(crit.met ? '✓ SODDISFATTO' : '• IN CORSO', 96, cy);
 
-      recommendations.forEach((rec, i) => {
-        const ry = 1282 + i * 88;
-        ctx2.fillStyle = '#1e1b4b';
-        ctx2.font = '900 14.5px sans-serif';
-        ctx2.fillText(rec.title, 78, ry);
+        ctx2.fillStyle = '#0f172a';
+        ctx2.font = 'bold 13px sans-serif';
+        ctx2.fillText(crit.label, 230, cy);
 
-        ctx2.fillStyle = '#334155';
-        ctx2.font = '13px sans-serif';
-        drawWrappedText(ctx2, rec.body, 78, ry + 22, 1080, 19, 2);
+        ctx2.fillStyle = '#475569';
+        ctx2.font = '12.5px sans-serif';
+        ctx2.fillText(
+          `Obiettivo: ${crit.targetText}   |   Rilevato: ${crit.currentText}`,
+          640,
+          cy
+        );
       });
 
       // Page 2 Footer
@@ -1841,7 +1671,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       const url = URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Relazione_Pedagogica_QI_3D_Emma_Guidi_Livello_${progress.currentLevel}.pdf`;
+      link.download = `Relazione_Competenze_CHC_Progressi_Emma_Guidi_Livello_${progress.currentLevel}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -1850,6 +1680,11 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       setIsGeneratingPdf(false);
     }
   };
+
+  const weightTiers = useMemo(
+    () => [1, 2, 3, 4, 5].map((t) => getDifficultyWeightInfo(t, false)),
+    []
+  );
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-xl flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
@@ -1863,7 +1698,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[11px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-md bg-pink-500/20 text-pink-300 border border-pink-400/30">
-                  Studio Diagnostico AI & Psicometria 3D
+                  Algoritmo di Valutazione CHC (0–100) & Progressi Mensili/Annuali
                 </span>
                 <span className="text-[11px] font-semibold text-white/60 flex items-center gap-1">
                   <Calendar className="w-3.5 h-3.5 text-amber-300" /> Nata il
@@ -1871,7 +1706,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                 </span>
               </div>
               <h2 className="font-kids font-extrabold text-xl sm:text-2xl text-white mt-1">
-                Relazione Pedagogica, Grafici 3D & Valutazione QI — Emma
+                Il Mondo di Emma — Valutazione Competenze & Progressi
               </h2>
             </div>
           </div>
@@ -1900,7 +1735,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
           </div>
         </div>
 
-        {/* ZERO BASELINE NOTICE BANNER */}
+        {/* ZERO BASELINE NOTICE BANNER + AUDIO SETTINGS */}
         <div
           className={`mt-4 rounded-2xl p-4 border flex items-center justify-between gap-3 flex-wrap ${
             isMeasurementUnlocked
@@ -1917,20 +1752,17 @@ export const ParentModal: React.FC<ParentModalProps> = ({
             <div>
               <p className="text-xs sm:text-sm font-black uppercase tracking-wider">
                 {isMeasurementUnlocked
-                  ? `Misurazione Attiva · Aggiornamento Livello per Livello (Livello ${progress.currentLevel})`
-                  : `Fase di Calibrazione Iniziale: Parametri a 0% fino al Livello 10 (Attuale: Livello ${progress.currentLevel})`}
+                  ? `Motore Diagnostico Rapido Multi-Parametro Attivo · Livello ${progress.currentLevel} (${evalReport.currentDifficultyLabel}, Peso w=${evalReport.currentWeight})`
+                  : `Pronto alla Rilevazione Multi-Parametro (Completa il 1° esercizio per calcolare tutti gli indici)`}
               </p>
               <p className="text-xs text-white/80 mt-0.5">
                 {isMeasurementUnlocked
-                  ? `Superato il Livello 10, la Relazione Pedagogica, i Grafici 3D e il QI hanno attivato il 1° step e si aggiornano ad ogni nuovo livello completato da Emma.`
-                  : `Come richiesto, Relazione Pedagogica, Analisi Grafici e QI partono da 0% e sbloccano il primo step di misurazione subito dopo il Livello 10 (mancano ${
-                      10 - completedLevelsCount
-                    } livelli al 1° step).`}
+                  ? `Ogni esercizio completato (${completedLevelsCount} prove analizzate) misura simultaneamente abilità CHC primaria, secondaria e tempo di risposta (Gs), aggiornando in tempo reale IP, IC, IA, IE e lo storico mensile/annuale.`
+                  : `I livelli includono test diagnostici multi-parametro che determinano fin dalla prima prova i 4 indicatori (IP, IC, IA, IE) e le 5 aree CHC.`}
               </p>
             </div>
           </div>
 
-          {/* Audio Settings Quick Toggle */}
           <div className="flex items-center gap-2">
             <button
               onClick={() =>
@@ -1956,139 +1788,647 @@ export const ParentModal: React.FC<ParentModalProps> = ({
           </div>
         </div>
 
-        {/* SUMMARY TELEMETRY CARDS */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 my-5">
-          <div className="bg-white/5 rounded-2xl p-3.5 border border-white/10">
-            <div className="flex items-center gap-1.5 text-amber-300 text-xs font-bold mb-1">
-              <Award className="w-4 h-4" /> Livello Raggiunto
+        {/* ===================================================================== */}
+        {/* HERO REPORT PREVIEW: COMPETENZA GENERALE (XX/100) & EVOLUZIONE (+X)   */}
+        {/* ===================================================================== */}
+        <div className="my-5 bg-gradient-to-br from-purple-950/75 via-slate-900 to-indigo-950/75 rounded-3xl p-5 border border-purple-400/35 shadow-xl">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-white/10">
+            <div>
+              <span className="text-[11px] font-black uppercase tracking-widest text-amber-300 block">
+                Il Mondo di Emma · Quadro Sintetico della Valutazione
+              </span>
+              <h3 className="font-kids font-extrabold text-lg sm:text-xl text-white mt-0.5">
+                Profilo delle Competenze e delle Abilità (Scala 0–100)
+              </h3>
+              <p className="text-xs text-white/75 mt-1 max-w-xl leading-relaxed">
+                Valutazione interna tracciabile basata sulle risposte autonome al
+                primo tentativo (<code className="text-pink-300">cᵢ = 1</code>)
+                e separate dai successi ottenuti dopo un suggerimento (
+                <code className="text-amber-300">
+                  {evalReport.assistedTotal} assistiti
+                </code>
+                ). Non è un test di QI standardizzato.
+              </p>
             </div>
-            <p className="font-kids font-extrabold text-2xl">
-              Liv. {progress.currentLevel}
-            </p>
-            <p className="text-[11px] text-white/60 mt-0.5">
-              Tier {currentTier} · Stelle: {progress.stars}
-            </p>
-          </div>
 
-          <div className="bg-white/5 rounded-2xl p-3.5 border border-white/10">
-            <div className="flex items-center gap-1.5 text-purple-300 text-xs font-bold mb-1">
-              <Brain className="w-4 h-4" /> Quoziente Cognitivo (QI)
-            </div>
-            <p className="font-kids font-extrabold text-2xl text-purple-200">
-              {isMeasurementUnlocked ? `QI ${iqAnalysis.iqScore}` : '0%'}
-            </p>
-            <p className="text-[11px] text-white/60 mt-0.5">
-              {isMeasurementUnlocked
-                ? `${iqAnalysis.percentile} (${iqAnalysis.iqRange})`
-                : '0% fino al Livello 10'}
-            </p>
-          </div>
-
-          <div className="bg-white/5 rounded-2xl p-3.5 border border-white/10">
-            <div className="flex items-center gap-1.5 text-emerald-300 text-xs font-bold mb-1">
-              <TrendingUp className="w-4 h-4" /> Accuratezza Globale
-            </div>
-            <p className="font-kids font-extrabold text-2xl">
-              {overallAccuracy}%
-            </p>
-            <p className="text-[11px] text-white/60 mt-0.5">
-              {isMeasurementUnlocked
-                ? `${progress.totalPuzzlesSolved} prove risolte`
-                : 'Attivo dopo il Livello 10'}
-            </p>
-          </div>
-
-          <div className="bg-white/5 rounded-2xl p-3.5 border border-white/10">
-            <div className="flex items-center gap-1.5 text-cyan-300 text-xs font-bold mb-1">
-              <Activity className="w-4 h-4" /> Strategia & Arte
-            </div>
-            <p className="font-kids font-extrabold text-2xl">
-              {progress.trisGamesWon} Vitt. Tris
-            </p>
-            <p className="text-[11px] text-white/60 mt-0.5">
-              Disegni salvati: {progress.savedDrawings?.length || 0}
-            </p>
-          </div>
-        </div>
-
-        {/* SECTION 1: VALUTAZIONE PSICOMETRICA DEL QI (ZERO OVERLAP LAYOUT) */}
-        <div className="bg-gradient-to-br from-purple-950/60 via-slate-900 to-indigo-950/60 rounded-3xl p-5 border border-purple-400/30 mb-6 shadow-xl">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/10">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <Brain className="w-5 h-5 text-purple-300 shrink-0" />
-                <h3 className="font-kids font-extrabold text-sm sm:text-base uppercase tracking-wider text-purple-200">
-                  1. Valutazione Psicometrica del Quoziente Cognitivo (QI) — Emma
-                </h3>
+            <div className="flex flex-wrap items-stretch gap-3 shrink-0">
+              {/* Competenza Generale Card */}
+              <div className="bg-gradient-to-b from-purple-700 to-indigo-950 border-2 border-amber-300 rounded-2xl px-5 py-3 text-center shadow-[0_5px_0_#3b0764] min-w-[155px]">
+                <span className="text-[10px] font-black uppercase tracking-wider text-purple-200 block">
+                  Competenza generale
+                </span>
+                <span className="font-kids font-extrabold text-3xl text-yellow-300 block leading-tight mt-0.5">
+                  {evalReport.ic}/100
+                </span>
+                <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full bg-white/15 text-[11px] font-extrabold text-white">
+                  {evalReport.assignedBandLabel}
+                </span>
               </div>
-              <p className="text-xs sm:text-sm font-bold text-amber-300">
-                Categoria Psicometrica: {iqAnalysis.classification} | Percentile:{' '}
-                {iqAnalysis.percentile}
-              </p>
-              <p className="text-xs text-white/75 mt-1 leading-relaxed">
-                {iqAnalysis.clinicalNote}
-              </p>
-            </div>
 
-            {/* Dedicated Non-Overlapping Right 3D QI Badge */}
-            <div className="shrink-0 bg-gradient-to-b from-purple-700 to-indigo-950 border-2 border-amber-300 rounded-2xl px-6 py-3 text-center shadow-[0_6px_0_#3b0764,0_12px_24px_rgba(0,0,0,0.4)]">
-              <span className="font-kids font-extrabold text-2xl sm:text-3xl text-yellow-300 block leading-none">
-                {isMeasurementUnlocked ? `QI ${iqAnalysis.iqScore}` : 'QI 0%'}
-              </span>
-              <span className="text-[11px] font-bold text-purple-200 block mt-1">
-                {isMeasurementUnlocked
-                  ? `Aggiornato al Livello ${progress.currentLevel}`
-                  : 'Sblocco dopo Livello 10'}
-              </span>
+              {/* Evoluzione Card */}
+              <div className="bg-gradient-to-b from-emerald-600 to-teal-950 border-2 border-emerald-300 rounded-2xl px-5 py-3 text-center shadow-[0_5px_0_#064e3b] min-w-[155px]">
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-100 block">
+                  Evoluzione
+                </span>
+                <span className="font-kids font-extrabold text-3xl text-yellow-300 block leading-tight mt-0.5">
+                  {evalReport.ieDelta >= 0
+                    ? `+${evalReport.ieDelta}`
+                    : evalReport.ieDelta}
+                </span>
+                <span className="text-[10px] font-bold text-emerald-100 block mt-1">
+                  Rispetto alla rilevazione prec. ({evalReport.previousIc}/100)
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* 5 WPPSI-IV Parameter Boxes */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-4">
-            {iqAnalysis.indices.map((ind) => (
-              <div
-                key={ind.code}
-                className="bg-slate-950/80 rounded-2xl p-3 border border-white/15 flex flex-col items-center text-center shadow-md"
-              >
-                <span
-                  className="font-kids font-extrabold text-2xl"
-                  style={{ color: ind.colorHex }}
-                >
-                  {isMeasurementUnlocked ? ind.scaledScore : '0%'}
-                </span>
-                <span className="text-xs font-bold text-white mt-1">
-                  {ind.shortTitle}
-                </span>
-                <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden mt-2">
+          {/* 1. I QUATTRO INDICATORI PRINCIPALI (0-100) */}
+          <div className="mt-4">
+            <p className="text-xs font-extrabold uppercase tracking-wider text-purple-200 mb-2.5 flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-amber-300" /> 1. I Quattro
+              Indicatori Principali (0–100) & Formule Matematiche
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {/* IP: Indice di Prestazione */}
+              <div className="bg-slate-950/80 rounded-2xl p-3.5 border border-violet-400/30">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-violet-300">
+                    Indice di prestazione (IP)
+                  </span>
+                  <span className="font-kids font-extrabold text-xl text-white">
+                    {evalReport.ip}/100
+                  </span>
+                </div>
+                <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden my-2">
                   <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${ind.percentScore}%`,
-                      backgroundColor: ind.colorHex,
-                    }}
+                    className="h-full bg-violet-500 rounded-full"
+                    style={{ width: `${evalReport.ip}%` }}
                   />
                 </div>
-                <span className="text-[10px] text-white/60 mt-1">
-                  Indice: {ind.percentScore}%
-                </span>
+                <p className="text-[11px] text-white/75 leading-snug">
+                  Misura quanto correttamente Emma risponde al 1° tentativo.
+                </p>
+                <p className="text-[10px] font-mono text-violet-200/90 mt-1.5 bg-white/5 px-2 py-1 rounded-lg">
+                  IP = Σ(wᵢ·cᵢ)/Σwᵢ×100 = {evalReport.weightedCorrectSum}/
+                  {evalReport.weightedTotalSum}
+                </p>
               </div>
-            ))}
+
+              {/* IC: Indice di Competenza */}
+              <div className="bg-slate-950/80 rounded-2xl p-3.5 border border-pink-400/30">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-pink-300">
+                    Indice di competenza (IC)
+                  </span>
+                  <span className="font-kids font-extrabold text-xl text-white">
+                    {evalReport.ic}/100
+                  </span>
+                </div>
+                <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden my-2">
+                  <div
+                    className="h-full bg-pink-500 rounded-full"
+                    style={{ width: `${evalReport.ic}%` }}
+                  />
+                </div>
+                <p className="text-[11px] text-white/75 leading-snug">
+                  Misura quanto ha realmente acquisito l'abilità nel tempo.
+                </p>
+                <p className="text-[10px] font-mono text-pink-200/90 mt-1.5 bg-white/5 px-2 py-1 rounded-lg">
+                  0,50·IP + 0,20·IA + 0,15·IR({evalReport.ir}) + 0,15·IT(
+                  {evalReport.it})
+                </p>
+              </div>
+
+              {/* IA: Indice di Autonomia */}
+              <div className="bg-slate-950/80 rounded-2xl p-3.5 border border-cyan-400/30">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-cyan-300">
+                    Indice di autonomia (IA)
+                  </span>
+                  <span className="font-kids font-extrabold text-xl text-white">
+                    {evalReport.ia}/100
+                  </span>
+                </div>
+                <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden my-2">
+                  <div
+                    className="h-full bg-cyan-500 rounded-full"
+                    style={{ width: `${evalReport.ia}%` }}
+                  />
+                </div>
+                <p className="text-[11px] text-white/75 leading-snug">
+                  Risoluzione senza aiuti o suggerimenti vocali.
+                </p>
+                <p className="text-[10px] font-mono text-cyan-200/90 mt-1.5 bg-white/5 px-2 py-1 rounded-lg">
+                  Autonomi: {evalReport.autonomousTotal} · Assistiti:{' '}
+                  {evalReport.assistedTotal}
+                </p>
+              </div>
+
+              {/* IE: Indice di Evoluzione */}
+              <div className="bg-slate-950/80 rounded-2xl p-3.5 border border-emerald-400/30">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-emerald-300">
+                    Indice di evoluzione (IE)
+                  </span>
+                  <span className="font-kids font-extrabold text-xl text-amber-300">
+                    {evalReport.ieDelta >= 0
+                      ? `+${evalReport.ieDelta}`
+                      : evalReport.ieDelta}{' '}
+                    <span className="text-xs text-white/70 font-normal">
+                      ({evalReport.ieIndex}/100)
+                    </span>
+                  </span>
+                </div>
+                <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden my-2">
+                  <div
+                    className="h-full bg-emerald-500 rounded-full"
+                    style={{ width: `${evalReport.ieIndex}%` }}
+                  />
+                </div>
+                <p className="text-[11px] text-white/75 leading-snug">
+                  Miglioramenti reali rispetto alle sessioni precedenti.
+                </p>
+                <p className="text-[10px] font-mono text-emerald-200/90 mt-1.5 bg-white/5 px-2 py-1 rounded-lg">
+                  IE = IC_att({evalReport.ic}) - IC_prec({evalReport.previousIc})
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* PROFILO DELLE ABILITÀ (TEORIA CHC 0-100) */}
+          <div className="mt-5 pt-4 border-t border-white/10">
+            <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+              <p className="text-xs font-extrabold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                <Brain className="w-4 h-4 text-pink-400" /> Profilo delle
+                Abilità Cognitive (Modello CHC 0–100)
+              </p>
+              <span className="text-[11px] text-white/60">
+                5 aree cognitive valutate da 0 a 100 dalle attività pertinenti
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+              {evalReport.chcAbilities.map((ab) => (
+                <div
+                  key={ab.code}
+                  className="bg-slate-950/90 rounded-2xl p-3.5 border border-white/15 flex flex-col justify-between shadow-md"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-[11px] font-black px-2 py-0.5 rounded-md bg-white/10 text-white">
+                        {ab.code}
+                      </span>
+                      <span className="text-[10px] font-bold text-emerald-300">
+                        {ab.ieDelta >= 0 ? `+${ab.ieDelta}` : ab.ieDelta} pt
+                      </span>
+                    </div>
+                    <h4 className="font-kids font-bold text-sm text-white mt-2">
+                      {ab.shortTitle}
+                    </h4>
+                    <p
+                      className="font-kids font-extrabold text-2xl mt-0.5"
+                      style={{ color: ab.colorHex }}
+                    >
+                      {ab.score}/100
+                    </p>
+                    <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden my-2">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{
+                          width: `${ab.score}%`,
+                          backgroundColor: ab.colorHex,
+                        }}
+                      />
+                    </div>
+                    <p className="text-[10px] text-white/70 leading-snug">
+                      {ab.description}
+                    </p>
+                  </div>
+                  <div className="mt-2 pt-2 border-t border-white/10 flex items-center justify-between text-[10px] text-white/60">
+                    <span>IP {ab.ip}/100</span>
+                    <span>IA {ab.ia}/100</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* SECTION 2: ANALISI GRAFICA MULTIDIMENSIONALE (RADAR + BARRE) */}
+        {/* ===================================================================== */}
+        {/* FUNZIONE PROGRESSI OTTENUTI GRAZIE ALL'UTILIZZO DELL'APP              */}
+        {/* - Aggiornamento ogni inizio mese (1° del mese)                        */}
+        {/* - Confronto sempre visibile Punto di Partenza vs Stato Attuale        */}
+        {/* - Ogni anno che compie la bambina (22/08) il dato diventa riga fissa  */}
+        {/*   e se ne aggiunge una nuova di riga                                  */}
+        {/* ===================================================================== */}
+        <div className="bg-gradient-to-br from-emerald-950/60 via-slate-900 to-teal-950/60 rounded-3xl p-5 border border-emerald-400/35 mb-6 shadow-xl">
+          <div className="flex flex-wrap items-start justify-between gap-3 pb-4 border-b border-white/10">
+            <div>
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-emerald-400 shrink-0" />
+                <h3 className="font-kids font-extrabold text-sm sm:text-base uppercase tracking-wider text-emerald-300">
+                  Progressi Ottenuti Grazie all’Utilizzo dell’App (Mensile &
+                  Storico Annuale per Età)
+                </h3>
+              </div>
+              <p className="text-xs text-white/80 mt-1 leading-relaxed">
+                La funzione progressi si aggiorna automaticamente{' '}
+                <strong className="text-amber-300">ogni inizio mese</strong> (
+                {evalReport.currentMonthStartLabel}, prossimo aggiornamento:{' '}
+                <strong className="text-cyan-300">
+                  {evalReport.nextMonthlyUpdateLabel}
+                </strong>
+                ), mantiene sempre il confronto tra{' '}
+                <strong className="text-white">Punto di Partenza</strong> e{' '}
+                <strong className="text-emerald-300">Stato Attuale</strong>, e ad{' '}
+                <strong className="text-pink-300">
+                  ogni compleanno di Emma (22/08)
+                </strong>{' '}
+                consolida l’anno concluso in una{' '}
+                <strong className="text-amber-300">riga fissa</strong>{' '}
+                aggiungendo una{' '}
+                <strong className="text-emerald-300">nuova riga</strong> per il
+                nuovo anno d’età.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 bg-slate-950/80 px-3.5 py-2 rounded-2xl border border-emerald-400/30 shrink-0">
+              <Clock className="w-4 h-4 text-amber-300" />
+              <div className="text-[11px]">
+                <span className="text-white/60 block">
+                  Prossima Riga Fissa Compleanno:
+                </span>
+                <span className="font-bold text-amber-300">
+                  {evalReport.nextBirthdayDateLabel}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* CONFRONTO DIRETTO PUNTO DI PARTENZA VS ATTUALE (ANNO IN CORSO) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 my-4">
+            {/* Punto di Partenza */}
+            <div className="bg-slate-950/75 rounded-2xl p-4 border border-white/15">
+              <span className="text-[10px] font-black uppercase tracking-wider text-white/60 block">
+                1. Punto di Partenza ({evalReport.activeAgeRow.ageLabel} ·{' '}
+                {evalReport.activeAgeRow.startDate})
+              </span>
+              <div className="flex items-baseline justify-between mt-1.5">
+                <span className="font-kids font-extrabold text-2xl text-white">
+                  IC {evalReport.activeAgeRow.startIc}/100
+                </span>
+                <span className="text-xs font-bold text-white/70">
+                  Livello {evalReport.activeAgeRow.startLevel}
+                </span>
+              </div>
+              <p className="text-[11px] text-amber-200/90 font-semibold mt-1">
+                Fascia iniziale: {evalReport.activeAgeRow.startBand}
+              </p>
+              <div className="mt-2 pt-2 border-t border-white/10 flex items-center justify-between text-[11px] text-white/65">
+                <span>Prestazione IP: {evalReport.activeAgeRow.startIp}/100</span>
+                <span>Autonomia IA: {evalReport.activeAgeRow.startIa}/100</span>
+              </div>
+            </div>
+
+            {/* Stato Attuale (Inizio Mese Corrente) */}
+            <div className="bg-slate-950/75 rounded-2xl p-4 border border-emerald-400/40">
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-300 block">
+                2. Valore Attuale ({evalReport.currentMonthStartLabel})
+              </span>
+              <div className="flex items-baseline justify-between mt-1.5">
+                <span className="font-kids font-extrabold text-2xl text-emerald-300">
+                  IC {evalReport.activeAgeRow.currentIc}/100
+                </span>
+                <span className="text-xs font-bold text-amber-300">
+                  Livello {evalReport.activeAgeRow.currentLevel}
+                </span>
+              </div>
+              <p className="text-[11px] text-white font-semibold mt-1">
+                Fascia attuale: {evalReport.activeAgeRow.currentBand}
+              </p>
+              <div className="mt-2 pt-2 border-t border-white/10 flex items-center justify-between text-[11px] text-white/75">
+                <span>
+                  Prestazione IP: {evalReport.activeAgeRow.currentIp}/100
+                </span>
+                <span>
+                  Autonomia IA: {evalReport.activeAgeRow.currentIa}/100
+                </span>
+              </div>
+            </div>
+
+            {/* Progresso Ottenuto Grazie all'App */}
+            <div className="bg-gradient-to-br from-emerald-900/60 to-teal-950/80 rounded-2xl p-4 border-2 border-emerald-400/60">
+              <span className="text-[10px] font-black uppercase tracking-wider text-yellow-300 block">
+                3. Progresso Ottenuto Grazie all’App (Δ Attuale vs Partenza)
+              </span>
+              <div className="flex items-baseline justify-between mt-1.5">
+                <span className="font-kids font-extrabold text-2xl text-yellow-300">
+                  {evalReport.activeAgeRow.deltaIc >= 0
+                    ? `+${evalReport.activeAgeRow.deltaIc}`
+                    : evalReport.activeAgeRow.deltaIc}{' '}
+                  pt IC
+                </span>
+                <span className="text-xs font-black text-emerald-200">
+                  +{evalReport.activeAgeRow.deltaLevels} Livelli
+                </span>
+              </div>
+              <p className="text-[11px] text-emerald-100 font-semibold mt-1">
+                Crescita misurata nell'anno dei{' '}
+                {evalReport.activeAgeRow.ageLabel}
+              </p>
+              <div className="mt-2 pt-2 border-t border-white/15 flex items-center justify-between text-[11px] text-emerald-100">
+                <span>
+                  Δ Prestazione:{' '}
+                  {evalReport.activeAgeRow.deltaIp >= 0
+                    ? `+${evalReport.activeAgeRow.deltaIp}`
+                    : evalReport.activeAgeRow.deltaIp}{' '}
+                  pt
+                </span>
+                <span>
+                  Δ Autonomia:{' '}
+                  {evalReport.activeAgeRow.deltaIa >= 0
+                    ? `+${evalReport.activeAgeRow.deltaIa}`
+                    : evalReport.activeAgeRow.deltaIa}{' '}
+                  pt
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* TABELLA STORICA ANNUALE PER ETÀ (RIGHE FISSE + RIGA ATTIVA + PROSSIMO COMPLEANNO) */}
+          <div className="overflow-x-auto rounded-2xl border border-white/15 bg-slate-950/80">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-emerald-950/90 text-emerald-200 border-b border-white/15 text-[11px] uppercase tracking-wider">
+                  <th className="py-3 px-3.5 font-extrabold">
+                    Anno d’Età di Emma
+                  </th>
+                  <th className="py-3 px-3 font-extrabold">Stato Riga</th>
+                  <th className="py-3 px-3 font-extrabold">
+                    Punto di Partenza
+                  </th>
+                  <th className="py-3 px-3 font-extrabold">
+                    Valore Attuale / Consolidato
+                  </th>
+                  <th className="py-3 px-3.5 font-extrabold">
+                    Progresso Grazie all’App (Δ)
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/10">
+                {evalReport.annualProgressRows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className={
+                      row.isLockedFixedRow
+                        ? 'bg-slate-900/70 text-white/85'
+                        : 'bg-emerald-950/35 text-white font-semibold'
+                    }
+                  >
+                    <td className="py-3 px-3.5">
+                      <div className="font-kids font-extrabold text-sm text-white flex items-center gap-1.5">
+                        <span>{row.ageLabel}</span>
+                        <span className="text-[11px] font-sans font-normal text-white/60">
+                          ({row.periodLabel})
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-white/60 mt-0.5">
+                        Ultimo agg. inizio mese: {row.lastMonthlyUpdateLabel}
+                      </div>
+                    </td>
+
+                    <td className="py-3 px-3">
+                      {row.isLockedFixedRow ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-600 text-[11px] font-bold text-amber-200">
+                          <Lock className="w-3 h-3 text-amber-300" /> Riga Fissa
+                          Consolidata ({row.lockedAtDate})
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-400/50 text-[11px] font-extrabold text-emerald-300">
+                          <Sparkles className="w-3 h-3 text-yellow-300" /> Riga
+                          Attiva (Agg. Inizio Mese)
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="py-3 px-3">
+                      <div className="font-bold text-white">
+                        IC {row.startIc}/100 · IP {row.startIp}/100 · IA{' '}
+                        {row.startIa}/100
+                      </div>
+                      <div className="text-[11px] text-white/60">
+                        Liv. {row.startLevel} ({row.startBand}) · {row.startDate}
+                      </div>
+                    </td>
+
+                    <td className="py-3 px-3">
+                      <div className="font-bold text-emerald-300">
+                        IC {row.currentIc}/100 · IP {row.currentIp}/100 · IA{' '}
+                        {row.currentIa}/100
+                      </div>
+                      <div className="text-[11px] text-white/75">
+                        Liv. {row.currentLevel} ({row.currentBand}) ·{' '}
+                        {row.currentDate}
+                      </div>
+                    </td>
+
+                    <td className="py-3 px-3.5">
+                      <div className="font-kids font-extrabold text-sm text-yellow-300">
+                        ΔIC {row.deltaIc >= 0 ? `+${row.deltaIc}` : row.deltaIc}{' '}
+                        pt · ΔIP{' '}
+                        {row.deltaIp >= 0 ? `+${row.deltaIp}` : row.deltaIp} pt
+                      </div>
+                      <div className="text-[11px] text-emerald-200">
+                        +{row.deltaLevels} livelli · ΔIA{' '}
+                        {row.deltaIa >= 0 ? `+${row.deltaIa}` : row.deltaIa} pt
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+
+                {/* PREVIEW OF NEXT AUTOMATIC BIRTHDAY ROW */}
+                <tr className="bg-slate-950/60 text-white/55 italic">
+                  <td className="py-2.5 px-3.5 font-bold text-amber-200/80">
+                    {evalReport.emmaCurrentAgeYears + 1} Anni (Dal 22/08/
+                    {2021 + evalReport.emmaCurrentAgeYears + 1})
+                  </td>
+                  <td className="py-2.5 px-3">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[10px]">
+                      Nuova Riga Automatica al Compleanno
+                    </span>
+                  </td>
+                  <td colSpan={3} className="py-2.5 px-3 text-[11px]">
+                    Al compimento dei {evalReport.emmaCurrentAgeYears + 1} anni
+                    ({evalReport.nextBirthdayDateLabel}), la riga dei{' '}
+                    {evalReport.emmaCurrentAgeYears} Anni diventerà una{' '}
+                    <strong className="text-white/80">riga fissa</strong> e si
+                    aggiungerà automaticamente questa nuova riga.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* RILEVAZIONI DI INIZIO MESE DELL'ANNO IN CORSO */}
+          {evalReport.activeAgeRow.monthlyCheckpoints.length > 0 && (
+            <div className="mt-3.5 pt-3 border-t border-white/10">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-200 mb-2">
+                Storico Rilevazioni di Inizio Mese (Anno in Corso —{' '}
+                {evalReport.activeAgeRow.ageLabel}):
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {evalReport.activeAgeRow.monthlyCheckpoints.map((cp) => (
+                  <div
+                    key={cp.monthKey}
+                    className="bg-slate-950/75 rounded-xl px-3 py-2 border border-white/10 flex items-center justify-between text-xs"
+                  >
+                    <div>
+                      <span className="font-bold text-amber-300 block">
+                        🗓️ {cp.monthLabel}
+                      </span>
+                      <span className="text-[10px] text-white/60">
+                        Livello {cp.levelReached} · IP {cp.ip}/100 · IA {cp.ia}
+                        /100
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-kids font-extrabold text-sm text-white block">
+                        IC {cp.ic}/100
+                      </span>
+                      <span className="text-[10px] font-bold text-emerald-300">
+                        {cp.ieDeltaFromStart >= 0
+                          ? `+${cp.ieDeltaFromStart}`
+                          : cp.ieDeltaFromStart}{' '}
+                        pt da inizio anno
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ===================================================================== */}
+        {/* CRITERI DI ASSEGNAZIONE DEI LIVELLI & PESI DI DIFFICOLTÀ              */}
+        {/* ===================================================================== */}
+        <div className="bg-white/5 rounded-3xl p-5 border border-white/10 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <ShieldCheck className="w-5 h-5 text-amber-300" />
+            <h3 className="font-kids font-bold text-sm sm:text-base uppercase tracking-wider text-amber-300">
+              3. Criteri di Stabilità per il Passaggio di Livello & Pesi di
+              Difficoltà
+            </h3>
+          </div>
+
+          <p className="text-xs text-white/80 mb-4">{evalReport.stabilitySummaryNote}</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* 5 Stability Criteria Checklist */}
+            <div className="bg-slate-950/70 rounded-2xl p-4 border border-white/10 space-y-2.5">
+              <p className="text-xs font-extrabold text-pink-300 uppercase tracking-wider">
+                Regole di Stabilità per Passare al Livello Successivo:
+              </p>
+              {evalReport.stabilityCriteria.map((crit) => (
+                <div
+                  key={crit.id}
+                  className="flex items-center justify-between gap-2 text-xs py-1.5 border-b border-white/5 last:border-none"
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 ${
+                        crit.met
+                          ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-400/50'
+                          : 'bg-amber-500/20 text-amber-300 border border-amber-400/40'
+                      }`}
+                    >
+                      {crit.met ? '✓' : '•'}
+                    </span>
+                    <span className="font-semibold text-white/90">
+                      {crit.label}
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-bold text-amber-200 shrink-0">
+                    {crit.currentText}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Difficulty Weights & Competency Bands Table */}
+            <div className="space-y-3">
+              <div className="bg-slate-950/70 rounded-2xl p-3.5 border border-white/10">
+                <p className="text-xs font-extrabold text-cyan-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5" /> Pesi degli Esercizi in
+                  Funzione della Difficoltà (wᵢ)
+                </p>
+                <div className="grid grid-cols-5 gap-1.5 text-center text-[11px]">
+                  {weightTiers.map((wt) => (
+                    <div
+                      key={wt.tier}
+                      className={`rounded-xl p-2 border ${
+                        wt.tier === currentTier
+                          ? 'bg-purple-900/60 border-amber-300 text-white'
+                          : 'bg-white/5 border-white/10 text-white/75'
+                      }`}
+                    >
+                      <span className="font-bold block truncate">
+                        {wt.label}
+                      </span>
+                      <span className="font-kids font-extrabold text-sm text-amber-300">
+                        w = {wt.weight}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-slate-950/70 rounded-2xl p-3.5 border border-white/10">
+                <p className="text-xs font-extrabold text-purple-300 uppercase tracking-wider mb-2">
+                  Fasce dell’Indice di Competenza (IC 0–100)
+                </p>
+                <div className="grid grid-cols-5 gap-1.5 text-center text-[10px]">
+                  {[
+                    { range: '0–39', label: 'In esplorazione' },
+                    { range: '40–59', label: 'In apprendimento' },
+                    { range: '60–74', label: 'In consolidamento' },
+                    { range: '75–89', label: 'Acquisito' },
+                    { range: '90–100', label: 'Padronanza avanz.' },
+                  ].map((b) => (
+                    <div
+                      key={b.range}
+                      className="rounded-xl p-1.5 bg-white/5 border border-white/10"
+                    >
+                      <span className="font-extrabold text-amber-300 block">
+                        {b.range}
+                      </span>
+                      <span className="text-white/80 block leading-tight mt-0.5">
+                        {b.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ===================================================================== */}
+        {/* SECTION 4: ANALISI GRAFICA MULTIDIMENSIONALE (RADAR + BARRE 0-100)    */}
+        {/* ===================================================================== */}
         <div className="bg-white/5 rounded-3xl p-5 border border-white/10 mb-6">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-pink-400" />
               <h3 className="font-kids font-bold text-sm sm:text-base uppercase tracking-wider text-pink-300">
-                2. Analisi Grafica 3D delle 6 Materie di Competenza
+                4. Analisi Grafica 3D delle 6 Materie (Indice di Competenza
+                0–100)
               </h3>
             </div>
             <span className="text-xs text-white/60">
               {isMeasurementUnlocked
-                ? `Profilo di Emma al Livello ${progress.currentLevel}`
-                : 'Grafici a 0% fino al completamento del Livello 10'}
+                ? `Profilo Multi-Parametro di Emma al Livello ${progress.currentLevel}`
+                : 'Completa il 1° livello per visualizzare la mappa radar multi-parametro'}
             </span>
           </div>
 
@@ -2096,7 +2436,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
             {/* SVG Hexagonal Radar Chart */}
             <div className="flex flex-col items-center justify-center bg-slate-950/60 rounded-2xl p-4 border border-white/10">
               <p className="text-xs font-bold text-white/80 mb-2">
-                Mappa Radar Globale (6 Materie)
+                Mappa Radar Globale (Indice IC 0–100)
               </p>
               <svg viewBox="0 0 230 230" className="w-56 h-56 overflow-visible">
                 {[0.25, 0.5, 0.75, 1].map((scale, idx) => {
@@ -2138,7 +2478,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                       dominantBaseline="middle"
                       className="fill-white text-[9px] font-bold"
                     >
-                      {c.shortLabel} ({c.masteryIndex}%)
+                      {c.shortLabel} ({c.ic}/100)
                     </text>
                   </g>
                 ))}
@@ -2173,16 +2513,16 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                       <span>{m.emoji}</span> {m.title}
                     </span>
                     <span className="font-black text-amber-300">
-                      {m.masteryIndex}%{' '}
+                      {m.ic}/100{' '}
                       <span className="text-white/60 font-normal">
-                        ({m.correctFirstTry}/{m.completed})
+                        (IP {m.ip} · IA {m.ia})
                       </span>
                     </span>
                   </div>
                   <div className="w-full h-3.5 bg-slate-950 rounded-full overflow-hidden p-0.5 border border-white/10">
                     <div
                       className={`h-full rounded-full bg-gradient-to-r ${m.barColor} transition-all duration-500`}
-                      style={{ width: `${m.masteryIndex}%` }}
+                      style={{ width: `${m.ic}%` }}
                     />
                   </div>
                 </div>
@@ -2191,12 +2531,14 @@ export const ParentModal: React.FC<ParentModalProps> = ({
           </div>
         </div>
 
-        {/* SECTION 3: RELAZIONE PEDAGOGICA STRUTTURATA PER AMBITO */}
+        {/* ===================================================================== */}
+        {/* SECTION 5: RELAZIONE PEDAGOGICA STRUTTURATA PER AMBITO                */}
+        {/* ===================================================================== */}
         <div className="space-y-3.5 mb-6">
           <div className="flex items-center gap-2">
             <BookOpen className="w-4 h-4 text-amber-300" />
             <h3 className="font-kids font-bold text-sm uppercase tracking-wider text-amber-300">
-              3. Relazione Pedagogica Dettagliata per Materia — Livello{' '}
+              5. Relazione Pedagogica Dettagliata per Materia — Livello{' '}
               {progress.currentLevel}
             </h3>
           </div>
@@ -2216,7 +2558,8 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                           {m.clinicalName}
                         </h4>
                         <span className="text-[11px] font-semibold text-amber-300">
-                          {m.levelLabel} ({m.masteryIndex}%)
+                          {m.levelLabel} · Competenza IC {m.ic}/100 (Evoluzione{' '}
+                          {m.ieDelta >= 0 ? `+${m.ieDelta}` : m.ieDelta})
                         </span>
                       </div>
                     </div>
@@ -2227,7 +2570,9 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                     {m.milestoneGoal}
                   </p>
                   <p className="text-xs text-white/85 leading-relaxed mt-1.5">
-                    <strong className="text-pink-300">Osservazione AI:</strong>{' '}
+                    <strong className="text-pink-300">
+                      Analisi Tracciabile:
+                    </strong>{' '}
                     {m.pedagogicalNote}
                   </p>
                   <p className="text-[11px] text-amber-200/90 italic mt-1.5">
@@ -2236,59 +2581,163 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                 </div>
 
                 <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between text-[11px] text-white/60">
-                  <span>Prove svolte: {m.completed}</span>
-                  <span>1° tentativo: {m.correctFirstTry}</span>
-                  <span>Accuratezza: {m.accuracy}%</span>
+                  <span>
+                    Autonomi: {m.correctFirstTry}/{m.completed}
+                  </span>
+                  <span>Assistiti: {m.assistedCount}</span>
+                  <span>
+                    IP {m.ip}/100 · IA {m.ia}/100
+                  </span>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* SECTION 4: CONSIGLI EDUCATIVI */}
+        {/* SECTION 6: CONSIGLI EDUCATIVI */}
         <div className="bg-gradient-to-r from-indigo-950/70 via-purple-950/60 to-pink-950/60 rounded-2xl p-5 border border-white/15 mb-6">
           <div className="flex items-center gap-2 mb-3">
             <HeartHandshake className="w-5 h-5 text-pink-300" />
             <h3 className="font-kids font-bold text-sm uppercase tracking-wider text-pink-200">
-              4. Indicazioni Educative per Accompagnare Emma (5 Anni)
+              6. Indicazioni Educative per Accompagnare Emma (5 Anni)
             </h3>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-white/85 leading-relaxed">
             <div className="bg-black/25 rounded-xl p-3 border border-white/10">
               <p className="font-bold text-amber-300 mb-1 flex items-center gap-1">
-                <Compass className="w-3.5 h-3.5" /> Matrici QI & Ragionamento
+                <Compass className="w-3.5 h-3.5" /> Ragionamento Fluido (Gf)
               </p>
               Chiedere a Emma di spiegare ad alta voce perché ha scelto un
-              determinato simbolo nella matrice logica rinforza la metacognizione.
+              determinato simbolo nella sequenza logica rinforza la
+              metacognizione e il trasferimento (IT).
             </div>
             <div className="bg-black/25 rounded-xl p-3 border border-white/10">
               <p className="font-bold text-pink-300 mb-1 flex items-center gap-1">
-                <Music className="w-3.5 h-3.5" /> Musica, Ritmo & Memoria
+                <Music className="w-3.5 h-3.5" /> Memoria di Lavoro (Gwm)
               </p>
               Battere le mani seguendo il ritmo delle note ascoltate nell'app
-              consolida la memoria di lavoro uditiva e la coordinazione motoria.
+              consolida la memoria di lavoro uditiva e la ritenzione nel tempo
+              (IR).
             </div>
             <div className="bg-black/25 rounded-xl p-3 border border-white/10">
               <p className="font-bold text-cyan-300 mb-1 flex items-center gap-1">
-                <Globe className="w-3.5 h-3.5" /> Prime Paroline in Inglese
+                <Globe className="w-3.5 h-3.5" /> Linguaggio & Inglese (Gc)
               </p>
               Ripetere insieme nella vita quotidiana le paroline inglesi
-              imparate (es. Red, Dog, Sun, Apple) favorisce il bilinguismo
-              naturale.
+              imparate (es. Red, Dog, Sun, Apple) favorisce l'autonomia (IA)
+              senza bisogno di suggerimenti.
             </div>
           </div>
         </div>
 
+        {/* SECTION 7: CRITERI DI SICUREZZA, PRIVACY MINORI & INTEGRITÀ DATI */}
+        <div className="bg-slate-950/85 rounded-3xl p-5 border border-emerald-400/35 mb-6 shadow-lg">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3.5 pb-3 border-b border-white/10">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-emerald-400" />
+              <h3 className="font-kids font-bold text-sm sm:text-base uppercase tracking-wider text-emerald-300">
+                7. Criteri di Sicurezza, Privacy Minori (GDPR-K) & Integrità
+                Psicometrica
+              </h3>
+            </div>
+            <span className="px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-[11px] font-extrabold text-emerald-300">
+              ✓ 6/6 Criteri Verificati · Hash {securityCriteria.integrityHash}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {securityCriteria.criteria.map((item) => (
+              <div
+                key={item.id}
+                className="bg-slate-900/90 rounded-2xl p-3.5 border border-white/10 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                      {item.code}
+                    </span>
+                    <span className="text-[11px] font-bold text-emerald-400">
+                      ✓ {item.statusLabel}
+                    </span>
+                  </div>
+                  <h4 className="font-kids font-bold text-xs sm:text-sm text-white">
+                    {item.title}
+                  </h4>
+                  <p className="text-[11px] text-white/75 leading-relaxed mt-1">
+                    {item.description}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* PARENTAL SECURITY GATE FOR RESETTING PROGRESS */}
+        {showResetGate && (
+          <div className="mb-5 p-4 rounded-2xl bg-rose-950/80 border-2 border-rose-400/60 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="text-xs text-rose-100">
+              <p className="font-kids font-bold text-sm text-white flex items-center gap-1.5">
+                <Lock className="w-4 h-4 text-amber-300" /> Filtro di Sicurezza
+                Genitori (Anti-Cancellazione Accidentale)
+              </p>
+              <p className="mt-0.5 text-rose-200">
+                Per confermare l’azzeramento dei progressi, scrivi il risultato
+                di <strong className="text-yellow-300">7 + 5</strong>:
+              </p>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <input
+                type="number"
+                inputMode="numeric"
+                value={gateInput}
+                onChange={(e) => {
+                  setGateInput(e.target.value);
+                  setGateError(false);
+                }}
+                placeholder="7 + 5 = ?"
+                className={`w-24 px-3 py-2 rounded-xl bg-slate-950 text-white font-bold text-sm border ${
+                  gateError ? 'border-rose-400' : 'border-white/25'
+                } focus:outline-none`}
+              />
+              <button
+                onClick={() => {
+                  if (gateInput.trim() === '12') {
+                    setShowResetGate(false);
+                    setGateInput('');
+                    setGateError(false);
+                    onResetProgress();
+                  } else {
+                    setGateError(true);
+                  }
+                }}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs cursor-pointer"
+              >
+                Conferma Reset
+              </button>
+              <button
+                onClick={() => {
+                  setShowResetGate(false);
+                  setGateInput('');
+                  setGateError(false);
+                }}
+                className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold cursor-pointer"
+              >
+                Annulla
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* FOOTER ACTIONS */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-white/10">
           <button
-            onClick={onResetProgress}
+            onClick={() => setShowResetGate(true)}
             className="flex items-center gap-1.5 text-xs font-bold text-rose-400 hover:text-rose-300 transition-colors px-3 py-2 rounded-xl hover:bg-rose-500/10 cursor-pointer"
           >
             <RotateCcw className="w-4 h-4" /> Azzera Percorso e Statistiche
           </button>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <button
               onClick={handleDownloadPdfReport}
               disabled={isGeneratingPdf}

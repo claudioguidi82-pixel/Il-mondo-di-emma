@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GameCategory, UserProgress, SavedDrawing } from './types/game';
+import { GameCategory, PuzzleType, UserProgress, SavedDrawing } from './types/game';
 import { loadUserProgress, saveUserProgress } from './data/gameData';
 import { PlayArena } from './components/PlayArena';
 import { SvagoArena } from './components/SvagoArena';
@@ -7,6 +7,11 @@ import { StudioDisegno } from './components/StudioDisegno';
 import { ParentModal } from './components/ParentModal';
 import { soundManager } from './utils/audio';
 import { confetti } from './utils/confetti';
+import {
+  getDifficultyWeightInfo,
+  createEvaluationSnapshot,
+  syncAnnualAndMonthlyProgress,
+} from './utils/evaluationEngine';
 import { 
   Play, 
   Star, 
@@ -16,7 +21,9 @@ import {
 } from 'lucide-react';
 
 export default function App() {
-  const [progress, setProgress] = useState<UserProgress>(loadUserProgress);
+  const [progress, setProgress] = useState<UserProgress>(() =>
+    syncAnnualAndMonthlyProgress(loadUserProgress())
+  );
   const [currentView, setCurrentView] = useState<'title' | 'play' | 'studio'>('title');
   const [isParentsOpen, setIsParentsOpen] = useState(false);
 
@@ -76,30 +83,69 @@ export default function App() {
     gems: number,
     category: GameCategory,
     isFirstTry: boolean,
-    attemptsCount: number = 1
+    attemptsCount: number = 1,
+    hintsUsed: number = 0,
+    puzzleType?: PuzzleType,
+    responseTimeMs: number = 4800,
+    chcPrimary?: 'Gf' | 'Gwm' | 'Gc' | 'Gv' | 'Gs',
+    chcSecondary?: 'Gf' | 'Gwm' | 'Gc' | 'Gv' | 'Gs'
   ) => {
     const cleanAttempts = Math.max(1, attemptsCount);
+    const cleanHints = Math.max(0, hintsUsed);
+    const cleanResponseMs = Math.max(450, Math.min(45000, Math.round(responseTimeMs || 4800)));
     updateProgress(prev => {
       const nextLevel = prev.currentLevel + 1;
       const highest = Math.max(prev.highestLevelReached, nextLevel);
-      const prevCat = prev.categoryStats[category] || { correct: 0, total: 0, attempts: 0 };
-      const prevAttempts = prevCat.attempts ?? (prevCat.correct + Math.max(0, prevCat.total - prevCat.correct) * 2);
+      const wInfo = getDifficultyWeightInfo(prev.currentLevel, true);
+      // c_i = 1 if solved on 1st try without hints; assisted successes tracked separately
+      const isAutonomous = Boolean(isFirstTry) && cleanAttempts === 1 && cleanHints === 0;
+
+      const prevCat = prev.categoryStats[category] || {
+        correct: 0,
+        total: 0,
+        attempts: 0,
+        assistedSuccesses: 0,
+        hintsUsed: 0,
+        weightedCorrectSum: 0,
+        weightedTotalSum: 0,
+      };
+      const prevAttempts =
+        prevCat.attempts ??
+        prevCat.correct + Math.max(0, prevCat.total - prevCat.correct) * 2;
+
+      const today = new Date().toISOString().split('T')[0];
+      const existingDates = prev.sessionDates || (prev.lastPlayedDate ? [prev.lastPlayedDate] : []);
+      const isNewDay = !existingDates.includes(today);
+      const nextSessionDates = isNewDay ? [...existingDates, today] : existingDates;
+      const nextSessionsCount = (prev.sessionsCount ?? 1) + (isNewDay ? 1 : 0);
+
       const nextHistory = [
         ...(prev.levelHistory || []),
         {
           level: prev.currentLevel,
+          tier: wInfo.tier,
+          weight: wInfo.weight,
           category,
-          firstTry: isFirstTry,
+          puzzleType,
+          chcPrimary,
+          chcSecondary,
+          firstTry: isAutonomous,
+          assistedSuccess: !isAutonomous,
           attempts: cleanAttempts,
+          hintsUsed: cleanHints,
+          responseTimeMs: cleanResponseMs,
           starsEarned: stars,
           timestamp: new Date().toISOString(),
         },
-      ].slice(-60);
+      ].slice(-150);
 
-      return {
+      const updatedProgress: UserProgress = {
         ...prev,
         currentLevel: nextLevel,
         highestLevelReached: highest,
+        lastPlayedDate: today,
+        sessionsCount: nextSessionsCount,
+        sessionDates: nextSessionDates,
         stars: prev.stars + stars,
         gems: prev.gems + gems,
         totalPuzzlesSolved: prev.totalPuzzlesSolved + 1,
@@ -107,13 +153,30 @@ export default function App() {
         categoryStats: {
           ...prev.categoryStats,
           [category]: {
-            correct: prevCat.correct + (isFirstTry ? 1 : 0),
+            correct: prevCat.correct + (isAutonomous ? 1 : 0),
             total: prevCat.total + 1,
             attempts: prevAttempts + cleanAttempts,
+            assistedSuccesses: (prevCat.assistedSuccesses ?? 0) + (isAutonomous ? 0 : 1),
+            hintsUsed: (prevCat.hintsUsed ?? 0) + cleanHints,
+            weightedCorrectSum:
+              (prevCat.weightedCorrectSum ?? 0) + (isAutonomous ? wInfo.weight : 0),
+            weightedTotalSum: (prevCat.weightedTotalSum ?? 0) + wInfo.weight,
           },
         },
         levelHistory: nextHistory,
       };
+
+      // Save an evaluation snapshot every 3 solved exercises so IE (Evolution) updates rapidly
+      const completedCount = nextLevel - 1;
+      if (completedCount >= 1 && (completedCount % 3 === 0 || isNewDay)) {
+        const snap = createEvaluationSnapshot(updatedProgress);
+        updatedProgress.evaluationSnapshots = [
+          ...(prev.evaluationSnapshots || []),
+          snap,
+        ].slice(-30);
+      }
+
+      return syncAnnualAndMonthlyProgress(updatedProgress);
     });
   };
 
@@ -136,20 +199,21 @@ export default function App() {
   };
 
   const handleResetProgress = () => {
+    const today = new Date().toISOString().split('T')[0];
     const fresh: UserProgress = {
       currentLevel: 1,
       highestLevelReached: 1,
       stars: 0,
       gems: 10,
       streakDays: 1,
-      lastPlayedDate: new Date().toISOString().split('T')[0],
+      lastPlayedDate: today,
       categoryStats: {
-        logic: { correct: 0, total: 0, attempts: 0 },
-        letters: { correct: 0, total: 0, attempts: 0 },
-        numbers: { correct: 0, total: 0, attempts: 0 },
-        shapes: { correct: 0, total: 0, attempts: 0 },
-        music: { correct: 0, total: 0, attempts: 0 },
-        english: { correct: 0, total: 0, attempts: 0 },
+        logic: { correct: 0, total: 0, attempts: 0, assistedSuccesses: 0, hintsUsed: 0 },
+        letters: { correct: 0, total: 0, attempts: 0, assistedSuccesses: 0, hintsUsed: 0 },
+        numbers: { correct: 0, total: 0, attempts: 0, assistedSuccesses: 0, hintsUsed: 0 },
+        shapes: { correct: 0, total: 0, attempts: 0, assistedSuccesses: 0, hintsUsed: 0 },
+        music: { correct: 0, total: 0, attempts: 0, assistedSuccesses: 0, hintsUsed: 0 },
+        english: { correct: 0, total: 0, attempts: 0, assistedSuccesses: 0, hintsUsed: 0 },
       },
       trisGamesPlayed: 0,
       trisGamesWon: 0,
@@ -162,10 +226,15 @@ export default function App() {
       savedDrawings: [],
       completedPuzzleIds: [],
       levelHistory: [],
+      evaluationSnapshots: [],
+      sessionsCount: 1,
+      sessionDates: [today],
+      annualProgressRows: [],
     };
-    setProgress(fresh);
-    saveUserProgress(fresh);
-    soundManager.speak('Progressi azzerati! Si riparte dal primo livello con gioia!', 1.2);
+    const syncedFresh = syncAnnualAndMonthlyProgress(fresh);
+    setProgress(syncedFresh);
+    saveUserProgress(syncedFresh);
+    soundManager.speak('Progressi azzerati! Si riparte dal primo livello con gioia!');
   };
 
   // Every 10 levels (Level 10, 20, 30...) is a Svago Level (Tris, Bolle, Memory...)
@@ -204,7 +273,7 @@ export default function App() {
       {/* DATA), TWO COMPACT 3D CLOUDS UNITED BY A RAINBOW, AND BOTTOM PARENTS TAB  */}
       {/* ========================================================================= */}
       {currentView === 'title' && (
-        <div className="relative z-10 h-full w-full flex flex-col justify-between p-3 sm:p-5 max-w-md mx-auto overflow-hidden">
+        <div className="safe-viewport-pad relative z-10 h-full w-full flex flex-col justify-between p-3 sm:p-5 max-w-md sm:max-w-xl md:max-w-2xl mx-auto overflow-hidden">
           
           {/* 1. TOP FLOATING TITLE & UNIFIED MILESTONE TAB (LIVELLO · STELLINE · ANNI · DATA) */}
           <div className="flex flex-col items-center text-center pt-1 shrink-0">
@@ -308,17 +377,17 @@ export default function App() {
               </button>
             </div>
 
-            {/* BOTTOM-MOST TAB: TAB GENITORI (RELAZIONE PEDAGOGICA, QI & REPORT PDF) */}
+            {/* BOTTOM-MOST TAB: TAB GENITORI (RELAZIONE PEDAGOGICA, PROFILO CHC & REPORT PDF) */}
             <button
               onClick={() => {
                 soundManager.playPop();
                 setIsParentsOpen(true);
               }}
               className="w-full max-w-[360px] flex items-center justify-center gap-2 py-2 px-4 bg-black/65 hover:bg-black/80 active:scale-98 backdrop-blur-md rounded-full border border-pink-300/45 text-[11px] sm:text-xs font-kids font-bold text-white shadow-xl cursor-pointer transition-all"
-              title="Apri Area Genitori, Valutazione QI e Scarica Report PDF"
+              title="Apri Area Genitori, Valutazione Competenze CHC e Scarica Report PDF"
             >
               <ShieldCheck className="w-4 h-4 text-pink-400 shrink-0" />
-              <span className="text-pink-100 truncate">AREA GENITORI · RELAZIONE, QI & REPORT PDF</span>
+              <span className="text-pink-100 truncate">AREA GENITORI · RELAZIONE, PROFILO CHC & REPORT PDF</span>
               <FileDown className="w-4 h-4 text-yellow-300 shrink-0" />
             </button>
           </div>

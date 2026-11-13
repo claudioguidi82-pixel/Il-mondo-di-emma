@@ -1,4 +1,8 @@
 import { Puzzle, Trophy, UserProgress } from '../types/game';
+import {
+  sanitizeAndValidateProgress,
+  computeProgressIntegrityHash,
+} from '../utils/security';
 
 export const TROPHIES: Trophy[] = [
   {
@@ -89,13 +93,13 @@ export const EDUCATIONAL_PUZZLES: Puzzle[] = [
     category: 'logic',
     type: 'odd_one_out',
     title: 'Trova l’Intruso tra gli Animali',
-    prompt: 'Tre di queste cose sono dolci animali del bosco... ma una NON è un animale! Qual è l’intruso?',
-    speechText: 'Emma, aguzza la vista: c’è un intruso tra questi animaletti! Quale di questi non è un animale?',
+    prompt: 'Tre di queste figure sono dolci animali del bosco... ma una NON è un animale! Qual è l’intruso?',
+    speechText: 'Emma, aguzza la vista: c’è un intruso tra questi animaletti! Quale di queste figure non è un animale?',
     animalGuide: {
       name: 'Volpina Fiamma',
       emoji: '🦊',
       role: 'Detective dei Misteri',
-      voicePitch: 1.2
+      voicePitch: 1.02
     },
     options: [
       { id: 'opt_dog', label: 'Cagnolino', sublabel: 'Animale', emoji: '🐶', isCorrect: false },
@@ -112,13 +116,13 @@ export const EDUCATIONAL_PUZZLES: Puzzle[] = [
     category: 'logic',
     type: 'odd_one_out',
     title: 'Chi NON Vola nel Cielo?',
-    prompt: 'Guarda bene chi viaggia nel cielo: quale di queste cose NON può volare?',
-    speechText: 'Emma, chi di questi non ha le ali per volare nel cielo azzurro?',
+    prompt: 'Guarda bene chi viaggia nel cielo: quale di queste figure NON può volare?',
+    speechText: 'Emma, quale di queste figure non ha le ali per volare nel cielo azzurro?',
     animalGuide: {
       name: 'Rondine Piuma',
       emoji: '🕊️',
       role: 'Guida del Vento',
-      voicePitch: 1.3
+      voicePitch: 1.04
     },
     options: [
       { id: 'opt_butter', label: 'Farfalla', sublabel: 'Vola tra i fiori', emoji: '🦋', isCorrect: false },
@@ -464,51 +468,30 @@ export const STICKERS = [
 ];
 
 const STORAGE_KEY = 'il_mondo_di_emma_infinite_v1';
+const INTEGRITY_KEY = 'il_mondo_di_emma_security_sig_v1';
 
 export function loadUserProgress(): UserProgress {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      return {
-        currentLevel: parsed.currentLevel ?? 1,
-        highestLevelReached: parsed.highestLevelReached ?? parsed.currentLevel ?? 1,
-        stars: parsed.stars ?? 0,
-        gems: parsed.gems ?? 10,
-        streakDays: parsed.streakDays ?? 1,
-        lastPlayedDate: parsed.lastPlayedDate ?? new Date().toISOString().split('T')[0],
-        categoryStats: {
-          logic: parsed.categoryStats?.logic ?? { correct: 0, total: 0, attempts: 0 },
-          letters: parsed.categoryStats?.letters ?? { correct: 0, total: 0, attempts: 0 },
-          numbers: parsed.categoryStats?.numbers ?? { correct: 0, total: 0, attempts: 0 },
-          shapes: parsed.categoryStats?.shapes ?? { correct: 0, total: 0, attempts: 0 },
-          music: parsed.categoryStats?.music ?? { correct: 0, total: 0, attempts: 0 },
-          english: parsed.categoryStats?.english ?? { correct: 0, total: 0, attempts: 0 },
-        },
-        trisGamesPlayed: parsed.trisGamesPlayed ?? 0,
-        trisGamesWon: parsed.trisGamesWon ?? 0,
-        soundEnabled: parsed.soundEnabled ?? true,
-        voiceEnabled: parsed.voiceEnabled ?? true,
-        musicEnabled: parsed.musicEnabled ?? true,
-        totalPuzzlesSolved: parsed.totalPuzzlesSolved ?? 0,
-        totalAttempts: parsed.totalAttempts ?? 0,
-        dailyRewardClaimed: parsed.dailyRewardClaimed ?? false,
-        savedDrawings: parsed.savedDrawings ?? [],
-        completedPuzzleIds: parsed.completedPuzzleIds ?? [],
-        levelHistory: Array.isArray(parsed.levelHistory) ? parsed.levelHistory : [],
-      };
+      const validated = sanitizeAndValidateProgress(parsed);
+      if (validated) {
+        return validated;
+      }
     }
   } catch {
-    // ignore
+    // ignore corrupted storage
   }
 
+  const today = new Date().toISOString().split('T')[0];
   return {
     currentLevel: 1,
     highestLevelReached: 1,
     stars: 0,
     gems: 10,
     streakDays: 1,
-    lastPlayedDate: new Date().toISOString().split('T')[0],
+    lastPlayedDate: today,
     categoryStats: {
       logic: { correct: 0, total: 0, attempts: 0 },
       letters: { correct: 0, total: 0, attempts: 0 },
@@ -528,31 +511,40 @@ export function loadUserProgress(): UserProgress {
     savedDrawings: [],
     completedPuzzleIds: [],
     levelHistory: [],
+    evaluationSnapshots: [],
+    sessionsCount: 1,
+    sessionDates: [today],
+    annualProgressRows: [],
   };
 }
 
 export function saveUserProgress(progress: UserProgress) {
+  const sanitized = sanitizeAndValidateProgress(progress) || progress;
+  const sig = computeProgressIntegrityHash(sanitized);
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
+    localStorage.setItem(INTEGRITY_KEY, sig);
   } catch {
     // Fallback if QuotaExceededError (e.g. large base64 drawings): keep recent 4 drawings and retry
     try {
       const trimmed: UserProgress = {
-        ...progress,
-        savedDrawings: (progress.savedDrawings || []).slice(0, 4),
+        ...sanitized,
+        savedDrawings: (sanitized.savedDrawings || []).slice(0, 4),
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+      localStorage.setItem(INTEGRITY_KEY, sig);
     } catch {
       // Last-resort: persist core progression & stats without image blobs
       try {
         const lightweight: UserProgress = {
-          ...progress,
-          savedDrawings: (progress.savedDrawings || []).map((d) => ({
+          ...sanitized,
+          savedDrawings: (sanitized.savedDrawings || []).map((d) => ({
             ...d,
             dataUrl: '',
           })),
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(lightweight));
+        localStorage.setItem(INTEGRITY_KEY, sig);
       } catch {
         // ignore if storage completely unavailable
       }

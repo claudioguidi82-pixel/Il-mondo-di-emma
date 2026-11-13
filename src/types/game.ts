@@ -93,6 +93,9 @@ export interface Puzzle {
   rhythmNotes?: RhythmNote[];
   englishWord?: EnglishWordHighlight;
   iqParameterTag?: string;
+  chcPrimary?: 'Gf' | 'Gwm' | 'Gc' | 'Gv' | 'Gs';
+  chcSecondary?: 'Gf' | 'Gwm' | 'Gc' | 'Gv' | 'Gs';
+  diagnosticTarget?: string;
   rewardStars: number;
   rewardGems: number;
   funExplanation: string;
@@ -136,15 +139,122 @@ export interface CategoryPerformance {
   correct: number;
   total: number;
   attempts?: number;
+  assistedSuccesses?: number;
+  hintsUsed?: number;
+  weightedCorrectSum?: number;
+  weightedTotalSum?: number;
 }
 
 export interface LevelPerformanceEntry {
   level: number;
+  tier?: number;
+  weight?: number;
   category: GameCategory;
-  firstTry: boolean;
+  puzzleType?: PuzzleType;
+  chcPrimary?: 'Gf' | 'Gwm' | 'Gc' | 'Gv' | 'Gs';
+  chcSecondary?: 'Gf' | 'Gwm' | 'Gc' | 'Gv' | 'Gs';
+  firstTry: boolean;        // c_i = 1 if solved on 1st try without hints, 0 otherwise
+  assistedSuccess?: boolean; // solved after hint or retry (tracked separately from autonomous c_i)
   attempts: number;
+  hintsUsed?: number;
+  responseTimeMs?: number;
   starsEarned: number;
   timestamp: string;
+}
+
+export type CompetencyBandLabel =
+  | 'In esplorazione'
+  | 'In apprendimento'
+  | 'In consolidamento'
+  | 'Acquisito'
+  | 'Padronanza avanzata';
+
+export interface EvaluationSnapshot {
+  id: string;
+  timestamp: string;
+  date: string;
+  levelNumber: number;
+  sessionsCount: number;
+  significantExercises: number;
+  ip: number; // Indice di Prestazione (0-100)
+  ic: number; // Indice di Competenza (0-100)
+  ia: number; // Indice di Autonomia (0-100)
+  ir: number; // Capacità di ricordare nel tempo (0-100)
+  it: number; // Capacità di trasferimento (0-100)
+  domainIC: Record<GameCategory, number>;
+  chcScores: {
+    Gf: number;
+    Gwm: number;
+    Gc: number;
+    Gv: number;
+    Gs: number;
+  };
+}
+
+export interface MonthlyProgressCheckpoint {
+  monthKey: string;       // YYYY-MM (updated at the start of each month: YYYY-MM-01)
+  monthLabel: string;     // es. "1 Nov 2026"
+  recordedAtDate: string; // YYYY-MM-DD
+  levelReached: number;
+  ip: number;             // 0-100
+  ic: number;             // 0-100
+  ia: number;             // 0-100
+  ieDeltaFromStart: number; // IC_attuale - IC_partenza
+  chcScores: {
+    Gf: number;
+    Gwm: number;
+    Gc: number;
+    Gv: number;
+    Gs: number;
+  };
+}
+
+export interface AnnualAgeProgressRow {
+  id: string;                 // es. "age_4", "age_5", "age_6"
+  ageYears: number;           // Età compiuta dalla bambina (es. 4, 5, 6...)
+  ageLabel: string;           // es. "4 Anni", "5 Anni"
+  periodLabel: string;        // es. "22/08/2025 – 21/08/2026"
+  isLockedFixedRow: boolean;  // true = riga fissa consolidata al compimento dell'anno successivo; false = riga attiva dell'anno in corso
+  lockedAtDate?: string;      // Data del compleanno in cui la riga è diventata fissa
+  lastMonthlyUpdateKey: string;   // YYYY-MM dell'ultimo aggiornamento di inizio mese
+  lastMonthlyUpdateLabel: string; // es. "01/11/2026 (Inizio Mese)"
+
+  // PUNTO DI PARTENZA (Inizio utilizzo app / Inizio anno di età)
+  startLevel: number;
+  startDate: string;
+  startIp: number;
+  startIc: number;
+  startIa: number;
+  startBand: CompetencyBandLabel;
+  startChc: {
+    Gf: number;
+    Gwm: number;
+    Gc: number;
+    Gv: number;
+    Gs: number;
+  };
+
+  // VALORE ATTUALE (o Finale consolidato se riga fissa)
+  currentLevel: number;
+  currentDate: string;
+  currentIp: number;
+  currentIc: number;
+  currentIa: number;
+  currentBand: CompetencyBandLabel;
+  currentChc: {
+    Gf: number;
+    Gwm: number;
+    Gc: number;
+    Gv: number;
+    Gs: number;
+  };
+
+  // CONFRONTO & PROGRESSO OTTENUTO GRAZIE ALL'APP (Attuale - Punto di partenza)
+  deltaLevels: number;
+  deltaIp: number;
+  deltaIc: number;
+  deltaIa: number;
+  monthlyCheckpoints: MonthlyProgressCheckpoint[];
 }
 
 export interface PedagogicalDomainReport {
@@ -153,7 +263,7 @@ export interface PedagogicalDomainReport {
   icon: string;
   ageMilestoneGoal: string;
   scorePercent: number;
-  status: 'In Calibrazione' | 'In Sviluppo' | 'Buono' | 'Eccellente';
+  status: CompetencyBandLabel;
   summary: string;
   tipsForParents: string;
 }
@@ -186,4 +296,11 @@ export interface UserProgress {
   savedDrawings: SavedDrawing[];
   completedPuzzleIds: string[];
   levelHistory?: LevelPerformanceEntry[];
+  evaluationSnapshots?: EvaluationSnapshot[];
+  sessionsCount?: number;
+  sessionDates?: string[];
+  annualProgressRows?: AnnualAgeProgressRow[];
+  lastMonthlyUpdateKey?: string;
 }
+
+

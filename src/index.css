@@ -454,17 +454,95 @@
     inset 0 4px 6px rgba(255, 255, 255, 1);
 }
 
-/* Smartphone, Foldable and Tablet Specific Ergonomics */
+/* ========================================================================= */
+/* UNIVERSAL MULTI-DEVICE ERGONOMICS (SMARTPHONES, FOLDABLES, TABLETS, PCs)  */
+/* ========================================================================= */
+
+.safe-viewport-pad {
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  padding-left: max(0.5rem, env(safe-area-inset-left));
+  padding-right: max(0.5rem, env(safe-area-inset-right));
+}
+
+button:focus-visible,
+[role="button"]:focus-visible {
+  outline: 3px solid #facc15;
+  outline-offset: 2px;
+}
+
+/* 1. Ultra-compact Smartphones (e.g. iPhone SE, Galaxy Mini <= 375px width) */
+@media (max-width: 375px) {
+  .board-3d-tabletop {
+    padding: 0.65rem !important;
+    border-radius: 1.35rem !important;
+  }
+  .toy-card-3d {
+    padding: 0.55rem 0.45rem !important;
+    border-radius: 1.25rem !important;
+  }
+}
+
+/* 2. Short Vertical Height Viewports (Small phones & compact laptops <= 700px) */
+@media (max-height: 700px) {
+  .btn-chunky {
+    padding-top: 0.4rem !important;
+    padding-bottom: 0.4rem !important;
+  }
+  .board-3d-tabletop {
+    padding-top: 0.65rem !important;
+    padding-bottom: 0.65rem !important;
+  }
+  .toy-card-3d {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+}
+
+/* 3. Mobile & Phablet Landscape Mode (Horizontal phones max-height: 540px) */
+@media (orientation: landscape) and (max-height: 540px) {
+  .landscape-compact-stage {
+    flex-direction: row !important;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
+  }
+  .landscape-compact-stage > .board-3d-tabletop {
+    flex: 1 1 46% !important;
+    margin-bottom: 0 !important;
+    padding: 0.6rem !important;
+  }
+  .landscape-compact-stage > .options-grid-responsive {
+    flex: 1 1 54% !important;
+    align-content: center !important;
+  }
+  .toy-card-3d {
+    padding: 0.45rem !important;
+  }
+}
+
+/* 4. Foldables & Tablets (iPad Mini, iPad Air, Galaxy Tab, Z Fold: 600px - 1280px) */
 @media (min-width: 600px) and (max-width: 1280px) {
   button, input, [role="button"] {
     touch-action: manipulation;
   }
 }
 
-@media (max-height: 720px) {
-  .btn-chunky {
-    padding-top: 0.5rem !important;
-    padding-bottom: 0.5rem !important;
+/* 5. Large Desktops, All-in-Ones & Ultrawide Monitors (>= 1280px) */
+@media (min-width: 1280px) {
+  .board-3d-tabletop {
+    transform: rotateX(2deg);
+  }
+}
+
+/* 6. Accessibility: Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-3d,
+  .animate-gentle-bounce,
+  .animate-cloud-drift,
+  .animate-rainbow-glow {
+    animation: none !important;
   }
 }
 

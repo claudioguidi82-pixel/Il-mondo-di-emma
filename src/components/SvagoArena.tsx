@@ -190,7 +190,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
 
   useEffect(() => {
     soundManager.speakPraise(
-      `Evviva Emma! Livello ${levelNumber}: sei nel Parco Giochi Arcobaleno 3D! Scegli il tuo gioco preferito!`
+      `Evviva Emma! Livello ${levelNumber}: sei nel Parco Giochi Arcobaleno! Scegli il tuo gioco preferito!`
     );
     initBubblesGame();
     initMemoryGame();
@@ -243,7 +243,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
           );
         } else if (result.winner === 'DRAW') {
           soundManager.playSuccess();
-          soundManager.speak('Pareggio! Giochiamo un altra partita!');
+          soundManager.speak("Pareggio! Giochiamo un'altra partita!");
         }
       } else {
         setIsEmmaTurn(true);
@@ -269,7 +269,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
         soundManager.playFanfare();
         confetti.burst();
         soundManager.speakPraise(
-          'Tris! Bravissima Emma! Hai vinto 3 stelline d oro!'
+          "Tris! Bravissima Emma! Hai vinto tre stelline d'oro!"
         );
       } else if (result.winner === 'DRAW') {
         soundManager.playSuccess();
@@ -294,7 +294,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
       soundManager.playFanfare();
       confetti.burst();
       soundManager.speakPraise(
-        'Fantastico Emma! Hai scoppiato tutte le bolle magiche 3D!'
+        'Fantastico Emma! Hai scoppiato tutte le bolle magiche!'
       );
     }
   };
@@ -475,7 +475,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
       </header>
 
       {/* 4 MINI-GAME 3D SELECTOR TABS */}
-      <div className="relative z-10 px-3 py-1 max-w-md mx-auto w-full shrink-0">
+      <div className="relative z-10 px-3 py-1 max-w-md sm:max-w-xl md:max-w-2xl mx-auto w-full shrink-0">
         <div className="grid grid-cols-4 gap-1.5 bg-white/90 backdrop-blur-md p-1.5 rounded-2xl border-2 border-white shadow-lg">
           {[
             { id: 'tris', label: 'Tris 3D', emoji: '👑' },
@@ -506,7 +506,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
       </div>
 
       {/* MAIN 3D ARENA CONTENT */}
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-between px-4 py-1.5 max-w-md mx-auto w-full min-h-0">
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-between px-4 py-1.5 max-w-md sm:max-w-xl md:max-w-2xl mx-auto w-full min-h-0">
         {/* MODE 1: 3D TRIS */}
         {gameMode === 'tris' && (
           <>

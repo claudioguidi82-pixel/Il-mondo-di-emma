@@ -63,21 +63,23 @@ export interface MathItemTheme {
   plural: string;            // "mele", "fragoline", "biscottini", "stelline"
   gender: 'f' | 'm';
   articleSingular: string;   // "una" o "un"
+  articlePluralDef: string;  // "le", "i", "gli"
   articlePluralAll: string;  // "tutte le", "tutti i", "tutti gli"
-  eachPhrase: string;        // "una ad una" o "uno ad uno"
+  eachPhrase: string;        // "una alla volta" o "uno alla volta"
   countPronoun: string;      // "contarle" o "contarli"
+  countedLabel: string;      // "Contate" o "Contati"
 }
 
 export const MATH_ITEM_CATALOG: MathItemTheme[] = [
-  { emoji: '🍎', singular: 'mela', plural: 'mele', gender: 'f', articleSingular: 'una', articlePluralAll: 'tutte le', eachPhrase: 'una ad una', countPronoun: 'contarle' },
-  { emoji: '🍓', singular: 'fragolina', plural: 'fragoline', gender: 'f', articleSingular: 'una', articlePluralAll: 'tutte le', eachPhrase: 'una ad una', countPronoun: 'contarle' },
-  { emoji: '⭐', singular: 'stellina', plural: 'stelline', gender: 'f', articleSingular: 'una', articlePluralAll: 'tutte le', eachPhrase: 'una ad una', countPronoun: 'contarle' },
-  { emoji: '🦋', singular: 'farfallina', plural: 'farfalline', gender: 'f', articleSingular: 'una', articlePluralAll: 'tutte le', eachPhrase: 'una ad una', countPronoun: 'contarle' },
-  { emoji: '🥕', singular: 'carota', plural: 'carote', gender: 'f', articleSingular: 'una', articlePluralAll: 'tutte le', eachPhrase: 'una ad una', countPronoun: 'contarle' },
-  { emoji: '🍪', singular: 'biscottino', plural: 'biscottini', gender: 'm', articleSingular: 'un', articlePluralAll: 'tutti i', eachPhrase: 'uno ad uno', countPronoun: 'contarli' },
-  { emoji: '🎈', singular: 'palloncino', plural: 'palloncini', gender: 'm', articleSingular: 'un', articlePluralAll: 'tutti i', eachPhrase: 'uno ad uno', countPronoun: 'contarli' },
-  { emoji: '🐬', singular: 'delfino', plural: 'delfini', gender: 'm', articleSingular: 'un', articlePluralAll: 'tutti i', eachPhrase: 'uno ad uno', countPronoun: 'contarli' },
-  { emoji: '🧸', singular: 'orsetto', plural: 'orsetti', gender: 'm', articleSingular: 'un', articlePluralAll: 'tutti gli', eachPhrase: 'uno ad uno', countPronoun: 'contarli' },
+  { emoji: '🍎', singular: 'mela', plural: 'mele', gender: 'f', articleSingular: 'una', articlePluralDef: 'le', articlePluralAll: 'tutte le', eachPhrase: 'una alla volta', countPronoun: 'contarle', countedLabel: 'Contate' },
+  { emoji: '🍓', singular: 'fragolina', plural: 'fragoline', gender: 'f', articleSingular: 'una', articlePluralDef: 'le', articlePluralAll: 'tutte le', eachPhrase: 'una alla volta', countPronoun: 'contarle', countedLabel: 'Contate' },
+  { emoji: '⭐', singular: 'stellina', plural: 'stelline', gender: 'f', articleSingular: 'una', articlePluralDef: 'le', articlePluralAll: 'tutte le', eachPhrase: 'una alla volta', countPronoun: 'contarle', countedLabel: 'Contate' },
+  { emoji: '🦋', singular: 'farfallina', plural: 'farfalline', gender: 'f', articleSingular: 'una', articlePluralDef: 'le', articlePluralAll: 'tutte le', eachPhrase: 'una alla volta', countPronoun: 'contarle', countedLabel: 'Contate' },
+  { emoji: '🥕', singular: 'carota', plural: 'carote', gender: 'f', articleSingular: 'una', articlePluralDef: 'le', articlePluralAll: 'tutte le', eachPhrase: 'una alla volta', countPronoun: 'contarle', countedLabel: 'Contate' },
+  { emoji: '🍪', singular: 'biscottino', plural: 'biscottini', gender: 'm', articleSingular: 'un', articlePluralDef: 'i', articlePluralAll: 'tutti i', eachPhrase: 'uno alla volta', countPronoun: 'contarli', countedLabel: 'Contati' },
+  { emoji: '🎈', singular: 'palloncino', plural: 'palloncini', gender: 'm', articleSingular: 'un', articlePluralDef: 'i', articlePluralAll: 'tutti i', eachPhrase: 'uno alla volta', countPronoun: 'contarli', countedLabel: 'Contati' },
+  { emoji: '🐬', singular: 'delfino', plural: 'delfini', gender: 'm', articleSingular: 'un', articlePluralDef: 'i', articlePluralAll: 'tutti i', eachPhrase: 'uno alla volta', countPronoun: 'contarli', countedLabel: 'Contati' },
+  { emoji: '🧸', singular: 'orsetto', plural: 'orsetti', gender: 'm', articleSingular: 'un', articlePluralDef: 'gli', articlePluralAll: 'tutti gli', eachPhrase: 'uno alla volta', countPronoun: 'contarli', countedLabel: 'Contati' },
 ];
 
 const ITALIAN_NUM_WORDS: Record<number, { f: string; m: string }> = {
@@ -93,8 +95,9 @@ const ITALIAN_NUM_WORDS: Record<number, { f: string; m: string }> = {
 
 export function formatQuantityItalian(count: number, item: MathItemTheme): { text: string; speech: string } {
   if (count === 1) {
+    const capArticle = item.articleSingular.charAt(0).toUpperCase() + item.articleSingular.slice(1);
     return {
-      text: `${item.articleSingular} ${item.singular}`,
+      text: `${capArticle} ${item.singular}`,
       speech: `${item.articleSingular} ${item.singular}`,
     };
   }
@@ -102,6 +105,24 @@ export function formatQuantityItalian(count: number, item: MathItemTheme): { tex
   return {
     text: `${count} ${item.plural}`,
     speech: `${word} ${item.plural}`,
+  };
+}
+
+/**
+ * Formats collective plural phrases with exact Italian grammar:
+ * - Feminine: "tutte e 3 le farfalline" (spoken: "tutte e tre le farfalline")
+ * - Masculine (i): "tutti e 3 i biscottini" (spoken: "tutti e tre i biscottini")
+ * - Masculine (gli): "tutti e 3 gli orsetti" (spoken: "tutti e tre gli orsetti")
+ */
+export function formatAllPluralItalian(count: number, item: MathItemTheme): { text: string; speech: string } {
+  if (count <= 1) {
+    return formatQuantityItalian(1, item);
+  }
+  const allWord = item.gender === 'f' ? 'tutte' : 'tutti';
+  const numWord = ITALIAN_NUM_WORDS[count]?.[item.gender] || `${count}`;
+  return {
+    text: `${allWord} e ${count} ${item.articlePluralDef} ${item.plural}`,
+    speech: `${allWord} e ${numWord} ${item.articlePluralDef} ${item.plural}`,
   };
 }
 
@@ -380,8 +401,8 @@ const INITIAL_LETTER_SPECIALS = [
     letter: 'M',
     word: 'Mela',
     emoji: '🍎',
-    speech: 'Cosa è rosso e dolce e inizia con la M come Mela e Mamma?',
-    explanation: 'M come Mela, Mamma e Miao!',
+    speech: 'Quale frutto è rosso e dolce, e inizia con la lettera M come Mela e Mamma?',
+    explanation: 'M come Mela rossa e Mamma!',
   },
   {
     letter: 'S',
@@ -394,14 +415,14 @@ const INITIAL_LETTER_SPECIALS = [
     letter: 'C',
     word: 'Cane',
     emoji: '🐶',
-    speech: 'Chi fa bau bau e inizia con la C di Cane e Cuore?',
-    explanation: 'C come Cane e Cuoricino!',
+    speech: 'Chi fa bau bau e inizia con la lettera C di Cane e Cuore?',
+    explanation: 'C come Cane fedele e Cuoricino!',
   },
   {
     letter: 'O',
     word: 'Orso',
     emoji: '🐻',
-    speech: 'Quale amico del bosco inizia con la O di Orsetto?',
+    speech: 'Quale amico del bosco inizia con la lettera O di Orsetto?',
     explanation: 'O come Orsetto goloso!',
   },
 ];
@@ -582,9 +603,9 @@ interface EnglishLessonEntry {
 const ENGLISH_WORDS_CATALOG: EnglishLessonEntry[] = [
   // Tier 1 Base
   {
-    wordInfo: { en: 'DOG', it: 'Cagnolino', phoneticHint: 'Si legge: "Dog"', emoji: '🐶', categoryLabel: 'Animali in Inglese' },
-    prompt: 'In inglese "DOG" significa Cagnolino! Qual è il DOG? 🐶',
-    speech: 'Impariamo una parolina in inglese! In inglese il cagnolino si chiama Dog! Tocca il Dog!',
+    wordInfo: { en: 'DOG', it: 'Cagnolino', phoneticHint: 'Dog', emoji: '🐶', categoryLabel: 'Animali in Inglese' },
+    prompt: 'In inglese "DOG" significa Cagnolino! Qual è il cagnolino "DOG"? 🐶',
+    speech: 'Impariamo una parolina in inglese. In inglese il cagnolino si dice Dog. Tocca il cagnolino Dog!',
     correct: { label: 'DOG (Cagnolino)', emoji: '🐶', sublabel: '🇬🇧 Dog = 🇮🇹 Cagnolino' },
     distractors: [
       { label: 'Pesciolino', emoji: '🐟', sublabel: 'Nuota nel mare' },
@@ -593,9 +614,9 @@ const ENGLISH_WORDS_CATALOG: EnglishLessonEntry[] = [
     explanation: 'Bravissima! Dog in inglese vuol dire proprio Cagnolino!',
   },
   {
-    wordInfo: { en: 'CAT', it: 'Gattino', phoneticHint: 'Si legge: "Chet"', emoji: '🐱', categoryLabel: 'Animali in Inglese' },
-    prompt: 'In inglese "CAT" è il Gattino che fa Miao! Tocca il CAT! 🐱',
-    speech: 'Parolina inglese! Il gattino morbido in inglese si chiama Cat! Tocca il Cat!',
+    wordInfo: { en: 'CAT', it: 'Gattino', phoneticHint: 'Chet', emoji: '🐱', categoryLabel: 'Animali in Inglese' },
+    prompt: 'In inglese "CAT" è il Gattino che fa Miao! Tocca il gattino "CAT"! 🐱',
+    speech: 'Parolina inglese! Il gattino morbido in inglese si dice Chet. Tocca il gattino Chet!',
     correct: { label: 'CAT (Gattino)', emoji: '🐱', sublabel: '🇬🇧 Cat = 🇮🇹 Gattino' },
     distractors: [
       { label: 'Mucca', emoji: '🐄', sublabel: 'Fa Muuu' },
@@ -604,9 +625,9 @@ const ENGLISH_WORDS_CATALOG: EnglishLessonEntry[] = [
     explanation: 'Super! Cat è il Gattino in inglese!',
   },
   {
-    wordInfo: { en: 'SUN', it: 'Sole', phoneticHint: 'Si legge: "San"', emoji: '☀️', categoryLabel: 'Natura in Inglese' },
-    prompt: 'In inglese il Sole giallo si chiama "SUN"! Qual è il SUN? ☀️',
-    speech: 'Come si dice Sole in inglese? Si dice San! Tocca il Sole splendente, Sun!',
+    wordInfo: { en: 'SUN', it: 'Sole', phoneticHint: 'San', emoji: '☀️', categoryLabel: 'Natura in Inglese' },
+    prompt: 'In inglese il Sole giallo si chiama "SUN"! Qual è il Sole "SUN"? ☀️',
+    speech: 'Come si dice Sole in inglese? Si dice San. Tocca il Sole splendente, San!',
     correct: { label: 'SUN (Sole)', emoji: '☀️', sublabel: '🇬🇧 Sun = 🇮🇹 Sole' },
     distractors: [
       { label: 'Ombrello', emoji: '☂️', sublabel: 'Per la pioggia' },
@@ -615,9 +636,9 @@ const ENGLISH_WORDS_CATALOG: EnglishLessonEntry[] = [
     explanation: 'Meraviglioso! Sun significa Sole in inglese!',
   },
   {
-    wordInfo: { en: 'APPLE', it: 'Mela', phoneticHint: 'Si legge: "Èppol"', emoji: '🍎', categoryLabel: 'Frutta in Inglese' },
-    prompt: 'In inglese una mela rossa si chiama "APPLE"! Tocca la APPLE! 🍎',
-    speech: 'Impariamo l\'inglese: una mela dolce e rossa si chiama Èppol! Tocca la Apple!',
+    wordInfo: { en: 'APPLE', it: 'Mela', phoneticHint: 'Èppol', emoji: '🍎', categoryLabel: 'Frutta in Inglese' },
+    prompt: 'In inglese una mela rossa si chiama "APPLE"! Tocca la mela "APPLE"! 🍎',
+    speech: 'Impariamo l\'inglese: una mela dolce e rossa si dice Èppol. Tocca la mela Èppol!',
     correct: { label: 'APPLE (Mela)', emoji: '🍎', sublabel: '🇬🇧 Apple = 🇮🇹 Mela' },
     distractors: [
       { label: 'Carota', emoji: '🥕', sublabel: 'Arancione' },
@@ -627,9 +648,9 @@ const ENGLISH_WORDS_CATALOG: EnglishLessonEntry[] = [
   },
   // Tier 2+ Colori, Stelle, Natura & Numeri in Inglese
   {
-    wordInfo: { en: 'STAR', it: 'Stella', phoneticHint: 'Si legge: "Star"', emoji: '⭐', categoryLabel: 'Cielo in Inglese' },
-    prompt: 'In inglese la Stellina dorata si chiama "STAR"! Tocca la STAR! ⭐',
-    speech: 'La stellina che brilla nel cielo in inglese si chiama Star! Tocca la Star dorata!',
+    wordInfo: { en: 'STAR', it: 'Stella', phoneticHint: 'Star', emoji: '⭐', categoryLabel: 'Cielo in Inglese' },
+    prompt: 'In inglese la Stellina dorata si chiama "STAR"! Tocca la stellina "STAR"! ⭐',
+    speech: 'La stellina che brilla nel cielo in inglese si dice Star. Tocca la stellina dorata Star!',
     correct: { label: 'STAR (Stella)', emoji: '⭐', sublabel: '🇬🇧 Star = 🇮🇹 Stella' },
     distractors: [
       { label: 'Sasso', emoji: '🪨', sublabel: 'Grigio' },
@@ -638,9 +659,9 @@ const ENGLISH_WORDS_CATALOG: EnglishLessonEntry[] = [
     explanation: 'Bravissima! Star vuol dire Stella in inglese!',
   },
   {
-    wordInfo: { en: 'RED', it: 'Rosso', phoneticHint: 'Si legge: "Red"', emoji: '🔴', categoryLabel: 'Colori in Inglese' },
-    prompt: 'In inglese il colore ROSSO si dice "RED"! Quale cerchio è RED? 🔴',
-    speech: 'Giochiamo coi colori in inglese! Il colore Rosso si chiama Red! Tocca il colore Red!',
+    wordInfo: { en: 'RED', it: 'Rosso', phoneticHint: 'Red', emoji: '🔴', categoryLabel: 'Colori in Inglese' },
+    prompt: 'In inglese il colore ROSSO si dice "RED"! Quale cerchio è rosso "RED"? 🔴',
+    speech: 'Giochiamo coi colori in inglese! Il colore Rosso si dice Red. Tocca il colore Red!',
     correct: { label: 'RED (Rosso)', emoji: '🔴', sublabel: '🇬🇧 Red = 🇮🇹 Rosso' },
     distractors: [
       { label: 'Blu', emoji: '🔵', sublabel: 'Colore del mare' },
@@ -649,9 +670,9 @@ const ENGLISH_WORDS_CATALOG: EnglishLessonEntry[] = [
     explanation: 'Fantastico! Red è il colore Rosso in inglese!',
   },
   {
-    wordInfo: { en: 'BLUE', it: 'Blu', phoneticHint: 'Si legge: "Blu"', emoji: '🔵', categoryLabel: 'Colori in Inglese' },
-    prompt: 'In inglese il colore BLU del mare si scrive "BLUE"! Tocca BLUE! 🔵',
-    speech: 'Come il mare e il cielo: in inglese Blu si dice Blu! Tocca il cerchio Blue!',
+    wordInfo: { en: 'BLUE', it: 'Blu', phoneticHint: 'Blu', emoji: '🔵', categoryLabel: 'Colori in Inglese' },
+    prompt: 'In inglese il colore BLU del mare si scrive "BLUE"! Tocca il cerchio "BLUE"! 🔵',
+    speech: 'Come il mare e il cielo: in inglese il colore Blu si dice Blu. Tocca il cerchio Blu!',
     correct: { label: 'BLUE (Blu)', emoji: '🔵', sublabel: '🇬🇧 Blue = 🇮🇹 Blu' },
     distractors: [
       { label: 'Giallo', emoji: '🟡', sublabel: 'Come il limone' },
@@ -660,9 +681,9 @@ const ENGLISH_WORDS_CATALOG: EnglishLessonEntry[] = [
     explanation: 'Perfetto! Blue è il colore Blu in inglese!',
   },
   {
-    wordInfo: { en: 'HEART', it: 'Cuore', phoneticHint: 'Si legge: "Hart"', emoji: '💖', categoryLabel: 'Parole Dolci in Inglese' },
-    prompt: 'In inglese il Cuoricino si chiama "HEART"! Tocca il HEART! 💖',
-    speech: 'Una parola dolcissima in inglese: il cuoricino si dice Hart! Tocca il Heart rosa!',
+    wordInfo: { en: 'HEART', it: 'Cuore', phoneticHint: 'Hart', emoji: '💖', categoryLabel: 'Parole Dolci in Inglese' },
+    prompt: 'In inglese il Cuoricino si chiama "HEART"! Tocca il cuoricino "HEART"! 💖',
+    speech: 'Una parola dolcissima in inglese: il cuoricino si dice Hart. Tocca il cuoricino rosa Hart!',
     correct: { label: 'HEART (Cuore)', emoji: '💖', sublabel: '🇬🇧 Heart = 🇮🇹 Cuore' },
     distractors: [
       { label: 'Quadrato', emoji: '🟦', sublabel: 'Ha 4 angoli' },
@@ -671,9 +692,9 @@ const ENGLISH_WORDS_CATALOG: EnglishLessonEntry[] = [
     explanation: 'Che meraviglia! Heart significa Cuore in inglese!',
   },
   {
-    wordInfo: { en: 'BUTTERFLY', it: 'Farfalla', phoneticHint: 'Si legge: "Bàtterflai"', emoji: '🦋', categoryLabel: 'Natura in Inglese' },
-    prompt: 'In inglese la Farfalla si chiama "BUTTERFLY"! Tocca la BUTTERFLY! 🦋',
-    speech: 'Ascolta che bella parola inglese: la farfallina colorata si chiama Bàtterflai! Tocca la Butterfly!',
+    wordInfo: { en: 'BUTTERFLY', it: 'Farfalla', phoneticHint: 'Bàtterflai', emoji: '🦋', categoryLabel: 'Natura in Inglese' },
+    prompt: 'In inglese la Farfalla si chiama "BUTTERFLY"! Tocca la farfalla "BUTTERFLY"! 🦋',
+    speech: 'Ascolta che bella parola inglese: la farfallina colorata si dice Bàtterflai. Tocca la farfallina Bàtterflai!',
     correct: { label: 'BUTTERFLY (Farfalla)', emoji: '🦋', sublabel: '🇬🇧 Butterfly = 🇮🇹 Farfalla' },
     distractors: [
       { label: 'Tartaruga', emoji: '🐢', sublabel: 'Cammina piano' },
@@ -682,9 +703,9 @@ const ENGLISH_WORDS_CATALOG: EnglishLessonEntry[] = [
     explanation: 'Campionessa d\'inglese! Butterfly è la Farfalla!',
   },
   {
-    wordInfo: { en: 'RAINBOW', it: 'Arcobaleno', phoneticHint: 'Si legge: "Rèinbou"', emoji: '🌈', categoryLabel: 'Cielo in Inglese' },
-    prompt: 'In inglese l\'Arcobaleno si chiama "RAINBOW"! Tocca il RAINBOW! 🌈',
-    speech: 'L\'arcobaleno dai sette colori in inglese si chiama Rèinbou! Tocca il Rainbow!',
+    wordInfo: { en: 'RAINBOW', it: 'Arcobaleno', phoneticHint: 'Rèinbou', emoji: '🌈', categoryLabel: 'Cielo in Inglese' },
+    prompt: 'In inglese l\'Arcobaleno si chiama "RAINBOW"! Tocca l\'arcobaleno "RAINBOW"! 🌈',
+    speech: 'L\'arcobaleno dai sette colori in inglese si dice Rèinbou. Tocca l\'arcobaleno Rèinbou!',
     correct: { label: 'RAINBOW (Arcobaleno)', emoji: '🌈', sublabel: '🇬🇧 Rainbow = 🇮🇹 Arcobaleno' },
     distractors: [
       { label: 'Nuvola Grigia', emoji: '🌧️', sublabel: 'Pioggia' },
@@ -695,7 +716,7 @@ const ENGLISH_WORDS_CATALOG: EnglishLessonEntry[] = [
 ];
 
 // =========================================================================
-// 10. CATALOGO LIVELLI PSICOMETRICI PER MISURARE IL QI (WPPSI-IV 5 ANNI)
+// 10. CATALOGO LIVELLI DI RAGIONAMENTO E PROFILO COGNITIVO CHC (5 ANNI)
 // Parametri misurati:
 // - Ragionamento Fluido & Matrici Analogiche (Gf)
 // - Elaborazione Visuo-Spaziale & Trasformazione Forme (Gv)
@@ -715,7 +736,7 @@ interface IQMatrixEntry {
 const IQ_PSYCHOMETRIC_CATALOG: IQMatrixEntry[] = [
   {
     iqParameterTag: 'Ragionamento Analogico Fluido (Gf)',
-    prompt: 'Analogia QI: Il Pesciolino 🐟 sta al Mare 🌊 come l\'Uccellino 🐦 sta al...?',
+    prompt: 'Analogia Logica: Il Pesciolino 🐟 sta al Mare 🌊 come l\'Uccellino 🐦 sta al...?',
     speech: 'Sfida del Genietto! Se il pesciolino nuota nel mare, l\'uccellino con le ali dove vola?',
     patternItems: ['🐟', '➔', '🌊', '🐦', '➔', '❓'],
     correct: { label: 'Cielo Azzurro', emoji: '☁️', sublabel: 'Vola nel cielo!' },
@@ -723,11 +744,11 @@ const IQ_PSYCHOMETRIC_CATALOG: IQMatrixEntry[] = [
       { label: 'Sotto il Mare', emoji: '🪸', sublabel: 'Per i pesci' },
       { label: 'Nel Frigorifero', emoji: '🧊', sublabel: 'Troppo freddo' },
     ],
-    explanation: 'Ragionamento perfetto! Pesce nel mare, uccellino nel cielo!',
+    explanation: 'Ragionamento perfetto! Il pesciolino nuota nel mare e l\'uccellino vola nel cielo!',
   },
   {
     iqParameterTag: 'Matrice Visuo-Spaziale (Gv/Gf)',
-    prompt: 'Matrice QI: Cerchio Rosso 🔴 ➔ Stella Rossa 🌟 : Cerchio Blu 🔵 ➔ ...?',
+    prompt: 'Matrice Visiva: Cerchio Rosso 🔴 ➔ Stella Rossa 🌟 : Cerchio Blu 🔵 ➔ ...?',
     speech: 'Osserva la trasformazione magica: il Cerchio Rosso diventa una Stella Rossa. Allora il Cerchio Blu cosa diventa?',
     patternItems: ['🔴', '➔', '🌟', '🔵', '➔', '❓'],
     correct: { label: 'Stella Blu!', emoji: '💠', sublabel: 'Stessa forma, colore blu' },
@@ -739,7 +760,7 @@ const IQ_PSYCHOMETRIC_CATALOG: IQMatrixEntry[] = [
   },
   {
     iqParameterTag: 'Deduzione Logico-Temporale (Gf)',
-    prompt: 'Analogia QI: Il Sole ☀️ brilla di Giorno, mentre la Luna 🌙 brilla di...?',
+    prompt: 'Analogia Logica: Il Sole ☀️ brilla di Giorno, mentre la Luna 🌙 brilla di...?',
     speech: 'Pensiamo insieme: il Sole illumina il giorno, mentre la Luna e le stelline quando brillano?',
     patternItems: ['☀️', '➔', '🌅', '🌙', '➔', '❓'],
     correct: { label: 'Di Notte!', emoji: '🌌', sublabel: 'Nel cielo stellato' },
@@ -747,11 +768,11 @@ const IQ_PSYCHOMETRIC_CATALOG: IQMatrixEntry[] = [
       { label: 'A Mezzogiorno', emoji: '🏖️', sublabel: 'C\'è il sole' },
       { label: 'Nel Piatto', emoji: '🍽️', sublabel: 'Per la pappa' },
     ],
-    explanation: 'Esatto! Sole di giorno, Luna di notte: un\'analogia logica impeccabile!',
+    explanation: 'Esatto! Il Sole brilla di giorno e la Luna brilla di notte: un\'analogia logica impeccabile!',
   },
   {
     iqParameterTag: 'Astrazione Funzionale (Gc/Gf)',
-    prompt: 'Logica QI: La Scarpa 👟 si mette sul Piede, il Cappello 🧢 si mette sulla...?',
+    prompt: 'Associazione Logica: La Scarpa 👟 si mette sul Piede, il Cappello 🧢 si mette sulla...?',
     speech: 'Ragionamento del Genietto: se la scarpa veste il piedino, il cappello dove si indossa?',
     patternItems: ['👟', '➔', '🦶', '🧢', '➔', '❓'],
     correct: { label: 'Sulla Testa!', emoji: '🧒', sublabel: 'Protegge il capino' },
@@ -759,24 +780,24 @@ const IQ_PSYCHOMETRIC_CATALOG: IQMatrixEntry[] = [
       { label: 'Sulla Pancia', emoji: '👕', sublabel: 'Lì va la maglietta' },
       { label: 'Sulle Mani', emoji: '🧤', sublabel: 'Lì vanno i guanti' },
     ],
-    explanation: 'Bravissima! Scarpa sul piede, cappello sulla testa!',
+    explanation: 'Bravissima! La scarpa va sul piede e il cappello sulla testa!',
   },
   {
     iqParameterTag: 'Memoria di Lavoro & Crescita (Gwm)',
-    prompt: 'Serie QI: 1 Germoglio 🌱 ➔ 2 Fiorellini 🌸🌸 ➔ 3 Alberi 🌳🌳🌳. Quale passo mostra PIÙ elementi?',
-    speech: 'Osserva la crescita della natura: prima c\'è un germoglio, poi due fiorellini, poi tre alberi! Quale gruppo è il più numeroso?',
+    prompt: 'Serie Logica: Un Germoglio 🌱 ➔ 2 Fiorellini 🌸🌸 ➔ 3 Alberi 🌳🌳🌳. Quale gruppo ha PIÙ elementi?',
+    speech: 'Osserva la crescita della natura: prima c\'è un germoglio, poi due fiorellini, poi tre alberi. Quale gruppo è il più numeroso?',
     patternItems: ['🌱', '🌸🌸', '🌳🌳🌳', '❓'],
     correct: { label: '3 Alberi 🌳🌳🌳', emoji: '🌳', sublabel: '3 è il più grande della serie!' },
     distractors: [
-      { label: '1 Germoglio 🌱', emoji: '🌱', sublabel: 'È solo uno' },
+      { label: 'Un Germoglio 🌱', emoji: '🌱', sublabel: 'È solo uno' },
       { label: '2 Fiorellini 🌸', emoji: '🌸', sublabel: 'Sono due' },
     ],
-    explanation: 'Ottima concentrazione! La serie cresce da 1 a 2 fino a 3 alberi!',
+    explanation: 'Ottima concentrazione! La serie cresce da uno a due fino a tre alberi!',
   },
   {
     iqParameterTag: 'Categorizzazione Esclusiva (Gf)',
-    prompt: 'Test QI: Mela 🍎, Fragola 🍓 e Banana 🍌 sono frutti. Quale tra questi NON c\'entra?',
-    speech: 'Trova l\'elemento fuori categoria: Mela, Fragola, Banana... quale oggetto non appartiene alla famiglia della frutta?',
+    prompt: 'Categorizzazione: Mela 🍎, Fragola 🍓 e Banana 🍌 sono frutti. Quale tra questi NON c\'entra?',
+    speech: 'Trova l\'elemento fuori categoria: Mela, Fragola, Banana. Quale oggetto non appartiene alla famiglia della frutta?',
     patternItems: ['🍎', '🍓', '🍌', '❓'],
     correct: { label: 'Orologio ⏰', emoji: '⏰', sublabel: 'Segna l\'ora, non è un frutto!' },
     distractors: [
@@ -847,7 +868,7 @@ export function generateProceduralPuzzle(level: number): Puzzle {
   const mathTheme = MATH_ITEM_CATALOG[(level + tier) % MATH_ITEM_CATALOG.length];
 
   // -------------------------------------------------------------
-  // STEP 1: I VERSI DEGLI ANIMALI & IDENTITÀ
+  // STEP 1: ASSOCIAZIONE ACUSTICO-SEMANTICA & LOGICA (Gc + Gf)
   // -------------------------------------------------------------
   if (step === 1) {
     const soundList = tier === 1 
@@ -878,10 +899,14 @@ export function generateProceduralPuzzle(level: number): Puzzle {
       difficultyTier: tier,
       category: 'logic',
       type: 'animal_sounds',
-      title: `Livello ${level}: I Versi degli Animali`,
+      title: `Livello ${level}: Associazione & Identità`,
       prompt: item.prompt,
       speechText: item.speech,
       animalGuide: guide,
+      iqParameterTag: 'Associazione Semantica (Gc · Gf)',
+      chcPrimary: 'Gc',
+      chcSecondary: 'Gf',
+      diagnosticTarget: 'Comprensione associativa e discriminazione rapida (IP · IA · Gs)',
       options,
       rewardStars: 2,
       rewardGems: 1,
@@ -890,7 +915,7 @@ export function generateProceduralPuzzle(level: number): Puzzle {
   }
 
   // -------------------------------------------------------------
-  // STEP 2: CONTEGGIO INTERATTIVO CON IL DITO (Grammatica M/F impeccabile)
+  // STEP 2: CONTEGGIO INTERATTIVO & MEMORIA OPERATIVA (Gwm + Gs)
   // -------------------------------------------------------------
   if (step === 2) {
     const targetCount = tier === 1
@@ -902,6 +927,8 @@ export function generateProceduralPuzzle(level: number): Puzzle {
       : 5 + ((level - 1) % 3);
 
     const formatted = formatQuantityItalian(targetCount, mathTheme);
+    const formattedAll = formatAllPluralItalian(targetCount, mathTheme);
+    const completedPronoun = mathTheme.gender === 'f' ? 'Le hai contate tutte' : 'Li hai contati tutti';
 
     return {
       id: `lvl_${level}_count`,
@@ -910,21 +937,25 @@ export function generateProceduralPuzzle(level: number): Puzzle {
       category: 'numbers',
       type: 'count_interactive',
       title: `Livello ${level}: Tocca e Conta!`,
-      prompt: `Tocca con il dito ${mathTheme.articlePluralAll} ${formatted.text}!`,
-      speechText: `Tocca ${mathTheme.articlePluralAll} ${mathTheme.plural}, ${mathTheme.eachPhrase}, con il ditino per ${mathTheme.countPronoun} insieme!`,
+      prompt: `Tocca con il dito ${formattedAll.text}!`,
+      speechText: `Tocca con il ditino ${formattedAll.speech}, ${mathTheme.eachPhrase}, per ${mathTheme.countPronoun} insieme!`,
       animalGuide: guide,
+      iqParameterTag: 'Enumerazione & Memoria Operativa (Gwm · Gs)',
+      chcPrimary: 'Gwm',
+      chcSecondary: 'Gs',
+      diagnosticTarget: 'Corrispondenza biunivoca, controllo esecutivo e precisione motoria (IP · IA · IR)',
       targetCount,
       itemEmoji: mathTheme.emoji,
       itemName: formatted.text,
       itemGender: mathTheme.gender,
       rewardStars: 2,
       rewardGems: 2,
-      funExplanation: `Bravissima! Hai contato fino a ${formatted.speech}!`,
+      funExplanation: `${completedPronoun}: sono proprio ${formatted.speech}!`,
     };
   }
 
   // -------------------------------------------------------------
-  // STEP 3: MUSICA, NOTE & RITMO SONORO (LIVELLI DI MUSICA E RITMO)
+  // STEP 3: MUSICA, NOTE & MEMORIA UDITIVA-RITMICA (Gwm + Gf)
   // -------------------------------------------------------------
   if (step === 3) {
     const musicItem = MUSIC_RHYTHM_CATALOG[(level + tier - 1) % MUSIC_RHYTHM_CATALOG.length];
@@ -957,6 +988,10 @@ export function generateProceduralPuzzle(level: number): Puzzle {
       prompt: musicItem.prompt,
       speechText: musicItem.speech,
       animalGuide: guide,
+      iqParameterTag: 'Memoria Sequenziale Uditiva (Gwm · Gf)',
+      chcPrimary: 'Gwm',
+      chcSecondary: 'Gf',
+      diagnosticTarget: 'Codifica ritmica temporale e ritenzione uditiva a breve termine (IR · IC)',
       rhythmNotes: musicItem.rhythmNotes,
       options,
       rewardStars: 3,
@@ -966,7 +1001,7 @@ export function generateProceduralPuzzle(level: number): Puzzle {
   }
 
   // -------------------------------------------------------------
-  // STEP 4: FORME, COLORI & SPAZIO
+  // STEP 4: FORME, COLORI & RELAZIONI VISUO-SPAZIALI (Gv + Gs)
   // -------------------------------------------------------------
   if (step === 4) {
     if (tier >= 2 && level % 2 === 0) {
@@ -998,6 +1033,10 @@ export function generateProceduralPuzzle(level: number): Puzzle {
         prompt: mix.prompt,
         speechText: mix.speech,
         animalGuide: guide,
+        iqParameterTag: 'Sintesi Cromatica & Trasformazione (Gv · Gf)',
+        chcPrimary: 'Gv',
+        chcSecondary: 'Gf',
+        diagnosticTarget: 'Visualizzazione percettiva e trasferimento di regole cromatiche (IT · IP)',
         options,
         rewardStars: 2,
         rewardGems: 1,
@@ -1036,8 +1075,12 @@ export function generateProceduralPuzzle(level: number): Puzzle {
         type: 'match_shape',
         title: `Livello ${level}: Riconosci la Forma!`,
         prompt: `Tocca ${articleShape} "${shape.name}" ${shape.emoji}`,
-        speechText: `Tocca con il ditino la figura che si chiama ${shape.name}!`,
+        speechText: `Tocca con il ditino ${articleShape} ${shape.name}!`,
         animalGuide: guide,
+        iqParameterTag: 'Discriminazione Geometrica (Gv · Gs)',
+        chcPrimary: 'Gv',
+        chcSecondary: 'Gs',
+        diagnosticTarget: 'Riconoscimento topologico delle forme e velocità percettiva (Gv · Gs)',
         options,
         rewardStars: 2,
         rewardGems: 1,
@@ -1049,7 +1092,7 @@ export function generateProceduralPuzzle(level: number): Puzzle {
   }
 
   // -------------------------------------------------------------
-  // STEP 5: LETTERE FAMILIARI & INDOVINELLI IN RIMA
+  // STEP 5: LETTERE FAMILIARI, FONETICA & INDOVINELLI (Gc + Gf)
   // -------------------------------------------------------------
   if (step === 5) {
     if (tier >= 2 && level % 2 === 1) {
@@ -1081,6 +1124,10 @@ export function generateProceduralPuzzle(level: number): Puzzle {
         prompt: riddle.riddleText,
         speechText: riddle.speech,
         animalGuide: guide,
+        iqParameterTag: 'Inferenza Verbale & Deduzione (Gc · Gf)',
+        chcPrimary: 'Gc',
+        chcSecondary: 'Gf',
+        diagnosticTarget: 'Comprensione del testo ascoltato e sintesi induttiva (Gc · IT)',
         options,
         rewardStars: 3,
         rewardGems: 2,
@@ -1123,6 +1170,10 @@ export function generateProceduralPuzzle(level: number): Puzzle {
       prompt: `Quale figura inizia con la "${letterItem.letter}"? (${letterItem.word})`,
       speechText: letterItem.speech,
       animalGuide: guide,
+      iqParameterTag: 'Consapevolezza Fonologica (Gc · Gwm)',
+      chcPrimary: 'Gc',
+      chcSecondary: 'Gwm',
+      diagnosticTarget: 'Associazione grafema-fonema e accesso lessicale (Gc · IR)',
       options,
       rewardStars: 2,
       rewardGems: 1,
@@ -1131,7 +1182,7 @@ export function generateProceduralPuzzle(level: number): Puzzle {
   }
 
   // -------------------------------------------------------------
-  // STEP 6: PRIME PAROLINE IN INGLESE (ENGLISH PRESCHOOL DISCOVERY)
+  // STEP 6: PRIME PAROLINE IN INGLESE (Gc + Gwm)
   // -------------------------------------------------------------
   if (step === 6) {
     const englishPool = tier === 1
@@ -1166,6 +1217,10 @@ export function generateProceduralPuzzle(level: number): Puzzle {
       prompt: engItem.prompt,
       speechText: engItem.speech,
       animalGuide: guide,
+      iqParameterTag: 'Plasticità Lessicale Bilingue (Gc · Gwm)',
+      chcPrimary: 'Gc',
+      chcSecondary: 'Gwm',
+      diagnosticTarget: 'Codifica fonologico-lessicale L2 e trasferimento semantico (Gc · IT)',
       englishWord: engItem.wordInfo,
       options,
       rewardStars: 3,
@@ -1175,7 +1230,7 @@ export function generateProceduralPuzzle(level: number): Puzzle {
   }
 
   // -------------------------------------------------------------
-  // STEP 7: LIVELLO MISURAZIONE QI (MATRICI LOGICHE & ANALOGIE WPPSI-IV)
+  // STEP 7: PROVA MULTIPARAMETRICA CHC (MATRICI & ANALOGIE Gf + Gv)
   // -------------------------------------------------------------
   if (step === 7) {
     const iqItem = IQ_PSYCHOMETRIC_CATALOG[(level + tier - 1) % IQ_PSYCHOMETRIC_CATALOG.length];
@@ -1202,12 +1257,15 @@ export function generateProceduralPuzzle(level: number): Puzzle {
       difficultyTier: tier,
       category: 'logic',
       type: 'iq_matrix',
-      title: `Livello ${level}: Sfida QI del Genietto 🧠`,
+      title: `Livello ${level}: Sfida Logica del Genietto 🧠`,
       prompt: iqItem.prompt,
       speechText: iqItem.speech,
       animalGuide: guide,
       patternItems: iqItem.patternItems,
       iqParameterTag: iqItem.iqParameterTag,
+      chcPrimary: 'Gf',
+      chcSecondary: 'Gv',
+      diagnosticTarget: 'Ragionamento analogico fluido e astrazione su matrici (Gf · IT · IC)',
       options,
       rewardStars: 3,
       rewardGems: 3,
@@ -1216,8 +1274,7 @@ export function generateProceduralPuzzle(level: number): Puzzle {
   }
 
   // -------------------------------------------------------------
-  // STEP 8: GRANDEZZE & HABITAT (Tier 1-2) O SOTTRAZIONE VISIVA (Tier 3+)
-  // Grammatica rigorosa: "una mela", "tre mele meno una mela fa due mele"
+  // STEP 8: SERIAZIONE VISUO-SPAZIALE (Tier 1-2) O SOTTRAZIONE (Tier 3+)
   // -------------------------------------------------------------
   if (step === 8) {
     if (tier >= 3) {
@@ -1246,6 +1303,8 @@ export function generateProceduralPuzzle(level: number): Puzzle {
         ? `Abbiamo ${formattedTotal.speech}. Ne togliamo ${formattedMinus.speech}. Quante ${theme.plural} restano?`
         : `Abbiamo ${formattedTotal.speech}. L'orsetto ne mangia ${formattedMinus.speech}. Quanti ${theme.plural} restano?`;
 
+      const verbResta = answer === 1 ? 'resta' : 'restano';
+
       return {
         id: `lvl_${level}_sub`,
         levelNumber: level,
@@ -1256,6 +1315,10 @@ export function generateProceduralPuzzle(level: number): Puzzle {
         prompt: `${formattedTotal.text} - ${formattedMinus.text} = ?`,
         speechText: speechAction,
         animalGuide: guide,
+        iqParameterTag: 'Calcolo Operativo & Sottrazione (Gf · Gwm)',
+        chcPrimary: 'Gwm',
+        chcSecondary: 'Gf',
+        diagnosticTarget: 'Manipolazione numerica reversibile in memoria di lavoro (Gwm · IT)',
         subtractionParts: { 
           total, 
           minus, 
@@ -1267,7 +1330,7 @@ export function generateProceduralPuzzle(level: number): Puzzle {
         options,
         rewardStars: 3,
         rewardGems: 2,
-        funExplanation: `Esatto! ${formattedTotal.speech} meno ${formattedMinus.speech} fa ${formattedAnswer.speech}!`,
+        funExplanation: `Esatto! Da ${formattedTotal.speech} togliendo ${formattedMinus.speech} ${verbResta} ${formattedAnswer.speech}!`,
       };
     } else if (level % 2 === 0) {
       const item = ANIMAL_HABITATS[(level + tier) % ANIMAL_HABITATS.length];
@@ -1298,6 +1361,10 @@ export function generateProceduralPuzzle(level: number): Puzzle {
         prompt: item.prompt,
         speechText: item.speech,
         animalGuide: guide,
+        iqParameterTag: 'Relazioni Ecologiche & Spaziali (Gc · Gv)',
+        chcPrimary: 'Gc',
+        chcSecondary: 'Gv',
+        diagnosticTarget: 'Categorizzazione ambientale e ragionamento contestuale (Gc · Gv)',
         options,
         rewardStars: 2,
         rewardGems: 1,
@@ -1332,6 +1399,10 @@ export function generateProceduralPuzzle(level: number): Puzzle {
         prompt: item.prompt,
         speechText: item.speech,
         animalGuide: guide,
+        iqParameterTag: 'Seriazione & Confronto Dimensionale (Gv · Gf)',
+        chcPrimary: 'Gv',
+        chcSecondary: 'Gf',
+        diagnosticTarget: 'Stima visiva delle grandezze e confronto relazionale (Gv · Gs)',
         options,
         rewardStars: 2,
         rewardGems: 1,
@@ -1341,8 +1412,7 @@ export function generateProceduralPuzzle(level: number): Puzzle {
   }
 
   // -------------------------------------------------------------
-  // STEP 9: PATTERN RITMICO (Tier 1) O ADDIZIONE VISIVA CONCRETA (Tier 2+)
-  // Grammatica perfetta: "una mela + una mela = due mele"
+  // STEP 9: PATTERN SEQUENZIALE (Tier 1) O ADDIZIONE VISIVA (Tier 2+)
   // -------------------------------------------------------------
   if (tier >= 2) {
     const a = tier === 2 ? 1 : tier === 3 ? 2 : 3;
@@ -1380,6 +1450,10 @@ export function generateProceduralPuzzle(level: number): Puzzle {
       prompt: `${formattedA.text} + ${formattedB.text} = ?`,
       speechText: speechAdd,
       animalGuide: guide,
+      iqParameterTag: 'Addizione Visiva & Sintesi Quantitativa (Gf · Gwm)',
+      chcPrimary: 'Gf',
+      chcSecondary: 'Gwm',
+      diagnosticTarget: 'Integrazione additiva di quantità e trasferimento aritmetico (IP · IT)',
       additionParts: { 
         countA: a, 
         countB: b, 
@@ -1411,8 +1485,12 @@ export function generateProceduralPuzzle(level: number): Puzzle {
       type: 'pattern_sequence',
       title: `Livello ${level}: Quale Viene Dopo?`,
       prompt: `Mela, Banana, Mela, Banana... cosa viene adesso?`,
-      speechText: `Ascolta il ritmo: Mela, Banana, Mela, Banana... quale figura viene subito dopo?`,
+      speechText: `Ascolta il ritmo: Mela, Banana, Mela, Banana. Quale figura viene subito dopo?`,
       animalGuide: guide,
+      iqParameterTag: 'Sequenza Logica & Completamento Pattern (Gf · Gs)',
+      chcPrimary: 'Gf',
+      chcSecondary: 'Gs',
+      diagnosticTarget: 'Individuazione della regolarità periodica AB-AB e previsione (Gf · IC)',
       patternItems: pattern,
       options,
       rewardStars: 2,

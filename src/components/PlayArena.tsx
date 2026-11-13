@@ -12,7 +12,7 @@ import {
   ShieldCheck,
   Hand,
 } from 'lucide-react';
-import { GameCategory, Puzzle, PuzzleOption, UserProgress } from '../types/game';
+import { GameCategory, Puzzle, PuzzleOption, PuzzleType, UserProgress } from '../types/game';
 import {
   generateProceduralPuzzle,
   getEncouragementPhrase,
@@ -29,7 +29,12 @@ interface PlayArenaProps {
     gems: number,
     category: GameCategory,
     isFirstTry: boolean,
-    attemptsCount?: number
+    attemptsCount?: number,
+    hintsUsed?: number,
+    puzzleType?: PuzzleType,
+    responseTimeMs?: number,
+    chcPrimary?: 'Gf' | 'Gwm' | 'Gc' | 'Gv' | 'Gs',
+    chcSecondary?: 'Gf' | 'Gwm' | 'Gc' | 'Gv' | 'Gs'
   ) => void;
   onOpenParents: () => void;
   onExitToTitle: () => void;
@@ -47,7 +52,7 @@ const CATEGORY_THEMES: Record<
   logic: {
     bgGradient: 'from-[#38bdf8] via-[#93c5fd] to-[#fde68a]',
     badgeGradient: 'from-violet-500 to-purple-600 border-violet-200',
-    title: 'Logica & QI',
+    title: 'Logica & Ragionamento',
     emoji: '🧠',
   },
   letters: {
@@ -102,6 +107,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
   const [wrongOptionIds, setWrongOptionIds] = useState<string[]>([]);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [attempts, setAttempts] = useState<number>(0);
+  const [hintsUsed, setHintsUsed] = useState<number>(0);
   const [isSolved, setIsSolved] = useState<boolean>(false);
   const [tappedCountIndices, setTappedCountIndices] = useState<number[]>([]);
   const [activeNoteIdx, setActiveNoteIdx] = useState<number | null>(null);
@@ -110,6 +116,8 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
   const countFinishTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFinishingCountRef = useRef<boolean>(false);
   const replayTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const levelStartMsRef = useRef<number>(Date.now());
+  const solveElapsedMsRef = useRef<number>(4800);
 
   const clearReplayTimers = useCallback(() => {
     replayTimersRef.current.forEach((t) => clearTimeout(t));
@@ -136,12 +144,15 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
     clearReplayTimers();
     soundManager.stopRhythmSequence();
     isFinishingCountRef.current = false;
+    levelStartMsRef.current = Date.now();
+    solveElapsedMsRef.current = 4800;
 
     const nextPuzzle = generateProceduralPuzzle(currentLevel);
     setPuzzle(nextPuzzle);
     setWrongOptionIds([]);
     setSelectedOptionId(null);
     setAttempts(0);
+    setHintsUsed(0);
     setIsSolved(false);
     setTappedCountIndices([]);
     setActiveNoteIdx(null);
@@ -186,6 +197,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
 
   const handleReplayVoice = useCallback(() => {
     soundManager.playPop();
+    setHintsUsed((prev) => prev + 1);
     soundManager.speakInstruction(puzzle.speechText);
     if (puzzle.rhythmNotes && puzzle.rhythmNotes.length > 0) {
       setTimeout(() => handleReplayRhythm(), 1000);
@@ -211,25 +223,29 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
       MATH_ITEM_CATALOG.find((m) => m.emoji === puzzle.itemEmoji) ||
       MATH_ITEM_CATALOG[0];
     const formatted = formatQuantityItalian(currentNum, itemCatalog);
-    soundManager.speak(formatted.speech, { context: 'count' });
 
-    // CRITICAL FIX: Automatically complete count_interactive level once all items are tapped!
+    // Automatically complete count_interactive level once all items are tapped without cutting off the final count speech
     if (currentNum >= target) {
       isFinishingCountRef.current = true;
+      solveElapsedMsRef.current = Math.max(800, Date.now() - levelStartMsRef.current);
       setAttempts(1);
       countFinishTimerRef.current = setTimeout(() => {
         setIsSolved(true);
         soundManager.playFanfare();
         confetti.burst();
         const praise = getEncouragementPhrase(true, true);
-        soundManager.speakPraise(`${praise} ${puzzle.funExplanation}`);
-      }, 800);
+        soundManager.speakPraise(`${formatted.speech}! ${praise} ${puzzle.funExplanation}`);
+      }, 420);
+    } else {
+      soundManager.speak(formatted.speech, { context: 'count' });
     }
   };
 
   const handleSelectOption = (opt: PuzzleOption) => {
     if (isSolved || wrongOptionIds.includes(opt.id)) return;
 
+    const elapsed = Math.max(450, Date.now() - levelStartMsRef.current);
+    // Security guard against accidental <320ms double-taps after an error
     const nextAttempts = attempts + 1;
     setAttempts(nextAttempts);
     setSelectedOptionId(opt.id);
@@ -239,6 +255,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
     }
 
     if (opt.isCorrect) {
+      solveElapsedMsRef.current = elapsed;
       setIsSolved(true);
       soundManager.playFanfare();
       confetti.burst();
@@ -256,13 +273,20 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
     soundManager.playSuccess();
     const totalTries = Math.max(1, attempts);
     const earnedStars =
-      totalTries <= 1 ? puzzle.rewardStars : Math.max(1, puzzle.rewardStars - 1);
+      totalTries <= 1 && hintsUsed === 0
+        ? puzzle.rewardStars
+        : Math.max(1, puzzle.rewardStars - 1);
     onSolveLevel(
       earnedStars,
       puzzle.rewardGems,
       puzzle.category,
-      totalTries <= 1,
-      totalTries
+      totalTries <= 1 && hintsUsed === 0,
+      totalTries,
+      hintsUsed,
+      puzzle.type,
+      solveElapsedMsRef.current,
+      puzzle.chcPrimary,
+      puzzle.chcSecondary
     );
   };
 
@@ -318,7 +342,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
       {/* ===================================================================== */}
       {/* TOP NAVIGATION BAR                                                    */}
       {/* ===================================================================== */}
-      <header className="relative z-10 flex items-center justify-between px-2.5 sm:px-4 pt-2.5 pb-1 shrink-0 gap-1.5 w-full max-w-2xl mx-auto">
+      <header className="relative z-10 flex items-center justify-between px-2.5 sm:px-5 pt-2.5 pb-1 shrink-0 gap-1.5 w-full max-w-4xl mx-auto">
         <button
           onClick={() => {
             soundManager.stopSpeech();
@@ -334,7 +358,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
 
         {/* Center Compact Level Badge */}
         <div
-          className={`bg-gradient-to-r ${theme.badgeGradient} px-3 py-1.5 rounded-full border-2 shadow-[0_4px_0_rgba(0,0,0,0.18)] flex items-center gap-1.5 min-w-0`}
+          className={`bg-gradient-to-r ${theme.badgeGradient} px-3 sm:px-4 py-1.5 rounded-full border-2 shadow-[0_4px_0_rgba(0,0,0,0.18)] flex items-center gap-1.5 min-w-0`}
         >
           <span className="text-base sm:text-xl shrink-0">{theme.emoji}</span>
           <div className="text-left min-w-0 leading-none">
@@ -383,7 +407,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
               onOpenParents();
             }}
             className="toy-button-3d bg-white/95 hover:bg-white text-purple-900 p-2 rounded-2xl border-2 border-white active:scale-95 cursor-pointer"
-            title="Area Genitori & QI"
+            title="Area Genitori & Profilo CHC"
           >
             <ShieldCheck className="w-4 h-4 text-pink-600" />
           </button>
@@ -391,9 +415,9 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
       </header>
 
       {/* ===================================================================== */}
-      {/* MAIN 3D GAMEPLAY STAGE                                                */}
+      {/* MAIN 3D GAMEPLAY STAGE (RESPONSIVE ACROSS MOBILE, TABLET & DESKTOP)   */}
       {/* ===================================================================== */}
-      <main className="relative z-10 flex-1 flex flex-col justify-start sm:justify-center px-3 sm:px-4 py-2 max-w-xl mx-auto w-full min-h-0 gap-3 sm:gap-4 overflow-y-auto">
+      <main className="landscape-compact-stage relative z-10 flex-1 flex flex-col justify-start sm:justify-center px-3 sm:px-5 py-2 max-w-xl md:max-w-3xl lg:max-w-4xl mx-auto w-full min-h-0 gap-3 sm:gap-4 overflow-y-auto">
         {/* QUESTION & 3D INTERACTIVE SHOWCASE BOARD */}
         <div className="board-3d-tabletop rounded-[28px] p-4 sm:p-5 flex flex-col items-center justify-center text-center relative overflow-hidden shrink-0">
           <div className="flex items-center justify-center gap-2 flex-wrap mb-2">
@@ -403,22 +427,22 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
             </span>
 
             {puzzle.iqParameterTag && (
-              <span className="px-2.5 py-1 rounded-full bg-gradient-to-r from-violet-600 to-purple-600 text-white border-2 border-white font-kids font-extrabold text-[11px] uppercase tracking-wider shadow-xs">
+              <span className="px-2.5 py-1 rounded-full bg-gradient-to-r from-violet-600 to-purple-600 text-white border-2 border-white font-kids font-extrabold text-[10px] sm:text-[11px] uppercase tracking-wider shadow-xs">
                 🧠 {puzzle.iqParameterTag}
               </span>
             )}
           </div>
 
-          <h2 className="font-kids font-extrabold text-xl sm:text-2xl text-slate-900 leading-snug max-w-md drop-shadow-[0_1px_0_rgba(255,255,255,0.9)]">
+          <h2 className="font-kids font-extrabold text-xl sm:text-2xl md:text-3xl text-slate-900 leading-snug max-w-2xl drop-shadow-[0_1px_0_rgba(255,255,255,0.9)]">
             {puzzle.prompt}
           </h2>
 
           {/* 1. INTERACTIVE 3D FINGER COUNTING (`count_interactive` - BIG 3D SPHERES!) */}
           {isCountingMode && puzzle.targetCount && (
             <div className="mt-4 flex flex-col items-center gap-3 w-full">
-              {/* Live Counter Pill */}
+              {/* Live Counter Pill with strict Masculine/Feminine grammar */}
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white border-2 border-white shadow-md font-kids font-extrabold text-sm sm:text-base">
-                <span>Contate:</span>
+                <span>{puzzle.itemGender === 'm' ? 'Contati:' : 'Contate:'}</span>
                 <span className="px-2.5 py-0.5 rounded-full bg-yellow-300 text-slate-950 text-base sm:text-lg">
                   {tappedCountIndices.length} / {puzzle.targetCount}
                 </span>
@@ -564,7 +588,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                   "{puzzle.englishWord.en}"
                 </p>
                 <p className="text-xs font-fun font-bold text-slate-600">
-                  Pronuncia: [{puzzle.englishWord.phoneticHint}] = {puzzle.englishWord.it}
+                  Si legge: "{puzzle.englishWord.phoneticHint}" = {puzzle.englishWord.it}
                 </p>
               </div>
               <button
@@ -572,9 +596,9 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                 onClick={() => {
                   soundManager.playTwinkle();
                   soundManager.speak(
-                    `${puzzle.englishWord!.en}! In inglese ${
+                    `${puzzle.englishWord!.phoneticHint}. In inglese ${
                       puzzle.englishWord!.it
-                    } si dice ${puzzle.englishWord!.en}!`
+                    } si dice ${puzzle.englishWord!.phoneticHint}!`
                   );
                 }}
                 className="toy-button-3d p-3 rounded-2xl bg-gradient-to-b from-cyan-400 to-blue-500 text-white border-2 border-white shadow cursor-pointer"
@@ -619,9 +643,11 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
         {/* ================================================================= */}
         {optionsList.length > 0 && (
           <div
-            className={`grid ${
+            className={`options-grid-responsive grid ${
               optionsList.length === 3
                 ? 'grid-cols-2 sm:grid-cols-3'
+                : optionsList.length >= 4
+                ? 'grid-cols-2 lg:grid-cols-4'
                 : 'grid-cols-2'
             } gap-3 sm:gap-4 w-full shrink-0`}
           >
@@ -690,14 +716,16 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
       </main>
 
       {/* BOTTOM HELPER BAR */}
-      <footer className="relative z-10 px-3 pb-2.5 max-w-xl mx-auto w-full shrink-0">
-        <div className="bg-white/92 backdrop-blur-md rounded-2xl px-3.5 py-2 border-2 border-white shadow-lg flex items-center justify-between">
+      <footer className="relative z-10 px-3 pb-2.5 max-w-xl md:max-w-3xl lg:max-w-4xl mx-auto w-full shrink-0">
+        <div className="bg-white/92 backdrop-blur-md rounded-2xl px-3.5 py-2 border-2 border-white shadow-lg flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0">
             <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-pink-500 shrink-0" />
             <span className="text-xs sm:text-sm font-fun font-extrabold text-slate-800 truncate">
-              {isCountingMode
-                ? `Tocca tutte le ${puzzle.targetCount} figure per contarle!`
-                : 'Tocca la risposta giusta per vincere 3 stelline!'}
+              {puzzle.diagnosticTarget
+                ? `Parametri rilevati: ${puzzle.diagnosticTarget}`
+                : isCountingMode
+                ? `Tocca tutte e ${puzzle.targetCount} le figure per contarle!`
+                : 'Tocca la risposta giusta per vincere le stelline d’oro!'}
             </span>
           </div>
           <div className="flex items-center gap-1 shrink-0">

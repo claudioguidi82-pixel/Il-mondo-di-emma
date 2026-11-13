@@ -158,7 +158,7 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     saveCanvasState();
-    soundManager.speak('Tela pulita! Pronta per un nuovo disegno!', 1.25);
+    soundManager.speak('Tela pulita! Pronta per un nuovo disegno!');
   };
 
   // Convert client coordinates to canvas internal coordinates
