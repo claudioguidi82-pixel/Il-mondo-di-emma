@@ -1809,26 +1809,26 @@ export const ParentModal: React.FC<ParentModalProps> = ({
   );
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-xl flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
-      <div className="bg-slate-900 border border-white/15 rounded-[32px] max-w-4xl w-full p-5 sm:p-7 shadow-2xl text-white my-auto max-h-[92vh] overflow-y-auto">
-        {/* TOP HEADER */}
-        <div className="flex flex-wrap items-start justify-between gap-3 pb-5 border-b border-white/10">
-          <div className="flex items-center gap-3.5">
-            <div className="w-13 h-13 rounded-2xl bg-gradient-to-br from-pink-500 via-purple-500 to-indigo-600 flex items-center justify-center shadow-lg border border-white/25 shrink-0">
-              <Brain className="w-7 h-7 text-white" />
+    <div className="safe-viewport-pad fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-2xl flex items-center justify-center p-2 sm:p-4 lg:p-6 overflow-y-auto">
+      <div className="bg-slate-900/95 border border-white/12 rounded-3xl max-w-5xl xl:max-w-6xl w-full p-4 sm:p-6 lg:p-8 shadow-[0_24px_64px_-12px_rgba(0,0,0,0.65)] text-white my-auto max-h-[94dvh] overflow-y-auto">
+        {/* MODERN TOP HEADER */}
+        <div className="flex flex-wrap items-start justify-between gap-3 pb-4 sm:pb-5 border-b border-white/10">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-600 flex items-center justify-center shadow-md border border-white/20 shrink-0">
+              <Brain className="w-6 h-6 text-white" />
             </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-md bg-pink-500/20 text-pink-300 border border-pink-400/30">
-                  Algoritmo di Valutazione CHC (0–100) & Progressi Mensili/Annuali
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap text-xs text-slate-300">
+                <span className="font-semibold text-indigo-300">
+                  Valutazione Cognitiva CHC (0–100) & Progressi Mensili/Annuali
                 </span>
-                <span className="text-[11px] font-semibold text-white/60 flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5 text-amber-300" /> Nata il
-                  22/08/2021 ({ageInfo.displayText})
+                <span className="text-white/30" aria-hidden="true">·</span>
+                <span className="font-medium text-slate-300 inline-flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-amber-300" /> Nata il 22/08/2021 ({ageInfo.displayText})
                 </span>
               </div>
-              <h2 className="font-kids font-extrabold text-xl sm:text-2xl text-white mt-1">
-                Il Mondo di Emma — Valutazione Competenze & Progressi
+              <h2 className="font-fun font-extrabold text-lg sm:text-2xl text-white mt-0.5 leading-snug">
+                Il Mondo di Emma — Dashboard Competenze & Progressi
               </h2>
             </div>
           </div>
@@ -1837,19 +1837,19 @@ export const ParentModal: React.FC<ParentModalProps> = ({
             <button
               onClick={handleDownloadPdfReport}
               disabled={isGeneratingPdf}
-              className="toy-button-3d flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 hover:from-emerald-400 hover:to-cyan-500 text-white font-kids font-extrabold text-xs sm:text-sm border-2 border-emerald-200/80 shadow-lg cursor-pointer disabled:opacity-50"
+              className="toy-button-3d flex items-center gap-2 px-4 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-fun font-bold text-xs sm:text-sm border border-emerald-300/60 shadow-md cursor-pointer disabled:opacity-50 whitespace-nowrap"
             >
-              <FileDown className="w-4 h-4 stroke-[2.5]" />
+              <FileDown className="w-4 h-4 stroke-[2.2]" />
               <span>
                 {isGeneratingPdf
-                  ? 'Generazione PDF 3D...'
-                  : 'Scarica Report PDF 3D (Emma Guidi)'}
+                  ? 'Generazione PDF...'
+                  : 'Scarica Report PDF (Emma Guidi)'}
               </span>
             </button>
 
             <button
               onClick={onClose}
-              className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors cursor-pointer"
+              className="p-2.5 rounded-xl bg-white/8 hover:bg-white/15 border border-white/10 transition-colors cursor-pointer"
               aria-label="Chiudi"
             >
               <X className="w-5 h-5" />
@@ -1861,23 +1861,23 @@ export const ParentModal: React.FC<ParentModalProps> = ({
         <div
           className={`mt-4 rounded-2xl p-4 border flex items-center justify-between gap-3 flex-wrap ${
             isMeasurementUnlocked
-              ? 'bg-emerald-950/40 border-emerald-400/30 text-emerald-200'
-              : 'bg-amber-950/40 border-amber-400/40 text-amber-200'
+              ? 'bg-emerald-950/35 border-emerald-400/25 text-emerald-100'
+              : 'bg-amber-950/35 border-amber-400/30 text-amber-100'
           }`}
         >
           <div className="flex items-center gap-3">
             {isMeasurementUnlocked ? (
-              <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0" />
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
             ) : (
-              <Lock className="w-6 h-6 text-amber-400 shrink-0" />
+              <Lock className="w-5 h-5 text-amber-400 shrink-0" />
             )}
             <div>
-              <p className="text-xs sm:text-sm font-black uppercase tracking-wider">
+              <p className="text-xs sm:text-sm font-bold text-white">
                 {isMeasurementUnlocked
-                  ? `Motore Diagnostico Rapido Multi-Parametro Attivo · Livello ${progress.currentLevel} (${evalReport.currentDifficultyLabel}, Peso w=${evalReport.currentWeight})`
+                  ? `Motore Diagnostico Multi-Parametro Attivo · Livello ${progress.currentLevel} (${evalReport.currentDifficultyLabel}, Peso w=${evalReport.currentWeight})`
                   : `Pronto alla Rilevazione Multi-Parametro (Completa il 1° esercizio per calcolare tutti gli indici)`}
               </p>
-              <p className="text-xs text-white/80 mt-0.5">
+              <p className="text-xs text-slate-300 mt-0.5">
                 {isMeasurementUnlocked
                   ? `Ogni esercizio completato (${completedLevelsCount} prove analizzate) misura simultaneamente abilità CHC primaria, secondaria e tempo di risposta (Gs), aggiornando in tempo reale IP, IC, IA, IE e lo storico mensile/annuale.`
                   : `I livelli includono test diagnostici multi-parametro che determinano fin dalla prima prova i 4 indicatori (IP, IC, IA, IE) e le 5 aree CHC.`}
@@ -1890,7 +1890,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
               onClick={() =>
                 onUpdateAudio(!progress.soundEnabled, progress.voiceEnabled)
               }
-              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-white/8 hover:bg-white/15 border border-white/15 text-xs font-semibold flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
             >
               {progress.soundEnabled ? (
                 <Volume2 className="w-4 h-4 text-emerald-400" />
@@ -1903,7 +1903,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
               onClick={() =>
                 onUpdateAudio(progress.soundEnabled, !progress.voiceEnabled)
               }
-              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-white/8 hover:bg-white/15 border border-white/15 text-xs font-semibold flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
             >
               <span>🗣️ Voce {progress.voiceEnabled ? 'ON' : 'OFF'}</span>
             </button>
@@ -1913,16 +1913,16 @@ export const ParentModal: React.FC<ParentModalProps> = ({
         {/* ===================================================================== */}
         {/* HERO REPORT PREVIEW: COMPETENZA GENERALE (XX/100) & EVOLUZIONE (+X)   */}
         {/* ===================================================================== */}
-        <div className="my-5 bg-gradient-to-br from-purple-950/75 via-slate-900 to-indigo-950/75 rounded-3xl p-5 border border-purple-400/35 shadow-xl">
+        <div className="my-5 bg-slate-950/60 rounded-2xl p-5 border border-white/10 shadow-lg">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-white/10">
             <div>
-              <span className="text-[11px] font-black uppercase tracking-widest text-amber-300 block">
-                Il Mondo di Emma · Quadro Sintetico della Valutazione
+              <span className="text-xs font-semibold text-indigo-300 block">
+                Quadro Sintetico della Valutazione
               </span>
-              <h3 className="font-kids font-extrabold text-lg sm:text-xl text-white mt-0.5">
+              <h3 className="font-fun font-extrabold text-lg sm:text-xl text-white mt-0.5">
                 Profilo delle Competenze e delle Abilità (Scala 0–100)
               </h3>
-              <p className="text-xs text-white/75 mt-1 max-w-xl leading-relaxed">
+              <p className="text-xs text-slate-300 mt-1 max-w-xl leading-relaxed">
                 Valutazione interna tracciabile basata sulle risposte autonome al
                 primo tentativo (<code className="text-pink-300">cᵢ = 1</code>)
                 e separate dai successi ottenuti dopo un suggerimento (
@@ -1933,32 +1933,32 @@ export const ParentModal: React.FC<ParentModalProps> = ({
               </p>
             </div>
 
-            <div className="flex flex-wrap items-stretch gap-3 shrink-0">
+            <div className="flex flex-wrap items-stretch gap-3 shrink-0 tabular-nums">
               {/* Competenza Generale Card */}
-              <div className="bg-gradient-to-b from-purple-700 to-indigo-950 border-2 border-amber-300 rounded-2xl px-5 py-3 text-center shadow-[0_5px_0_#3b0764] min-w-[155px]">
-                <span className="text-[10px] font-black uppercase tracking-wider text-purple-200 block">
+              <div className="bg-slate-900 border border-indigo-400/40 rounded-2xl px-5 py-3 text-center min-w-[155px]">
+                <span className="text-[11px] font-semibold text-indigo-200 block">
                   Competenza generale
                 </span>
-                <span className="font-kids font-extrabold text-3xl text-yellow-300 block leading-tight mt-0.5">
-                  {evalReport.ic}/100
+                <span className="font-fun font-extrabold text-3xl text-white block leading-tight mt-0.5">
+                  {evalReport.ic}<span className="text-lg text-slate-400">/100</span>
                 </span>
-                <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full bg-white/15 text-[11px] font-extrabold text-white">
+                <span className="text-[11px] font-semibold text-amber-300 block mt-1">
                   {evalReport.assignedBandLabel}
                 </span>
               </div>
 
               {/* Evoluzione Card */}
-              <div className="bg-gradient-to-b from-emerald-600 to-teal-950 border-2 border-emerald-300 rounded-2xl px-5 py-3 text-center shadow-[0_5px_0_#064e3b] min-w-[155px]">
-                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-100 block">
-                  Evoluzione
+              <div className="bg-slate-900 border border-emerald-400/40 rounded-2xl px-5 py-3 text-center min-w-[155px]">
+                <span className="text-[11px] font-semibold text-emerald-200 block">
+                  Evoluzione (IE)
                 </span>
-                <span className="font-kids font-extrabold text-3xl text-yellow-300 block leading-tight mt-0.5">
+                <span className="font-fun font-extrabold text-3xl text-emerald-300 block leading-tight mt-0.5">
                   {evalReport.ieDelta >= 0
                     ? `+${evalReport.ieDelta}`
                     : evalReport.ieDelta}
                 </span>
-                <span className="text-[10px] font-bold text-emerald-100 block mt-1">
-                  Rispetto alla rilevazione prec. ({evalReport.previousIc}/100)
+                <span className="text-[11px] font-medium text-slate-400 block mt-1">
+                  Rilevazione prec.: {evalReport.previousIc}/100
                 </span>
               </div>
             </div>

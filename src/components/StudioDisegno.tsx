@@ -83,13 +83,19 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
     const width = Math.min(1200, Math.max(300, container.clientWidth));
     const height = Math.min(900, Math.max(250, container.clientHeight));
 
-    // Save previous drawing if canvas already has content
-    let prevData: ImageData | null = null;
+    // Save previous drawing as offscreen canvas if canvas already has content
+    let prevOffscreen: HTMLCanvasElement | null = null;
     if (canvas.width > 0 && canvas.height > 0) {
       try {
-        prevData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        prevOffscreen = document.createElement('canvas');
+        prevOffscreen.width = canvas.width;
+        prevOffscreen.height = canvas.height;
+        const offCtx = prevOffscreen.getContext('2d');
+        if (offCtx) {
+          offCtx.drawImage(canvas, 0, 0);
+        }
       } catch {
-        // ignore
+        prevOffscreen = null;
       }
     }
 
@@ -100,10 +106,9 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, width, height);
 
-    if (prevData) {
-      // Restore scaled
+    if (prevOffscreen) {
       try {
-        ctx.putImageData(prevData, 0, 0);
+        ctx.drawImage(prevOffscreen, 0, 0, width, height);
       } catch {
         // ignore
       }
@@ -116,11 +121,18 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
 
   useEffect(() => {
     initCanvas();
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
     const handleResize = () => {
-      // Debounced re-init or preserve
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        initCanvas();
+      }, 180);
     };
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      window.removeEventListener('resize', handleResize);
+    };
   }, [initCanvas]);
 
   const saveCanvasState = () => {
@@ -381,12 +393,12 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-[#1b0b38]/95 via-[#281353]/90 to-[#0e0622]/95 backdrop-blur-xs text-white select-none overflow-hidden h-[100dvh] max-h-[100dvh]">
+    <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white select-none overflow-hidden h-[100dvh] max-h-[100dvh]">
       
       {/* ============================================================== */}
-      {/* 1. TOP BAR: TITLE & ESSENTIAL ACTIONS (COMPACT, NON-OVERFLOWING) */}
+      {/* 1. MODERN TOP BAR: TITLE & ESSENTIAL ACTIONS                   */}
       {/* ============================================================== */}
-      <div className="relative z-20 flex items-center justify-between px-2.5 sm:px-4 py-2 bg-slate-950/80 border-b border-white/10 backdrop-blur-md shrink-0 gap-2">
+      <div className="relative z-20 flex items-center justify-between px-3 sm:px-5 py-2.5 bg-slate-950/85 border-b border-white/10 backdrop-blur-xl shrink-0 gap-2">
         {/* Back Button */}
         <button
           onClick={() => {
@@ -394,17 +406,17 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
             soundManager.playPop();
             onClose();
           }}
-          className="px-3 py-1.5 sm:px-4 sm:py-2 bg-white/10 hover:bg-white/20 active:scale-95 text-white font-fun font-bold text-xs sm:text-sm rounded-2xl border border-white/20 flex items-center gap-1.5 cursor-pointer shadow transition-all shrink-0"
+          className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-white/10 hover:bg-white/15 active:scale-95 text-white font-fun font-bold text-xs sm:text-sm rounded-xl border border-white/15 flex items-center gap-1.5 cursor-pointer transition-all shrink-0 whitespace-nowrap"
         >
-          <ChevronLeft className="w-4 h-4 text-pink-300" />
-          <span>Esci</span>
+          <ChevronLeft className="w-4 h-4 text-slate-300" />
+          <span>Home</span>
         </button>
 
         {/* Studio Title */}
-        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-          <span className="text-xl sm:text-2xl animate-bounce shrink-0">🎨</span>
-          <h2 className="font-kids font-bold text-sm sm:text-lg text-yellow-300 truncate tracking-wide">
-            Studio di Disegno di Emma ✨
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-lg sm:text-xl shrink-0">🎨</span>
+          <h2 className="font-fun font-extrabold text-sm sm:text-lg text-white truncate tracking-tight">
+            Studio Disegno di Emma
           </h2>
         </div>
 
@@ -414,7 +426,7 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
             onClick={handleUndo}
             disabled={undoStack.length <= 1}
             title="Annulla"
-            className="p-2 sm:px-3 sm:py-1.5 bg-white/10 hover:bg-white/20 disabled:opacity-40 active:scale-95 text-white font-fun font-bold text-xs sm:text-sm rounded-2xl border border-white/15 flex items-center gap-1 cursor-pointer transition-all shadow"
+            className="p-2 sm:px-3 sm:py-1.5 bg-white/10 hover:bg-white/15 disabled:opacity-40 active:scale-95 text-white font-fun font-semibold text-xs sm:text-sm rounded-xl border border-white/15 flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap"
           >
             <RotateCcw className="w-4 h-4 text-amber-300" />
             <span className="hidden md:inline">Annulla</span>
@@ -423,7 +435,7 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
           <button
             onClick={handleClear}
             title="Pulisci Tela"
-            className="p-2 sm:px-3 sm:py-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 active:scale-95 font-fun font-bold text-xs sm:text-sm rounded-2xl border border-rose-400/30 flex items-center gap-1 cursor-pointer transition-all shadow"
+            className="p-2 sm:px-3 sm:py-1.5 bg-rose-500/15 hover:bg-rose-500/25 text-rose-200 active:scale-95 font-fun font-semibold text-xs sm:text-sm rounded-xl border border-rose-400/25 flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap"
           >
             <Trash2 className="w-4 h-4 text-rose-400" />
             <span className="hidden md:inline">Pulisci</span>
@@ -432,7 +444,7 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
           <button
             onClick={handleDownload}
             title="Scarica Disegno"
-            className="p-2 sm:px-3 sm:py-1.5 bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 active:scale-95 font-fun font-bold text-xs sm:text-sm rounded-2xl border border-sky-400/30 flex items-center gap-1 cursor-pointer transition-all shadow"
+            className="p-2 sm:px-3 sm:py-1.5 bg-sky-500/15 hover:bg-sky-500/25 text-sky-200 active:scale-95 font-fun font-semibold text-xs sm:text-sm rounded-xl border border-sky-400/25 flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap"
           >
             <Download className="w-4 h-4 text-sky-300" />
             <span className="hidden md:inline">Scarica</span>
@@ -440,10 +452,10 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
 
           <button
             onClick={handleSaveDrawing}
-            className="px-3.5 py-1.5 sm:px-5 sm:py-2 bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-slate-950 font-kids font-bold text-xs sm:text-sm rounded-2xl border-b-4 border-emerald-700 active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-lg shadow-emerald-500/30"
+            className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-fun font-bold text-xs sm:text-sm rounded-xl border border-emerald-300/60 active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-md whitespace-nowrap"
           >
-            <Save className="w-4 h-4 fill-slate-950" />
-            <span>Salva ✨</span>
+            <Save className="w-4 h-4" />
+            <span>Salva</span>
           </button>
         </div>
       </div>
@@ -453,10 +465,10 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
       {/* ============================================================== */}
       <div 
         ref={containerRef}
-        className="relative z-10 flex-1 min-h-0 w-full flex items-center justify-center p-2 sm:p-3 overflow-hidden"
+        className="relative z-10 flex-1 min-h-0 w-full flex items-center justify-center p-2.5 sm:p-4 overflow-hidden"
       >
         <div className="relative w-full h-full max-w-5xl max-h-[80vh] flex items-center justify-center">
-          {/* Framed White Canvas with soft outer shadow */}
+          {/* Framed White Canvas with modern border and soft shadow */}
           <canvas
             ref={canvasRef}
             onPointerDown={handlePointerDown}
@@ -464,33 +476,33 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
             onPointerUp={handlePointerUpOrCancel}
             onPointerCancel={handlePointerUpOrCancel}
             style={{ touchAction: 'none' }}
-            className="w-full h-full object-contain bg-white rounded-3xl sm:rounded-4xl border-4 sm:border-6 border-amber-300 shadow-[0_10px_40px_rgba(0,0,0,0.5)] cursor-crosshair select-none"
+            className="w-full h-full object-contain bg-white rounded-3xl border-2 border-white/80 shadow-[0_24px_60px_-15px_rgba(0,0,0,0.65)] cursor-crosshair select-none"
           />
 
           {/* Quick Brush Mode Indicator Floater in Corner */}
-          <div className="absolute top-3 left-3 px-3 py-1 bg-slate-900/80 backdrop-blur-md rounded-full border border-white/20 text-xs font-fun font-bold text-yellow-300 pointer-events-none flex items-center gap-1.5 shadow-md">
-            <span>Pennello:</span>
-            <span className="text-white capitalize">
-              {brushMode === 'rainbow' && '🌈 Arcobaleno Magico'}
-              {brushMode === 'glitter' && '✨ Glitter & Stelline'}
-              {brushMode === 'neon' && '🌟 Bagliore Fatato'}
+          <div className="absolute top-3.5 left-3.5 px-3 py-1 bg-slate-900/85 backdrop-blur-md rounded-xl border border-white/15 text-xs font-medium text-slate-300 pointer-events-none flex items-center gap-1.5 shadow-sm">
+            <span>Strumento:</span>
+            <span className="text-white font-semibold">
+              {brushMode === 'rainbow' && '🌈 Arcobaleno'}
+              {brushMode === 'glitter' && '✨ Glitter'}
+              {brushMode === 'neon' && '🌟 Bagliore'}
               {brushMode === 'eraser' && '🧽 Gomma'}
-              {brushMode === 'sticker' && `🦄 Timbro ${selectedSticker}`}
-              {brushMode === 'color' && '🎨 Colore Classico'}
+              {brushMode === 'sticker' && `${selectedSticker} Adesivo`}
+              {brushMode === 'color' && '🎨 Pennello'}
             </span>
           </div>
 
           {/* Save Success Banner */}
           {saveSuccess && (
-            <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs rounded-3xl sm:rounded-4xl flex flex-col items-center justify-center p-4 z-30 animate-fade-in">
-              <div className="w-18 h-18 rounded-full bg-emerald-400 text-slate-950 flex items-center justify-center text-4xl mb-3 shadow-2xl animate-bounce">
+            <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-sm rounded-3xl flex flex-col items-center justify-center p-4 z-30 animate-pop-in">
+              <div className="w-16 h-16 rounded-2xl bg-emerald-500 text-white flex items-center justify-center text-3xl mb-3 shadow-xl">
                 🌟
               </div>
-              <h3 className="text-2xl sm:text-3xl font-kids font-bold text-yellow-300">
+              <h3 className="text-2xl sm:text-3xl font-fun font-extrabold text-white">
                 Capolavoro Salvato!
               </h3>
-              <p className="text-sm sm:text-base font-fun text-white mt-1">
-                +3 Stelle per Emma! ⭐⭐⭐
+              <p className="text-sm sm:text-base font-medium text-amber-300 mt-1">
+                +3 Stelline per Emma ⭐⭐⭐
               </p>
             </div>
           )}
@@ -500,12 +512,12 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
       {/* ============================================================== */}
       {/* 3. BOTTOM CONTROL DOCK: MAGIC BRUSHES, PALETTE, SIZES, STICKERS */}
       {/* ============================================================== */}
-      <div className="relative z-20 bg-slate-950/90 border-t border-white/10 px-2 sm:px-4 py-2 shrink-0 flex flex-col gap-1.5">
+      <div className="relative z-20 bg-slate-950/90 border-t border-white/10 backdrop-blur-xl px-2.5 sm:px-5 py-2.5 shrink-0 flex flex-col gap-2">
         
         {/* Row 1: Brush Modes & Sizes */}
-        <div className="flex items-center justify-between gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+        <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar py-0.5">
           {/* Magic Brushes Segment */}
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             {/* 1. Rainbow Brush */}
             <button
               onClick={() => {
@@ -513,13 +525,13 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
                 setBrushMode('rainbow');
                 setIsStickerDrawerOpen(false);
               }}
-              className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-2xl font-kids font-bold text-xs sm:text-sm flex items-center gap-1.5 cursor-pointer transition-all border-2 ${
+              className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl font-fun font-bold text-xs sm:text-sm flex items-center gap-1.5 cursor-pointer transition-all border ${
                 brushMode === 'rainbow'
-                  ? 'bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-400 text-white border-yellow-300 shadow-lg scale-105'
-                  : 'bg-white/10 text-slate-300 border-white/15 hover:bg-white/20'
+                  ? 'bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 text-white border-white/80 shadow-md'
+                  : 'bg-white/8 text-slate-300 border-white/10 hover:bg-white/15'
               }`}
             >
-              <span className="text-base sm:text-lg">🌈</span>
+              <span className="text-base">🌈</span>
               <span className="whitespace-nowrap">Arcobaleno</span>
             </button>
 
@@ -530,13 +542,13 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
                 setBrushMode('glitter');
                 setIsStickerDrawerOpen(false);
               }}
-              className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-2xl font-kids font-bold text-xs sm:text-sm flex items-center gap-1.5 cursor-pointer transition-all border-2 ${
+              className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl font-fun font-bold text-xs sm:text-sm flex items-center gap-1.5 cursor-pointer transition-all border ${
                 brushMode === 'glitter'
-                  ? 'bg-gradient-to-r from-amber-400 to-yellow-300 text-slate-950 border-white shadow-lg scale-105 animate-pulse'
-                  : 'bg-white/10 text-slate-300 border-white/15 hover:bg-white/20'
+                  ? 'bg-gradient-to-r from-amber-400 to-yellow-300 text-slate-950 border-white shadow-md'
+                  : 'bg-white/8 text-slate-300 border-white/10 hover:bg-white/15'
               }`}
             >
-              <span className="text-base sm:text-lg">✨</span>
+              <span className="text-base">✨</span>
               <span className="whitespace-nowrap">Glitter</span>
             </button>
 
@@ -547,10 +559,10 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
                 setBrushMode('neon');
                 setIsStickerDrawerOpen(false);
               }}
-              className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-2xl font-kids font-bold text-xs sm:text-sm flex items-center gap-1.5 cursor-pointer transition-all border-2 ${
+              className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl font-fun font-bold text-xs sm:text-sm flex items-center gap-1.5 cursor-pointer transition-all border ${
                 brushMode === 'neon'
-                  ? 'bg-purple-600 text-white border-pink-400 shadow-lg scale-105'
-                  : 'bg-white/10 text-slate-300 border-white/15 hover:bg-white/20'
+                  ? 'bg-violet-600 text-white border-violet-300 shadow-md'
+                  : 'bg-white/8 text-slate-300 border-white/10 hover:bg-white/15'
               }`}
             >
               <Wand2 className="w-4 h-4 text-cyan-300" />
@@ -564,10 +576,10 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
                 setBrushMode('eraser');
                 setIsStickerDrawerOpen(false);
               }}
-              className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-2xl font-kids font-bold text-xs sm:text-sm flex items-center gap-1.5 cursor-pointer transition-all border-2 ${
+              className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl font-fun font-bold text-xs sm:text-sm flex items-center gap-1.5 cursor-pointer transition-all border ${
                 brushMode === 'eraser'
-                  ? 'bg-white text-slate-950 border-amber-400 shadow-lg scale-105'
-                  : 'bg-white/10 text-slate-300 border-white/15 hover:bg-white/20'
+                  ? 'bg-white text-slate-950 border-white shadow-md'
+                  : 'bg-white/8 text-slate-300 border-white/10 hover:bg-white/15'
               }`}
             >
               <Eraser className="w-4 h-4 text-pink-500" />
@@ -581,13 +593,13 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
                 setBrushMode('sticker');
                 setIsStickerDrawerOpen(prev => !prev);
               }}
-              className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-2xl font-kids font-bold text-xs sm:text-sm flex items-center gap-1.5 cursor-pointer transition-all border-2 ${
+              className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl font-fun font-bold text-xs sm:text-sm flex items-center gap-1.5 cursor-pointer transition-all border ${
                 brushMode === 'sticker'
-                  ? 'bg-pink-600 text-white border-yellow-300 shadow-lg scale-105'
-                  : 'bg-white/10 text-slate-300 border-white/15 hover:bg-white/20'
+                  ? 'bg-pink-600 text-white border-pink-300 shadow-md'
+                  : 'bg-white/8 text-slate-300 border-white/10 hover:bg-white/15'
               }`}
             >
-              <span className="text-base sm:text-lg">{selectedSticker}</span>
+              <span className="text-base">{selectedSticker}</span>
               <span className="whitespace-nowrap">Adesivi</span>
             </button>
           </div>

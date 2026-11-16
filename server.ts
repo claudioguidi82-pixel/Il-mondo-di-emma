@@ -91,7 +91,7 @@ async function getItalianAudio(text: string): Promise<CachedAudio> {
   if (ai) {
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-preview-tts',
+        model: 'gemini-3.8-flash-lite-tts',
         contents: [
           {
             role: 'user',
@@ -217,8 +217,9 @@ app.post('/api/tts', async (req, res) => {
 async function start() {
   const distPath = path.resolve(__dirname, 'dist');
   const hasDist = fs.existsSync(path.resolve(distPath, 'index.html'));
-  const isDev = process.env.NODE_ENV === 'development';
-  const isProd = !isDev && (process.env.NODE_ENV === 'production' || process.env.K_SERVICE !== undefined || hasDist);
+  const isProd =
+    (process.env.NODE_ENV === 'production' || process.env.K_SERVICE !== undefined) &&
+    hasDist;
 
   if (isProd) {
     console.log(`Starting in PRODUCTION mode. Serving static build from: ${distPath}`);

@@ -645,6 +645,109 @@ class SoundManager {
     }
   }
 
+  /**
+   * Plays a playful synthesized 3D animal sound effect for the "Zoo Parlante"
+   * (Leone roar, Giraffa tall musical glissando, Elefante trumpet, etc.)
+   */
+  playZooAnimalSound(animalId: string) {
+    if (!this.soundEnabled) return;
+    try {
+      this.initCtx();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+
+      if (animalId === 'leone') {
+        // Playful warm low brassy lion roar (Roaaar!)
+        const osc1 = this.ctx.createOscillator();
+        const osc2 = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc1.type = 'sawtooth';
+        osc2.type = 'triangle';
+
+        osc1.frequency.setValueAtTime(140, now);
+        osc1.frequency.linearRampToValueAtTime(210, now + 0.16);
+        osc1.frequency.exponentialRampToValueAtTime(95, now + 0.52);
+
+        osc2.frequency.setValueAtTime(280, now);
+        osc2.frequency.linearRampToValueAtTime(360, now + 0.16);
+        osc2.frequency.exponentialRampToValueAtTime(160, now + 0.52);
+
+        gain.gain.setValueAtTime(0.01, now);
+        gain.gain.linearRampToValueAtTime(0.16, now + 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 0.56);
+        osc2.stop(now + 0.56);
+      } else if (animalId === 'giraffa') {
+        // Rising tall-neck xylophone glissando + cheerful munch notes
+        const notes = [392.0, 493.88, 587.33, 783.99, 987.77];
+        notes.forEach((freq, idx) => {
+          const osc = this.ctx!.createOscillator();
+          const gain = this.ctx!.createGain();
+          const t = now + idx * 0.075;
+
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, t);
+          osc.frequency.linearRampToValueAtTime(freq * 1.06, t + 0.11);
+
+          gain.gain.setValueAtTime(0.13, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+
+          osc.connect(gain);
+          gain.connect(this.ctx!.destination);
+
+          osc.start(t);
+          osc.stop(t + 0.15);
+        });
+      } else if (animalId === 'elefante') {
+        // Cheerful elephant trunk trumpet (Pa-ووuh!)
+        const notes = [
+          { fStart: 293.66, fEnd: 587.33, delay: 0, dur: 0.22 },
+          { fStart: 587.33, fEnd: 880.0, delay: 0.2, dur: 0.34 },
+        ];
+        notes.forEach((n) => {
+          const osc = this.ctx!.createOscillator();
+          const harmonic = this.ctx!.createOscillator();
+          const gain = this.ctx!.createGain();
+          const t = now + n.delay;
+
+          osc.type = 'sawtooth';
+          harmonic.type = 'triangle';
+
+          osc.frequency.setValueAtTime(n.fStart, t);
+          osc.frequency.exponentialRampToValueAtTime(n.fEnd, t + n.dur * 0.7);
+
+          harmonic.frequency.setValueAtTime(n.fStart * 1.5, t);
+          harmonic.frequency.exponentialRampToValueAtTime(n.fEnd * 1.5, t + n.dur * 0.7);
+
+          gain.gain.setValueAtTime(0.01, t);
+          gain.gain.linearRampToValueAtTime(0.14, t + 0.04);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + n.dur);
+
+          osc.connect(gain);
+          harmonic.connect(gain);
+          gain.connect(this.ctx!.destination);
+
+          osc.start(t);
+          harmonic.start(t);
+          osc.stop(t + n.dur + 0.02);
+          harmonic.stop(t + n.dur + 0.02);
+        });
+      } else {
+        this.playAnimalChirp(4);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   playMusicalNote(freq: number, duration = 0.32) {
     if (!this.soundEnabled || freq <= 0) return;
     try {
