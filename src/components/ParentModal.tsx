@@ -22,13 +22,20 @@ import {
   ShieldCheck,
   Clock,
   Layers,
+  UserRoundCog,
 } from 'lucide-react';
 import {
   UserProgress,
   GameCategory,
   CompetencyBandLabel,
 } from '../types/game';
-import { getEmmaCurrentAge } from '../utils/infiniteLevels';
+import {
+  calculateChildAge,
+  getDisplayChildName,
+  getFullChildName,
+  getGenderedWord,
+  getWorldTitle,
+} from '../utils/childProfile';
 import {
   computeFullEvaluationReport,
   getDifficultyWeightInfo,
@@ -38,6 +45,7 @@ import { getSecurityComplianceReport } from '../utils/security';
 interface ParentModalProps {
   progress: UserProgress;
   onUpdateAudio: (soundEnabled: boolean, voiceEnabled: boolean) => void;
+  onOpenProfile?: () => void;
   onResetProgress: () => void;
   onClose: () => void;
 }
@@ -398,6 +406,7 @@ function draw3DDonutGauge(
 export const ParentModal: React.FC<ParentModalProps> = ({
   progress,
   onUpdateAudio,
+  onOpenProfile,
   onResetProgress,
   onClose,
 }) => {
@@ -405,7 +414,19 @@ export const ParentModal: React.FC<ParentModalProps> = ({
   const [showResetGate, setShowResetGate] = useState(false);
   const [gateInput, setGateInput] = useState('');
   const [gateError, setGateError] = useState(false);
-  const ageInfo = useMemo(() => getEmmaCurrentAge(), []);
+  const childProfile = progress.childProfile;
+  const ageInfo = useMemo(
+    () => calculateChildAge(childProfile?.birthDate),
+    [childProfile?.birthDate]
+  );
+  const childName = useMemo(() => getDisplayChildName(childProfile), [childProfile]);
+  const fullChildName = useMemo(() => getFullChildName(childProfile), [childProfile]);
+  const fullChildNameUpper = fullChildName.toUpperCase();
+  const worldTitleFull = useMemo(() => getWorldTitle(childProfile).full, [childProfile]);
+  const childGender = childProfile?.gender || 'n';
+  const studentRoleLabel = getGenderedWord(childGender, 'Allieva', 'Allievo', 'Allievo/a');
+  const bornLabel = getGenderedWord(childGender, 'Nata il', 'Nato il', 'Data di nascita');
+  const childInitialLetter = (childName[0] || 'A').toUpperCase();
 
   // Complete Mathematical & CHC Evaluation Report (0-100) + Monthly/Annual Progress Rows
   const evalReport = useMemo(
@@ -461,9 +482,9 @@ export const ParentModal: React.FC<ParentModalProps> = ({
         hexColor: '#10b981',
         hexDark: '#047857',
         hexTop: '#34d399',
-        milestoneGoal: `Livello ${progress.currentLevel} (${evalReport.currentDifficultyLabel}, peso ${evalReport.currentWeight}): Riconoscimento suoni iniziali, lettera E di Emma e rime fonetiche.`,
+        milestoneGoal: `Livello ${progress.currentLevel} (${evalReport.currentDifficultyLabel}, peso ${evalReport.currentWeight}): Riconoscimento suoni iniziali, lettera ${childInitialLetter} di ${childName} e rime/ortografia per fascia ${ageInfo.ageBandTitle}.`,
         familyAdvice:
-          'Enfatizzate il suono iniziale delle parole quotidiane: "Mmm-Mela!", "Sss-Sole!", "Eee-Emma!".',
+          `Enfatizzate il suono iniziale delle parole quotidiane: "Mmm-Mela!", "Sss-Sole!", "${childInitialLetter}-${childInitialLetter}-${childName}!".`,
       },
       {
         id: 'numbers',
@@ -475,9 +496,9 @@ export const ParentModal: React.FC<ParentModalProps> = ({
         hexColor: '#0284c7',
         hexDark: '#0369a1',
         hexTop: '#38bdf8',
-        milestoneGoal: `Livello ${progress.currentLevel} (${evalReport.currentDifficultyLabel}, peso ${evalReport.currentWeight}): Conteggio 1-a-1 con il dito, somme/sottrazioni visive e concordanza M/F.`,
+        milestoneGoal: `Livello ${progress.currentLevel} (${evalReport.currentDifficultyLabel}, peso ${evalReport.currentWeight}): Conteggio, calcoli e problemi calibrati su ${ageInfo.ageBandTitle}.`,
         familyAdvice:
-          'Coinvolgetela apparecchiando: "Prendi una mela rossa e due mele gialle, quante mele sono?"',
+          `Coinvolgete ${childName} nella vita quotidiana: "Prendi una mela rossa e due mele gialle, quante mele sono?"`,
       },
       {
         id: 'shapes',
@@ -505,7 +526,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
         hexTop: '#fbbf24',
         milestoneGoal: `Livello ${progress.currentLevel} (${evalReport.currentDifficultyLabel}, peso ${evalReport.currentWeight}): Percezione melodica (Do-Re-Mi), pattern ritmici e timbro degli strumenti.`,
         familyAdvice:
-          'Battete le mani a ritmo (Bum-Clap-Bum-Clap) chiedendo a Emma di continuare la sequenza sonora.',
+          `Battete le mani a ritmo (Bum-Clap-Bum-Clap) chiedendo a ${childName} di continuare la sequenza sonora.`,
       },
       {
         id: 'english',
@@ -644,7 +665,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       ctx1.font = '900 23px sans-serif';
       drawFittedText(
         ctx1,
-        'Il Mondo di Emma — Profilo Cognitivo CHC (0–100) & Relazione Competenze',
+        `${worldTitleFull} — Profilo Cognitivo CHC (0–100) & Relazione Competenze`,
         76,
         74,
         874
@@ -654,7 +675,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       ctx1.font = 'bold 14px sans-serif';
       drawFittedText(
         ctx1,
-        `Allieva: EMMA GUIDI   |   Nata il: 22/08/2021 (${ageInfo.displayText})   |   Livello: ${progress.currentLevel} (${evalReport.currentDifficultyLabel}, peso w=${evalReport.currentWeight})`,
+        `${studentRoleLabel}: ${fullChildNameUpper}   |   ${bornLabel}: ${ageInfo.birthDateFormatted} (${ageInfo.displayText})   |   Livello: ${progress.currentLevel} (${evalReport.currentDifficultyLabel}, peso w=${evalReport.currentWeight})`,
         76,
         104,
         874
@@ -721,7 +742,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       ctx1.font = '900 17px sans-serif';
       drawFittedText(
         ctx1,
-        'PROFILO COGNITIVO CHC (0–100) & 4 INDICATORI — EMMA GUIDI',
+        `PROFILO COGNITIVO CHC (0–100) & 4 INDICATORI — ${fullChildNameUpper}`,
         74,
         198,
         642
@@ -1100,12 +1121,12 @@ export const ParentModal: React.FC<ParentModalProps> = ({
         );
       });
 
-      // 4. RELAZIONE PEDAGOGICA DETTAGLIATA PER EMMA GUIDI (6 SUBJECT CARDS 2x3)
+      // 4. RELAZIONE PEDAGOGICA DETTAGLIATA (6 SUBJECT CARDS 2x3)
       ctx1.fillStyle = '#0f172a';
       ctx1.font = '900 17.5px sans-serif';
       drawFittedText(
         ctx1,
-        `RELAZIONE PEDAGOGICA DETTAGLIATA PER MATERIA — EMMA GUIDI (Competenza Generale: ${evalReport.ic}/100 · ${evalReport.assignedBandLabel})`,
+        `RELAZIONE PEDAGOGICA DETTAGLIATA PER MATERIA — ${fullChildNameUpper} (Competenza Generale: ${evalReport.ic}/100 · ${evalReport.assignedBandLabel})`,
         48,
         894,
         1144
@@ -1262,7 +1283,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       ctx1.font = 'bold 12.5px sans-serif';
       ctx1.textAlign = 'center';
       ctx1.fillText(
-        `Documento Ufficiale Generato per EMMA GUIDI (Nata il 22/08/2021) · Il Mondo di Emma · Livello ${progress.currentLevel} · Stelle: ${progress.stars} · Pagina 1 di 2`,
+        `Documento Ufficiale Generato per ${fullChildNameUpper} (${bornLabel} ${ageInfo.birthDateFormatted}) · ${worldTitleFull} · Livello ${progress.currentLevel} · Stelle: ${progress.stars} · Pagina 1 di 2`,
         W / 2,
         H - 40
       );
@@ -1290,22 +1311,25 @@ export const ParentModal: React.FC<ParentModalProps> = ({
 
       ctx2.fillStyle = '#fde047';
       ctx2.font = '900 22px sans-serif';
-      ctx2.fillText(
-        'PROGRESSI OTTENUTI GRAZIE ALL’APP (MENSILE & ANNUALE PER ETÀ) & STUDIO 3D — EMMA GUIDI',
+      drawFittedText(
+        ctx2,
+        `PROGRESSI OTTENUTI GRAZIE ALL’APP (MENSILE & ANNUALE PER ETÀ) & STUDIO 3D — ${fullChildNameUpper}`,
         76,
-        78
+        78,
+        1088
       );
       ctx2.fillStyle = '#e2e8f0';
       ctx2.font = 'bold 13.5px sans-serif';
-      ctx2.fillText(
-        `Allieva: EMMA GUIDI (22/08/2021)  ·  Aggiornamento Inizio Mese: ${evalReport.currentMonthStartLabel}  ·  Prossimo Compleanno Riga Fissa: ${evalReport.nextBirthdayDateLabel}  ·  Pag. 2/2`,
+      drawFittedText(
+        ctx2,
+        `${studentRoleLabel}: ${fullChildNameUpper} (${ageInfo.birthDateFormatted})  ·  Aggiornamento Inizio Mese: ${evalReport.currentMonthStartLabel}  ·  Prossimo Compleanno Riga Fissa: ${evalReport.nextBirthdayDateLabel}  ·  Pag. 2/2`,
         76,
-        112
+        112,
+        1088
       );
 
       // SECTION A: TABELLA PROGRESSI OTTENUTI GRAZIE ALL'UTILIZZO DELL'APP
       //            (Confronto Punto di Partenza vs Attuale + Righe Fisse ad ogni compleanno)
-      //            (x: 48, y: 164, w: 1144, h: 318)
       const visibleAnnualRows = evalReport.annualProgressRows.slice(-3);
       const secAHeight = 166 + visibleAnnualRows.length * 60 + 52;
       fillStrokeRoundRect(
@@ -1333,7 +1357,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       ctx2.font = '12px sans-serif';
       drawFittedText(
         ctx2,
-        `Si aggiorna ogni inizio mese (${evalReport.currentMonthStartLabel}, prossimo: ${evalReport.nextMonthlyUpdateLabel}). Ogni anno compiuto da Emma (22/08) diventa una riga fissa e se ne aggiunge una nuova.`,
+        `Si aggiorna ogni inizio mese (${evalReport.currentMonthStartLabel}, prossimo: ${evalReport.nextMonthlyUpdateLabel}). Ogni anno compiuto da ${childName} (${evalReport.childBirthDayMonthLabel}) diventa una riga fissa e se ne aggiunge una nuova.`,
         76,
         218,
         1088
@@ -1495,7 +1519,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       ctx2.font = 'bold 11.5px sans-serif';
       drawFittedText(
         ctx2,
-        `PROSSIMA NUOVA RIGA AUTOMATICA (${evalReport.emmaCurrentAgeYears + 1} Anni): Al compleanno del ${evalReport.nextBirthdayDateLabel}, la riga "${evalReport.emmaCurrentAgeYears} Anni" diventerà fissa e si aggiungerà la nuova riga.`,
+        `PROSSIMA NUOVA RIGA AUTOMATICA (${evalReport.childCurrentAgeYears + 1} Anni): Al compleanno del ${evalReport.nextBirthdayDateLabel}, la riga "${evalReport.childCurrentAgeYears} Anni" diventerà fissa e si aggiungerà la nuova riga.`,
         atX + 14,
         nextPreviewY + 26,
         atW - 28
@@ -1776,7 +1800,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
       ctx2.font = 'bold 12.5px sans-serif';
       ctx2.textAlign = 'center';
       ctx2.fillText(
-        `Documento Ufficiale Generato per EMMA GUIDI (Nata il 22/08/2021) · Il Mondo di Emma · Livello ${progress.currentLevel} · Pagina 2 di 2`,
+        `Documento Ufficiale Generato per ${fullChildNameUpper} (${bornLabel} ${ageInfo.birthDateFormatted}) · ${worldTitleFull} · Livello ${progress.currentLevel} · Pagina 2 di 2`,
         W / 2,
         H - 40
       );
@@ -1790,10 +1814,11 @@ export const ParentModal: React.FC<ParentModalProps> = ({
         { jpegDataUrl: jpegPage2, width: W, height: H },
       ]);
 
+      const safeFileName = fullChildName.replace(/[^a-zA-Z0-9_-]/g, '_') || 'Bimbo';
       const url = URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Relazione_Competenze_CHC_Progressi_Emma_Guidi_Livello_${progress.currentLevel}.pdf`;
+      link.download = `Relazione_Competenze_CHC_Progressi_${safeFileName}_Livello_${progress.currentLevel}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -1820,20 +1845,31 @@ export const ParentModal: React.FC<ParentModalProps> = ({
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap text-xs text-slate-300">
                 <span className="font-semibold text-indigo-300">
-                  Valutazione Cognitiva CHC (0–100) & Progressi Mensili/Annuali
+                  Valutazione Cognitiva CHC (0–100) · {ageInfo.ageBandTitle}
                 </span>
                 <span className="text-white/30" aria-hidden="true">·</span>
                 <span className="font-medium text-slate-300 inline-flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5 text-amber-300" /> Nata il 22/08/2021 ({ageInfo.displayText})
+                  <Calendar className="w-3.5 h-3.5 text-amber-300" /> {bornLabel}{' '}
+                  {ageInfo.birthDateFormatted} ({ageInfo.displayText})
                 </span>
               </div>
               <h2 className="font-fun font-extrabold text-lg sm:text-2xl text-white mt-0.5 leading-snug">
-                Il Mondo di Emma — Dashboard Competenze & Progressi
+                {worldTitleFull} — Dashboard Competenze & Progressi
               </h2>
             </div>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            {onOpenProfile && (
+              <button
+                onClick={onOpenProfile}
+                className="flex items-center gap-1.5 px-3.5 py-2 sm:py-2.5 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-100 font-fun font-bold text-xs sm:text-sm border border-indigo-300/35 cursor-pointer transition-colors whitespace-nowrap"
+              >
+                <UserRoundCog className="w-4 h-4 text-amber-300" />
+                <span>Modifica Profilo & Foto</span>
+              </button>
+            )}
+
             <button
               onClick={handleDownloadPdfReport}
               disabled={isGeneratingPdf}
@@ -1843,7 +1879,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
               <span>
                 {isGeneratingPdf
                   ? 'Generazione PDF...'
-                  : 'Scarica Report PDF (Emma Guidi)'}
+                  : `Scarica Report PDF (${fullChildName})`}
               </span>
             </button>
 
@@ -1988,7 +2024,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                   />
                 </div>
                 <p className="text-[11px] text-white/75 leading-snug">
-                  Misura quanto correttamente Emma risponde al 1° tentativo.
+                  Misura quanto correttamente {childName} risponde al 1° tentativo.
                 </p>
                 <p className="text-[10px] font-mono text-violet-200/90 mt-1.5 bg-white/5 px-2 py-1 rounded-lg">
                   IP = Σ(wᵢ·cᵢ)/Σwᵢ×100 = {evalReport.weightedCorrectSum}/
@@ -2164,7 +2200,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                 <strong className="text-white">Punto di Partenza</strong> e{' '}
                 <strong className="text-emerald-300">Stato Attuale</strong>, e ad{' '}
                 <strong className="text-pink-300">
-                  ogni compleanno di Emma (22/08)
+                  ogni compleanno di {childName} ({evalReport.childBirthDayMonthLabel})
                 </strong>{' '}
                 consolida l’anno concluso in una{' '}
                 <strong className="text-amber-300">riga fissa</strong>{' '}
@@ -2283,7 +2319,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
               <thead>
                 <tr className="bg-emerald-950/90 text-emerald-200 border-b border-white/15 text-[11px] uppercase tracking-wider">
                   <th className="py-3 px-3.5 font-extrabold">
-                    Anno d’Età di Emma
+                    Anno d’Età di {childName}
                   </th>
                   <th className="py-3 px-3 font-extrabold">Stato Riga</th>
                   <th className="py-3 px-3 font-extrabold">
@@ -2371,8 +2407,8 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                 {/* PREVIEW OF NEXT AUTOMATIC BIRTHDAY ROW */}
                 <tr className="bg-slate-950/60 text-white/55 italic">
                   <td className="py-2.5 px-3.5 font-bold text-amber-200/80">
-                    {evalReport.emmaCurrentAgeYears + 1} Anni (Dal 22/08/
-                    {2021 + evalReport.emmaCurrentAgeYears + 1})
+                    {evalReport.childCurrentAgeYears + 1} Anni (Dal{' '}
+                    {evalReport.childBirthDayMonthLabel}/{evalReport.nextBirthdayYear})
                   </td>
                   <td className="py-2.5 px-3">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[10px]">
@@ -2380,9 +2416,9 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                     </span>
                   </td>
                   <td colSpan={3} className="py-2.5 px-3 text-[11px]">
-                    Al compimento dei {evalReport.emmaCurrentAgeYears + 1} anni
-                    ({evalReport.nextBirthdayDateLabel}), la riga dei{' '}
-                    {evalReport.emmaCurrentAgeYears} Anni diventerà una{' '}
+                    Al compimento dei {evalReport.childCurrentAgeYears + 1} anni (
+                    {evalReport.nextBirthdayDateLabel}), la riga dei{' '}
+                    {evalReport.childCurrentAgeYears} Anni diventerà una{' '}
                     <strong className="text-white/80">riga fissa</strong> e si
                     aggiungerà automaticamente questa nuova riga.
                   </td>
@@ -2549,7 +2585,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
             </div>
             <span className="text-xs text-white/60">
               {isMeasurementUnlocked
-                ? `Profilo Multi-Parametro di Emma al Livello ${progress.currentLevel}`
+                ? `Profilo Multi-Parametro di ${childName} al Livello ${progress.currentLevel}`
                 : 'Completa il 1° livello per visualizzare la mappa radar multi-parametro'}
             </span>
           </div>
@@ -2721,7 +2757,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
           <div className="flex items-center gap-2 mb-3">
             <HeartHandshake className="w-5 h-5 text-pink-300" />
             <h3 className="font-kids font-bold text-sm uppercase tracking-wider text-pink-200">
-              6. Indicazioni Educative per Accompagnare Emma (5 Anni)
+              6. Indicazioni Educative per Accompagnare {childName} ({ageInfo.shortAgeLabel})
             </h3>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-white/85 leading-relaxed">
@@ -2729,7 +2765,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
               <p className="font-bold text-amber-300 mb-1 flex items-center gap-1">
                 <Compass className="w-3.5 h-3.5" /> Ragionamento Fluido (Gf)
               </p>
-              Chiedere a Emma di spiegare ad alta voce perché ha scelto un
+              Chiedere a {childName} di spiegare ad alta voce perché ha scelto un
               determinato simbolo nella sequenza logica rinforza la
               metacognizione e il trasferimento (IT).
             </div>

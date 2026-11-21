@@ -268,7 +268,25 @@ export interface PedagogicalDomainReport {
   tipsForParents: string;
 }
 
+export type ChildGender = 'f' | 'm' | 'n';
+
+export type AgeBandId =
+  | 'toddler_2_3'
+  | 'preschool_4_5'
+  | 'early_primary_6_7'
+  | 'primary_8_plus';
+
+export interface ChildProfile {
+  name: string;
+  surname?: string;
+  birthDate: string; // YYYY-MM-DD
+  gender: ChildGender;
+  customBackgroundUrl?: string; // Compressed data:image/... uploaded by user
+  isConfigured: boolean;
+}
+
 export interface UserProgress {
+  childProfile: ChildProfile;
   currentLevel: number;        // Infinite level counter (starts at 1)
   highestLevelReached: number;
   stars: number;

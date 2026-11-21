@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { SavedDrawing, UserProgress } from '../types/game';
 import { soundManager } from '../utils/audio';
 import { confetti } from '../utils/confetti';
+import { getDisplayChildName, getGenderedWord } from '../utils/childProfile';
 import { 
   RotateCcw, 
   Trash2, 
@@ -22,7 +23,7 @@ interface StudioDisegnoProps {
 type BrushMode = 'rainbow' | 'glitter' | 'neon' | 'color' | 'eraser' | 'sticker';
 
 const BRUSH_COLORS = [
-  { name: 'Rosa Emma', hex: '#ff4d94', bg: 'bg-[#ff4d94]' },
+  { name: 'Rosa Magico', hex: '#ff4d94', bg: 'bg-[#ff4d94]' },
   { name: 'Giallo Sole', hex: '#fbbf24', bg: 'bg-amber-400' },
   { name: 'Celeste Cielo', hex: '#38bdf8', bg: 'bg-sky-400' },
   { name: 'Verde Prato', hex: '#22c55e', bg: 'bg-green-500' },
@@ -60,15 +61,20 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
   // Undo stack
   const [undoStack, setUndoStack] = useState<ImageData[]>([]);
 
+  const childProfile = progress?.childProfile;
+  const childName = getDisplayChildName(childProfile);
+  const childGender = childProfile?.gender || 'n';
+  const welcomeWord = getGenderedWord(childGender, 'Benvenuta', 'Benvenuto', 'Benvenuto');
+
   // Sound & Voice welcome
   useEffect(() => {
     soundManager.speakInstruction(
-      'Benvenuta nello Studio di Disegno, Emma! Prendi i pennelli magici e crea un capolavoro!'
+      `${welcomeWord} nello Studio di Disegno, ${childName}! Prendi i pennelli magici e crea un capolavoro!`
     );
     return () => {
       soundManager.stopSpeech();
     };
-  }, []);
+  }, [welcomeWord, childName]);
 
   // Initialize and resize canvas
   const initCanvas = useCallback(() => {
@@ -372,7 +378,9 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
     };
 
     onSaveDrawing(newDrawing);
-    soundManager.speakPraise('Che capolavoro splendido, Emma! L\'ho salvato nella tua bacheca!');
+    soundManager.speakPraise(
+      `Che capolavoro splendido, ${childName}! L'ho salvato nella tua bacheca!`
+    );
 
     setTimeout(() => {
       setSaveSuccess(false);
@@ -385,11 +393,12 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
     if (!canvas) return;
 
     soundManager.playSuccess();
+    const safeFileName = childName.replace(/[^a-zA-Z0-9_-]/g, '_') || 'Bimbo';
     const link = document.createElement('a');
-    link.download = `Emma_Capolavoro_${new Date().toISOString().slice(0, 10)}.png`;
+    link.download = `${safeFileName}_Capolavoro_${new Date().toISOString().slice(0, 10)}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
-    soundManager.speakPraise('Disegno scaricato sul tuo tablet!');
+    soundManager.speakPraise('Disegno scaricato sul tuo dispositivo!');
   };
 
   return (
@@ -416,7 +425,7 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-lg sm:text-xl shrink-0">🎨</span>
           <h2 className="font-fun font-extrabold text-sm sm:text-lg text-white truncate tracking-tight">
-            Studio Disegno di Emma
+            Studio Disegno di {childName}
           </h2>
         </div>
 
@@ -502,7 +511,7 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
                 Capolavoro Salvato!
               </h3>
               <p className="text-sm sm:text-base font-medium text-amber-300 mt-1">
-                +3 Stelline per Emma ⭐⭐⭐
+                +3 Stelline per {childName} ⭐⭐⭐
               </p>
             </div>
           )}

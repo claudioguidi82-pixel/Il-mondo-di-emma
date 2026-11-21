@@ -11,15 +11,18 @@ import {
 } from 'lucide-react';
 import { soundManager } from '../utils/audio';
 import { confetti } from '../utils/confetti';
+import { ChildProfile } from '../types/game';
+import { getDisplayChildName, getGenderedWord } from '../utils/childProfile';
 
 interface SvagoArenaProps {
   levelNumber: number;
+  childProfile?: ChildProfile;
   onComplete: (mode: 'tris' | 'bubbles' | 'memory' | 'stars', wonTris: boolean) => void;
   onExitToTitle: () => void;
 }
 
 type SvagoGameMode = 'tris' | 'bubbles' | 'memory' | 'stars';
-type CellValue = 'EMMA' | 'ORSETTO' | null;
+type CellValue = 'PLAYER' | 'ORSETTO' | null;
 
 const WINNING_LINES = [
   [0, 1, 2],
@@ -70,9 +73,21 @@ const MEMORY_EMOJIS = ['🦄', '🍓', '👑', '🦋'];
 
 export const SvagoArena: React.FC<SvagoArenaProps> = ({
   levelNumber,
+  childProfile,
   onComplete,
   onExitToTitle,
 }) => {
+  const childName = getDisplayChildName(childProfile);
+  const childGender = childProfile?.gender || 'n';
+  const bravoWord = getGenderedWord(childGender, 'Bravissima', 'Bravissimo', 'Fantastico');
+  const championWord = getGenderedWord(childGender, 'campionessa', 'campione', 'campione');
+  const championTitle = getGenderedWord(
+    childGender,
+    'Super Campionessa!',
+    'Super Campione!',
+    'Super Stella!'
+  );
+
   const initialMode: SvagoGameMode =
     levelNumber % 40 === 0
       ? 'stars'
@@ -87,8 +102,8 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
 
   // --- TRIS 3D STATE ---
   const [board, setBoard] = useState<CellValue[]>(Array(9).fill(null));
-  const [isEmmaTurn, setIsEmmaTurn] = useState(true);
-  const [trisWinner, setTrisWinner] = useState<'EMMA' | 'ORSETTO' | 'DRAW' | null>(
+  const [isPlayerTurn, setIsPlayerTurn] = useState(true);
+  const [trisWinner, setTrisWinner] = useState<'PLAYER' | 'ORSETTO' | 'DRAW' | null>(
     null
   );
   const [winningLine, setWinningLine] = useState<number[] | null>(null);
@@ -183,19 +198,19 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
 
   const resetTris = useCallback(() => {
     setBoard(Array(9).fill(null));
-    setIsEmmaTurn(true);
+    setIsPlayerTurn(true);
     setTrisWinner(null);
     setWinningLine(null);
   }, []);
 
   useEffect(() => {
     soundManager.speakPraise(
-      `Evviva Emma! Livello ${levelNumber}: sei nel Parco Giochi Arcobaleno! Scegli il tuo gioco preferito!`
+      `Evviva ${childName}! Livello ${levelNumber}: sei nel Parco Giochi Arcobaleno! Scegli il tuo gioco preferito!`
     );
     initBubblesGame();
     initMemoryGame();
     initStarsGame();
-  }, [levelNumber, initBubblesGame, initMemoryGame, initStarsGame]);
+  }, [levelNumber, childName, initBubblesGame, initMemoryGame, initStarsGame]);
 
   const checkTrisWinner = useCallback((currentBoard: CellValue[]) => {
     for (const line of WINNING_LINES) {
@@ -216,7 +231,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
 
   // Friendly Orsetto AI move
   useEffect(() => {
-    if (gameMode !== 'tris' || isEmmaTurn || trisWinner) return;
+    if (gameMode !== 'tris' || isPlayerTurn || trisWinner) return;
 
     const timer = setTimeout(() => {
       const emptyIndices = board
@@ -239,44 +254,44 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
         setWinningLine(result.line);
         if (result.winner === 'ORSETTO') {
           soundManager.speak(
-            'Ha vinto Orsetto! Riproviamo subito Emma, fai vedere chi è la campionessa!'
+            `Ha vinto Orsetto! Riproviamo subito ${childName}, fai vedere chi è ${getGenderedWord(childGender, 'la', 'il', 'il')} ${championWord}!`
           );
         } else if (result.winner === 'DRAW') {
           soundManager.playSuccess();
           soundManager.speak("Pareggio! Giochiamo un'altra partita!");
         }
       } else {
-        setIsEmmaTurn(true);
+        setIsPlayerTurn(true);
       }
     }, 600);
 
     return () => clearTimeout(timer);
-  }, [board, isEmmaTurn, trisWinner, checkTrisWinner, gameMode]);
+  }, [board, isPlayerTurn, trisWinner, checkTrisWinner, gameMode, childName, childGender, championWord]);
 
   const handleTrisCellClick = (idx: number) => {
-    if (!isEmmaTurn || board[idx] !== null || trisWinner) return;
+    if (!isPlayerTurn || board[idx] !== null || trisWinner) return;
 
     soundManager.playTwinkle();
     const nextBoard = [...board];
-    nextBoard[idx] = 'EMMA';
+    nextBoard[idx] = 'PLAYER';
     setBoard(nextBoard);
 
     const result = checkTrisWinner(nextBoard);
     if (result) {
       setTrisWinner(result.winner);
       setWinningLine(result.line);
-      if (result.winner === 'EMMA') {
+      if (result.winner === 'PLAYER') {
         soundManager.playFanfare();
         confetti.burst();
         soundManager.speakPraise(
-          "Tris! Bravissima Emma! Hai vinto tre stelline d'oro!"
+          `Tris! ${bravoWord} ${childName}! Hai vinto tre stelline d'oro!`
         );
       } else if (result.winner === 'DRAW') {
         soundManager.playSuccess();
         soundManager.speak('Pareggio! Riprova o passa al prossimo livello!');
       }
     } else {
-      setIsEmmaTurn(false);
+      setIsPlayerTurn(false);
     }
   };
 
@@ -294,7 +309,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
       soundManager.playFanfare();
       confetti.burst();
       soundManager.speakPraise(
-        'Fantastico Emma! Hai scoppiato tutte le bolle magiche!'
+        `Fantastico ${childName}! Hai scoppiato tutte le bolle magiche!`
       );
     }
   };
@@ -333,7 +348,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
               soundManager.playFanfare();
               confetti.burst();
               soundManager.speakPraise(
-                'Super Memoria Emma! Hai trovato tutte le coppie 3D!'
+                `Super Memoria ${childName}! Hai trovato tutte le coppie 3D!`
               );
             }
             return matchedCards;
@@ -371,13 +386,13 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
       soundManager.playFanfare();
       confetti.burst();
       soundManager.speakPraise(
-        'Bravissima Emma! Hai preso tutti i tesori magici 3D!'
+        `${bravoWord} ${childName}! Hai preso tutti i tesori magici 3D!`
       );
     }
   };
 
   const isCurrentGameWon =
-    (gameMode === 'tris' && (trisWinner === 'EMMA' || trisWinner === 'DRAW')) ||
+    (gameMode === 'tris' && (trisWinner === 'PLAYER' || trisWinner === 'DRAW')) ||
     (gameMode === 'bubbles' && bubblesPopped >= BUBBLE_TARGET) ||
     (gameMode === 'memory' && memoryComplete) ||
     (gameMode === 'stars' && starsCaught >= STARS_TARGET);
@@ -513,7 +528,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
             <div className="w-full max-w-md board-3d-tabletop rounded-3xl p-2.5 flex items-center justify-between shrink-0">
               <div
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl transition-all ${
-                  isEmmaTurn && !trisWinner
+                  isPlayerTurn && !trisWinner
                     ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white border-2 border-white scale-105 shadow-md'
                     : 'bg-white/80 text-slate-700'
                 }`}
@@ -521,7 +536,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
                 <span className="text-2xl">👑</span>
                 <div>
                   <p className="font-kids font-extrabold text-xs leading-tight">
-                    Emma
+                    {childName}
                   </p>
                   <p className="text-[10px] font-bold opacity-90">Turno Tuo</p>
                 </div>
@@ -529,21 +544,21 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
 
               <div className="text-center px-2">
                 <span className="font-kids font-extrabold text-xs uppercase tracking-wider text-pink-600">
-                  {trisWinner === 'EMMA'
+                  {trisWinner === 'PLAYER'
                     ? '🎉 Vittoria!'
                     : trisWinner === 'ORSETTO'
                     ? '🧸 Orsetto!'
                     : trisWinner === 'DRAW'
                     ? '🤝 Pareggio!'
-                    : isEmmaTurn
-                    ? 'Tocca a Emma!'
+                    : isPlayerTurn
+                    ? `Tocca a ${childName}!`
                     : 'Pensa Orsetto...'}
                 </span>
               </div>
 
               <div
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl transition-all ${
-                  !isEmmaTurn && !trisWinner
+                  !isPlayerTurn && !trisWinner
                     ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white border-2 border-white scale-105 shadow-md'
                     : 'bg-white/80 text-slate-700'
                 }`}
@@ -565,18 +580,18 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
                   <button
                     key={idx}
                     onClick={() => handleTrisCellClick(idx)}
-                    disabled={!!cell || !isEmmaTurn || !!trisWinner}
+                    disabled={!!cell || !isPlayerTurn || !!trisWinner}
                     className={`tris-slot-3d rounded-2xl flex items-center justify-center transition-all p-1.5 cursor-pointer ${
                       isWinningCell
                         ? 'bg-gradient-to-b from-yellow-200 to-amber-400 border-white scale-105 shadow-[0_0_24px_rgba(250,204,21,0.9)]'
-                        : cell === 'EMMA'
+                        : cell === 'PLAYER'
                         ? 'bg-gradient-to-b from-pink-100 to-rose-200 border-pink-300'
                         : cell === 'ORSETTO'
                         ? 'bg-gradient-to-b from-cyan-100 to-sky-200 border-cyan-300'
                         : 'hover:scale-[1.03] active:scale-95'
                     }`}
                   >
-                    {cell === 'EMMA' && (
+                    {cell === 'PLAYER' && (
                       <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-b from-pink-400 to-rose-600 border-2 border-white shadow-md flex items-center justify-center text-2xl sm:text-3xl animate-pop-in">
                         👑
                       </div>
@@ -721,7 +736,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/85 backdrop-blur-sm p-4 text-center">
                   <span className="text-6xl mb-2 animate-bounce">👑</span>
                   <h3 className="font-kids font-extrabold text-2xl text-amber-600">
-                    Super Campionessa! 🌟
+                    {championTitle} 🌟
                   </h3>
                   <p className="text-xs font-fun font-extrabold text-slate-700 mt-1">
                     Hai raccolto tutti i tesori magici 3D!
@@ -738,7 +753,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
             <div className="bg-gradient-to-r from-amber-300 via-yellow-300 to-amber-400 border-2 border-white rounded-2xl p-2 text-center shadow-lg flex items-center justify-center gap-2">
               <Trophy className="w-5 h-5 text-amber-900 shrink-0" />
               <span className="font-kids font-extrabold text-xs sm:text-sm text-slate-950">
-                Bravissima Emma! +3 Stelline d'Oro vinte!
+                {bravoWord} {childName}! +3 Stelline d'Oro vinte!
               </span>
               <div className="flex items-center">
                 <Star className="w-4 h-4 text-amber-700 fill-amber-700" />
@@ -766,7 +781,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
             <button
               onClick={() => {
                 soundManager.playSuccess();
-                onComplete(gameMode, trisWinner === 'EMMA');
+                onComplete(gameMode, trisWinner === 'PLAYER');
               }}
               className="toy-button-3d py-2.5 px-4 rounded-2xl bg-gradient-to-b from-emerald-400 via-green-500 to-teal-600 text-white font-kids font-extrabold text-xs sm:text-sm border-2 border-white shadow-lg flex items-center justify-center gap-1.5 cursor-pointer"
             >

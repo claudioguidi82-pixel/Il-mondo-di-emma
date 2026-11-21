@@ -97,7 +97,7 @@ async function getItalianAudio(text: string): Promise<CachedAudio> {
             role: 'user',
             parts: [
               {
-                text: `Pronuncia in italiano con voce di narratrice di fiabe dolce, calorosa, gioiosa ed espressiva, adatta a una bambina di 5 anni: "${cleanText}"`,
+                text: `Pronuncia in italiano con voce di narratrice di fiabe dolce, calorosa, gioiosa ed espressiva, adatta a bambini e bambine: "${cleanText}"`,
               },
             ],
           },
@@ -240,7 +240,7 @@ async function start() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Emma's World server listening on http://0.0.0.0:${PORT} [prod=${isProd}]`);
+    console.log(`Il Mio Mondo server listening on http://0.0.0.0:${PORT} [prod=${isProd}]`);
   });
 }
 

@@ -21,6 +21,7 @@ import {
 } from '../utils/infiniteLevels';
 import { soundManager } from '../utils/audio';
 import { confetti } from '../utils/confetti';
+import { getDisplayChildName, getGenderedWord } from '../utils/childProfile';
 
 interface PlayArenaProps {
   progress: UserProgress;
@@ -117,9 +118,9 @@ const ZOO_PARLANTE_ANIMALS: ZooTalkingAnimal[] = [
     habitat: 'Re della Savana',
     badgeClass: 'from-amber-500 to-orange-600 border-amber-200/90',
     phrases: [
-      'Ciao Emma! Io sono il Leone Leo! Roaaar! Ho una grande criniera dorata e sono il re della savana! In inglese mi chiamo Làion!',
-      'Roaaar! Sapevi Emma che il mio ruggito si sente fino a otto chilometri di distanza nella savana?',
-      'Ciao campionessa! Io sono il Leone! Corro veloce sull’erba dorata e proteggo tutto il mio branco!',
+      'Ciao {NAME}! Io sono il Leone Leo! Roaaar! Ho una grande criniera dorata e sono il re della savana! In inglese mi chiamo Làion!',
+      'Roaaar! Sapevi {NAME} che il mio ruggito si sente fino a otto chilometri di distanza nella savana?',
+      'Ciao {CHAMPION}! Io sono il Leone! Corro veloce sull’erba dorata e proteggo tutto il mio branco!',
     ],
   },
   {
@@ -132,9 +133,9 @@ const ZOO_PARLANTE_ANIMALS: ZooTalkingAnimal[] = [
     habitat: 'Collo Lunghissimo',
     badgeClass: 'from-emerald-500 to-teal-600 border-emerald-200/90',
     phrases: [
-      'Ciao Emma! Io sono la Giraffa Gina! Gnam gnam! Con il mio collo lunghissimo mangio le foglioline più tenere in cima agli alberi! In inglese mi chiamo Giràf!',
-      'Gnam gnam! Sapevi Emma che la mia lingua è blu-viola ed è lunga quasi mezzo metro per raccogliere le foglie di acacia?',
-      'Ciao Emma! Dall’alto del mio collo vedo tutto lo Zoo Parlante e persino le nuvole bianche!',
+      'Ciao {NAME}! Io sono la Giraffa Gina! Gnam gnam! Con il mio collo lunghissimo mangio le foglioline più tenere in cima agli alberi! In inglese mi chiamo Giràf!',
+      'Gnam gnam! Sapevi {NAME} che la mia lingua è blu-viola ed è lunga quasi mezzo metro per raccogliere le foglie di acacia?',
+      'Ciao {NAME}! Dall’alto del mio collo vedo tutto lo Zoo Parlante e persino le nuvole bianche!',
     ],
   },
   {
@@ -147,9 +148,9 @@ const ZOO_PARLANTE_ANIMALS: ZooTalkingAnimal[] = [
     habitat: 'Super Proboscide',
     badgeClass: 'from-sky-500 to-indigo-600 border-sky-200/90',
     phrases: [
-      'Ciao Emma! Io sono l’Elefante Elio! Pa-uuuh! Uso la mia lunga proboscide per bere e fare una doccia fresca! In inglese mi chiamo Èlefant!',
-      'Pa-uuuh! Sapevi Emma che le mie grandi orecchie mi servono per farmi vento quando fa tanto caldo nella savana?',
-      'Ciao amica mia! Io sono l’Elefante! Ho una memoria straordinaria e non dimentico mai le nostre avventure!',
+      'Ciao {NAME}! Io sono l’Elefante Elio! Pa-uuuh! Uso la mia lunga proboscide per bere e fare una doccia fresca! In inglese mi chiamo Èlefant!',
+      'Pa-uuuh! Sapevi {NAME} che le mie grandi orecchie mi servono per farmi vento quando fa tanto caldo nella savana?',
+      'Ciao {FRIEND}! Io sono l’Elefante! Ho una memoria straordinaria e non dimentico mai le nostre avventure!',
     ],
   },
 ];
@@ -161,8 +162,11 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
   onExitToTitle,
 }) => {
   const currentLevel = progress.currentLevel;
+  const childProfile = progress.childProfile;
+  const childName = getDisplayChildName(childProfile);
+  const childGender = childProfile?.gender || 'n';
   const [puzzle, setPuzzle] = useState<Puzzle>(() =>
-    generateProceduralPuzzle(currentLevel)
+    generateProceduralPuzzle(currentLevel, childProfile)
   );
   const [wrongOptionIds, setWrongOptionIds] = useState<string[]>([]);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
@@ -219,7 +223,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
     levelStartMsRef.current = Date.now();
     solveElapsedMsRef.current = 4800;
 
-    const nextPuzzle = generateProceduralPuzzle(currentLevel);
+    const nextPuzzle = generateProceduralPuzzle(currentLevel, childProfile);
     setPuzzle(nextPuzzle);
     setWrongOptionIds([]);
     setSelectedOptionId(null);
@@ -254,13 +258,35 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
         zooSpeechTimerRef.current = null;
       }
     };
-  }, [currentLevel, clearReplayTimers]);
+  }, [
+    currentLevel,
+    childProfile?.birthDate,
+    childProfile?.name,
+    childProfile?.gender,
+    clearReplayTimers,
+  ]);
 
   const handleTapZooAnimal = useCallback(
     (animal: ZooTalkingAnimal) => {
       setActiveZooAnimal(animal);
       const currentIdx = zooPhraseIndex[animal.id] ?? 0;
-      const phrase = animal.phrases[currentIdx % animal.phrases.length];
+      const championWord = getGenderedWord(
+        childGender,
+        'campionessa',
+        'campione',
+        'campione'
+      );
+      const friendWord = getGenderedWord(
+        childGender,
+        'amica mia',
+        'amico mio',
+        'amico speciale'
+      );
+      const rawPhrase = animal.phrases[currentIdx % animal.phrases.length];
+      const phrase = rawPhrase
+        .replace(/\{NAME\}/g, childName)
+        .replace(/\{CHAMPION\}/g, championWord)
+        .replace(/\{FRIEND\}/g, friendWord);
       setZooPhraseIndex((prev) => ({
         ...prev,
         [animal.id]: currentIdx + 1,
@@ -277,7 +303,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
         zooSpeechTimerRef.current = null;
       }, 280);
     },
-    [zooPhraseIndex]
+    [zooPhraseIndex, childName, childGender]
   );
 
   const handleReplayRhythm = useCallback(() => {
@@ -334,7 +360,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
         setIsSolved(true);
         soundManager.playFanfare();
         confetti.burst();
-        const praise = getEncouragementPhrase(true, true);
+        const praise = getEncouragementPhrase(true, childProfile, true);
         soundManager.speakPraise(`${formatted.speech}! ${praise} ${puzzle.funExplanation}`);
       }, 420);
     } else {
@@ -360,12 +386,12 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
       setIsSolved(true);
       soundManager.playFanfare();
       confetti.burst();
-      const praise = getEncouragementPhrase(true, true);
+      const praise = getEncouragementPhrase(true, childProfile, true);
       soundManager.speakPraise(`${praise} ${puzzle.funExplanation}`);
     } else {
       soundManager.playEncouragement();
       setWrongOptionIds((prev) => [...prev, opt.id]);
-      const retryPhrase = getEncouragementPhrase(false, true);
+      const retryPhrase = getEncouragementPhrase(false, childProfile, true);
       soundManager.speak(retryPhrase);
     }
   };
@@ -960,7 +986,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
             </div>
 
             <h3 className="font-fun font-extrabold text-2xl sm:text-3xl text-slate-900">
-              Bravissima Emma! 🎉
+              {getGenderedWord(childGender, 'Bravissima', 'Bravissimo', 'Fantastico')} {childName}! 🎉
             </h3>
             <p className="text-sm sm:text-base font-medium text-slate-600 mt-1.5 leading-relaxed">
               {puzzle.funExplanation}

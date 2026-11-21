@@ -1,4 +1,5 @@
-import { UserProgress, LevelPerformanceEntry, CategoryPerformance } from '../types/game';
+import { UserProgress, LevelPerformanceEntry, CategoryPerformance, ChildProfile, ChildGender } from '../types/game';
+import { DEFAULT_CHILD_PROFILE, isValidIsoDate } from './childProfile';
 
 export interface SecurityCriterionReport {
   id: string;
@@ -14,6 +15,8 @@ export interface SecurityCriterionReport {
  */
 export function computeProgressIntegrityHash(progress: UserProgress): string {
   const corePayload = [
+    progress.childProfile?.name || '',
+    progress.childProfile?.birthDate || '',
     progress.currentLevel,
     progress.highestLevelReached,
     progress.stars,
@@ -61,11 +64,41 @@ export function clampSafeNumber(
 /**
  * Normalizes response time in milliseconds for psychometric Gs (Velocità e precisione) analysis:
  * - Guards against accidental double-taps (< 450ms)
- * - Caps idle pauses (> 45000ms) so if Emma talks with her parents, her Gs score isn't unfairly penalized.
+ * - Caps idle pauses (> 45000ms) so parent-child conversations never unfairly penalize Gs.
  */
 export function normalizePsychometricResponseTimeMs(rawMs: unknown): number {
   const ms = clampSafeNumber(rawMs, 450, 45000, 5200);
   return Math.round(ms);
+}
+
+function sanitizeChildProfile(raw: unknown): ChildProfile {
+  if (!raw || typeof raw !== 'object') {
+    return { ...DEFAULT_CHILD_PROFILE };
+  }
+  const obj = raw as Record<string, unknown>;
+  const name = sanitizeSafeText(obj.name, '').slice(0, 40);
+  const surname = sanitizeSafeText(obj.surname, '').slice(0, 40);
+  const birthDateRaw = sanitizeSafeText(obj.birthDate, '');
+  const birthDate = isValidIsoDate(birthDateRaw) ? birthDateRaw : '';
+  const genderRaw = String(obj.gender || 'n');
+  const gender: ChildGender =
+    genderRaw === 'f' || genderRaw === 'm' || genderRaw === 'n' ? genderRaw : 'n';
+  const customBackgroundUrl =
+    typeof obj.customBackgroundUrl === 'string' &&
+    obj.customBackgroundUrl.startsWith('data:image/') &&
+    obj.customBackgroundUrl.length <= 2_500_000
+      ? obj.customBackgroundUrl
+      : undefined;
+  const isConfigured = Boolean(obj.isConfigured) && name.length > 0 && birthDate.length > 0;
+
+  return {
+    name,
+    surname,
+    birthDate,
+    gender,
+    customBackgroundUrl,
+    isConfigured,
+  };
 }
 
 function sanitizeCategoryStat(raw: unknown): CategoryPerformance {
@@ -119,6 +152,8 @@ export function sanitizeAndValidateProgress(raw: unknown): UserProgress | null {
   const parsed = raw as Record<string, unknown>;
   const today = new Date().toISOString().split('T')[0];
 
+  const childProfile = sanitizeChildProfile(parsed.childProfile);
+
   const currentLevel = Math.round(clampSafeNumber(parsed.currentLevel, 1, 99999, 1));
   const highestLevelReached = Math.round(
     clampSafeNumber(parsed.highestLevelReached, currentLevel, 99999, currentLevel)
@@ -165,6 +200,7 @@ export function sanitizeAndValidateProgress(raw: unknown): UserProgress | null {
     });
 
   return {
+    childProfile,
     currentLevel,
     highestLevelReached,
     stars: Math.round(clampSafeNumber(parsed.stars, 0, 999999, 0)),
@@ -237,7 +273,7 @@ export function getSecurityComplianceReport(progress: UserProgress): {
       code: 'GDPR-K / COPPA',
       title: 'Privacy Minori Zero-Tracking Locale',
       description:
-        'Nessun invio di dati personali a server esterni, zero cookie pubblicitari e archiviazione crittograficamente isolata sul dispositivo.',
+        'Foto, nome, data di nascita e progressi restano esclusivamente sul dispositivo: nessun dato personale viene mai inviato a server esterni.',
       statusLabel: 'Attivo e Conforme',
       verified: true,
     },
@@ -263,7 +299,7 @@ export function getSecurityComplianceReport(progress: UserProgress): {
       code: 'GS-FILTER',
       title: 'Filtro Anti-Click Casuale & Normalizzazione Latenza',
       description:
-        'Filtra tocchi multipli ravvicinati (< 450 ms) e normalizza le pause di dialogo genitore-bambina per il parametro Gs.',
+        'Filtra tocchi multipli ravvicinati (< 450 ms) e normalizza le pause di dialogo genitore-figlio per il parametro Gs.',
       statusLabel: 'Filtro Attivo',
       verified: true,
     },
@@ -272,7 +308,7 @@ export function getSecurityComplianceReport(progress: UserProgress): {
       code: 'PIN-ADULTI',
       title: 'Protezione Operazioni Sensibili Area Genitori',
       description:
-        'Blocco di sicurezza con verifica matematica per impedire l\'azzeramento accidentale dei progressi da parte della bambina.',
+        'Blocco di sicurezza con verifica matematica per impedire l\'azzeramento accidentale dei progressi da parte del bambino o della bambina.',
       statusLabel: 'Protetto',
       verified: true,
     },

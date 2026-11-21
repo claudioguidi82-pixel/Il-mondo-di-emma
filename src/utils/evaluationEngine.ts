@@ -1,4 +1,4 @@
-// Mathematical & CHC Cognitive Evaluation Engine for "Il Mondo di Emma"
+// Mathematical & CHC Cognitive Evaluation Engine for "Il Mio Mondo"
 // Implements:
 // 1. Four Core Indicators (0-100): Prestazione (IP), Competenza (IC), Autonomia (IA), Evoluzione (IE)
 // 2. Exact Weighted Performance Formula: IP = (Sum(w_i * c_i) / Sum(w_i)) * 100
@@ -16,6 +16,7 @@ import {
   MonthlyProgressCheckpoint,
   UserProgress,
 } from '../types/game';
+import { calculateChildAge, parseBirthDateParts } from './childProfile';
 
 
 export type DifficultyLabel =
@@ -159,12 +160,15 @@ export interface FullEvaluationReport {
 
   // 6. PROGRESSI OTTENUTI GRAZIE ALL'UTILIZZO DELL'APP
   //    (Aggiornamento ogni inizio mese + Confronto Punto di Partenza vs Attuale +
-  //     Riga fissa ad ogni compleanno di Emma con aggiunta di una nuova riga)
-  emmaCurrentAgeYears: number;
+  //     Riga fissa ad ogni compleanno del bambino/a con aggiunta di una nuova riga)
+  childCurrentAgeYears: number;
+  emmaCurrentAgeYears: number; // Alias kept for compatibility
+  childBirthDayMonthLabel: string;    // es. "14/05"
+  nextBirthdayYear: number;           // es. 2027
   currentMonthKey: string;            // es. "2026-11"
   currentMonthStartLabel: string;     // es. "01/11/2026"
   nextMonthlyUpdateLabel: string;     // es. "01/12/2026"
-  nextBirthdayDateLabel: string;      // es. "22/08/2027 (Compimento 6 Anni)"
+  nextBirthdayDateLabel: string;      // es. "14/05/2027 (Compimento 6 Anni)"
   annualProgressRows: AnnualAgeProgressRow[];
   activeAgeRow: AnnualAgeProgressRow;
 }
@@ -955,7 +959,10 @@ export function computeFullEvaluationReport(
     stabilitySummaryNote,
     chcAbilities,
     domains,
-    emmaCurrentAgeYears: longitudinal.emmaCurrentAgeYears,
+    childCurrentAgeYears: longitudinal.childCurrentAgeYears,
+    emmaCurrentAgeYears: longitudinal.childCurrentAgeYears,
+    childBirthDayMonthLabel: longitudinal.childBirthDayMonthLabel,
+    nextBirthdayYear: longitudinal.nextBirthdayYear,
     currentMonthKey: longitudinal.currentMonthKey,
     currentMonthStartLabel: longitudinal.currentMonthStartLabel,
     nextMonthlyUpdateLabel: longitudinal.nextMonthlyUpdateLabel,
@@ -980,22 +987,16 @@ const ITALIAN_MONTHS_SHORT = [
   'Dic',
 ];
 
-function computeEmmaAgeYearsAtDate(dateObj: Date): number {
-  const birthYear = 2021;
-  const birthMonth = 7; // August (0-indexed)
-  const birthDay = 22;
-
-  let years = dateObj.getFullYear() - birthYear;
-  const mDiff = dateObj.getMonth() - birthMonth;
-  if (mDiff < 0 || (mDiff === 0 && dateObj.getDate() < birthDay)) {
-    years--;
-  }
-  return Math.max(4, years);
+function formatDayBefore(day: number, month: number, year: number): string {
+  const d = new Date(year, month - 1, day - 1);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}/${mm}/${d.getFullYear()}`;
 }
 
 function formatMonthStartItalian(monthKey: string): string {
   const [yStr, mStr] = monthKey.split('-');
-  const y = Number(yStr) || 2026;
+  const y = Number(yStr) || new Date().getFullYear();
   const m = Math.max(1, Math.min(12, Number(mStr) || 1));
   const mPadded = String(m).padStart(2, '0');
   return `01/${mPadded}/${y} (1° ${ITALIAN_MONTHS_SHORT[m - 1]} ${y})`;
@@ -1005,9 +1006,8 @@ function formatMonthStartItalian(monthKey: string): string {
  * Computes and maintains the longitudinal "Progressi ottenuti grazie all'utilizzo dell'App":
  * 1. Updates at the start of every month (YYYY-MM / 01/MM/YYYY).
  * 2. Always compares Punto di Partenza (baseline) vs Stato Attuale (current) and shows net gain (Delta).
- * 3. Every birthday Emma celebrates (22/08 of each year), the completed age year becomes a
- *    locked fixed row (`isLockedFixedRow: true`) and a new active row (`isLockedFixedRow: false`)
- *    is automatically added for the new age year.
+ * 3. Every birthday of the child, the completed age year becomes a locked fixed row
+ *    (`isLockedFixedRow: true`) and a new active row (`isLockedFixedRow: false`) is added.
  */
 export function computeLongitudinalProgressRows(
   progress: UserProgress,
@@ -1022,7 +1022,10 @@ export function computeLongitudinalProgressRows(
   },
   referenceDate: Date = new Date()
 ): {
+  childCurrentAgeYears: number;
   emmaCurrentAgeYears: number;
+  childBirthDayMonthLabel: string;
+  nextBirthdayYear: number;
   currentMonthKey: string;
   currentMonthStartLabel: string;
   nextMonthlyUpdateLabel: string;
@@ -1030,7 +1033,14 @@ export function computeLongitudinalProgressRows(
   rows: AnnualAgeProgressRow[];
   activeRow: AnnualAgeProgressRow;
 } {
-  const emmaCurrentAgeYears = computeEmmaAgeYearsAtDate(referenceDate);
+  const birthParts = parseBirthDateParts(progress.childProfile?.birthDate);
+  const ageInfo = calculateChildAge(progress.childProfile?.birthDate, referenceDate);
+  const childCurrentAgeYears = ageInfo.years;
+
+  const birthDD = String(birthParts.day).padStart(2, '0');
+  const birthMM = String(birthParts.month).padStart(2, '0');
+  const childBirthDayMonthLabel = `${birthDD}/${birthMM}`;
+
   const yearNum = referenceDate.getFullYear();
   const monthNum = referenceDate.getMonth() + 1;
   const currentMonthKey = `${yearNum}-${String(monthNum).padStart(2, '0')}`;
@@ -1040,8 +1050,8 @@ export function computeLongitudinalProgressRows(
   const nextMonthNum = monthNum === 12 ? 1 : monthNum + 1;
   const nextMonthlyUpdateLabel = `01/${String(nextMonthNum).padStart(2, '0')}/${nextMonthYear}`;
 
-  const nextBirthdayYear = 2021 + emmaCurrentAgeYears + 1;
-  const nextBirthdayDateLabel = `22/08/${nextBirthdayYear} (Compimento ${emmaCurrentAgeYears + 1} Anni)`;
+  const nextBirthdayYear = birthParts.year + childCurrentAgeYears + 1;
+  const nextBirthdayDateLabel = `${childBirthDayMonthLabel}/${nextBirthdayYear} (Compimento ${childCurrentAgeYears + 1} Anni)`;
 
   const existingRows = Array.isArray(progress.annualProgressRows)
     ? [...progress.annualProgressRows]
@@ -1049,88 +1059,15 @@ export function computeLongitudinalProgressRows(
 
   const rowsByAge = new Map<number, AnnualAgeProgressRow>();
   existingRows.forEach((r) => {
-    if (r && typeof r.ageYears === 'number') {
+    if (r && typeof r.ageYears === 'number' && r.ageYears <= childCurrentAgeYears && r.ageYears >= Math.max(2, childCurrentAgeYears - 5)) {
       rowsByAge.set(r.ageYears, { ...r });
     }
   });
 
-  // Ensure that if Emma is >= 5 years old (after 22/08/2026), her 4-years-old year (22/08/2025 - 21/08/2026)
-  // is present as a consolidated fixed row (riga fissa) so the multi-year birthday progression is immediately visible.
-  if (emmaCurrentAgeYears >= 5 && !rowsByAge.has(4)) {
-    const preFiveFinalIc = currentMetrics.isUnlocked
-      ? Math.max(38, Math.min(54, currentMetrics.ic - 14))
-      : 0;
-    const preFiveFinalIp = currentMetrics.isUnlocked
-      ? Math.max(40, Math.min(58, currentMetrics.ip - 12))
-      : 0;
-    const preFiveFinalIa = currentMetrics.isUnlocked
-      ? Math.max(42, Math.min(60, currentMetrics.ia - 10))
-      : 0;
-    const preFiveFinalLevel = currentMetrics.isUnlocked
-      ? Math.max(10, Math.min(12, currentMetrics.currentLevel - 3))
-      : 1;
-
-    rowsByAge.set(4, {
-      id: 'age_4',
-      ageYears: 4,
-      ageLabel: '4 Anni',
-      periodLabel: '22/08/2025 – 21/08/2026',
-      isLockedFixedRow: true,
-      lockedAtDate: '22/08/2026',
-      lastMonthlyUpdateKey: '2026-08',
-      lastMonthlyUpdateLabel: formatMonthStartItalian('2026-08'),
-      startLevel: 1,
-      startDate: '22/08/2025',
-      startIp: 0,
-      startIc: 0,
-      startIa: 0,
-      startBand: 'In esplorazione',
-      startChc: { Gf: 0, Gwm: 0, Gc: 0, Gv: 0, Gs: 0 },
-      currentLevel: preFiveFinalLevel,
-      currentDate: '22/08/2026',
-      currentIp: preFiveFinalIp,
-      currentIc: preFiveFinalIc,
-      currentIa: preFiveFinalIa,
-      currentBand: getCompetencyBand(preFiveFinalIc, currentMetrics.isUnlocked),
-      currentChc: {
-        Gf: currentMetrics.isUnlocked ? Math.max(35, preFiveFinalIc) : 0,
-        Gwm: currentMetrics.isUnlocked ? Math.max(34, preFiveFinalIc - 2) : 0,
-        Gc: currentMetrics.isUnlocked ? Math.max(36, preFiveFinalIc + 1) : 0,
-        Gv: currentMetrics.isUnlocked ? Math.max(35, preFiveFinalIc - 1) : 0,
-        Gs: currentMetrics.isUnlocked ? Math.max(33, preFiveFinalIc - 3) : 0,
-      },
-      deltaLevels: preFiveFinalLevel - 1,
-      deltaIp: preFiveFinalIp,
-      deltaIc: preFiveFinalIc,
-      deltaIa: preFiveFinalIa,
-      monthlyCheckpoints: [
-        {
-          monthKey: '2026-08',
-          monthLabel: '1 Ago 2026',
-          recordedAtDate: '2026-08-01',
-          levelReached: preFiveFinalLevel,
-          ip: preFiveFinalIp,
-          ic: preFiveFinalIc,
-          ia: preFiveFinalIa,
-          ieDeltaFromStart: preFiveFinalIc,
-          chcScores: {
-            Gf: currentMetrics.isUnlocked ? Math.max(35, preFiveFinalIc) : 0,
-            Gwm: currentMetrics.isUnlocked ? Math.max(34, preFiveFinalIc - 2) : 0,
-            Gc: currentMetrics.isUnlocked ? Math.max(36, preFiveFinalIc + 1) : 0,
-            Gv: currentMetrics.isUnlocked ? Math.max(35, preFiveFinalIc - 1) : 0,
-            Gs: currentMetrics.isUnlocked ? Math.max(33, preFiveFinalIc - 3) : 0,
-          },
-        },
-      ],
-    });
-  }
-
-  // Lock any row whose ageYears < emmaCurrentAgeYears (Birthday Transition Rule:
-  // "ogni anno che compie la bambina quel dato diventa una riga fissa e se ne aggiunge una nuova di riga")
-  for (let age = 4; age < emmaCurrentAgeYears; age++) {
-    const prevRow = rowsByAge.get(age);
-    const lockBirthdayStr = `22/08/${2021 + age + 1}`;
-    if (prevRow && !prevRow.isLockedFixedRow) {
+  // Lock any row whose ageYears < childCurrentAgeYears
+  rowsByAge.forEach((prevRow, age) => {
+    if (age < childCurrentAgeYears && !prevRow.isLockedFixedRow) {
+      const lockBirthdayStr = `${childBirthDayMonthLabel}/${birthParts.year + age + 1}`;
       rowsByAge.set(age, {
         ...prevRow,
         isLockedFixedRow: true,
@@ -1142,17 +1079,17 @@ export function computeLongitudinalProgressRows(
         deltaIa: prevRow.currentIa - prevRow.startIa,
       });
     }
-  }
+  });
 
-  // Build or update the active row for Emma's current age year (`emmaCurrentAgeYears`)
-  const prevAgeRow = rowsByAge.get(emmaCurrentAgeYears - 1);
-  const existingActive = rowsByAge.get(emmaCurrentAgeYears);
-  const ageStartYear = 2021 + emmaCurrentAgeYears;
+  // Build or update the active row for the child's current age year
+  const prevAgeRow = rowsByAge.get(childCurrentAgeYears - 1);
+  const existingActive = rowsByAge.get(childCurrentAgeYears);
+  const ageStartYear = birthParts.year + childCurrentAgeYears;
   const ageEndYear = ageStartYear + 1;
-  const periodLabel = `22/08/${ageStartYear} – 21/08/${ageEndYear}`;
-  const birthdayStartDate = `22/08/${ageStartYear}`;
+  const birthdayStartDate = `${childBirthDayMonthLabel}/${ageStartYear}`;
+  const periodEndStr = formatDayBefore(birthParts.day, birthParts.month, ageEndYear);
+  const periodLabel = `${birthdayStartDate} – ${periodEndStr}`;
 
-  // Determine the starting point (Punto di Partenza) of the current age year
   const snapshots = progress.evaluationSnapshots || [];
   const firstSnapshot = snapshots.length > 0 ? snapshots[0] : null;
 
@@ -1169,9 +1106,6 @@ export function computeLongitudinalProgressRows(
   };
 
   if (currentMetrics.isUnlocked) {
-    // Ensure Punto di Partenza of the current active year reflects the realistic initial baseline
-    // at the start of the year (or first unlocked measurement step) so the comparison (Attuale vs Partenza)
-    // clearly shows the progress achieved thanks to using the app.
     if (prevAgeRow && prevAgeRow.currentIc > 0) {
       startLevel = prevAgeRow.currentLevel;
       startIp = prevAgeRow.currentIp;
@@ -1179,22 +1113,22 @@ export function computeLongitudinalProgressRows(
       startIa = prevAgeRow.currentIa;
       startChc = { ...prevAgeRow.currentChc };
     } else if (firstSnapshot && firstSnapshot.ic > 0 && firstSnapshot.ic < currentMetrics.ic) {
-      startLevel = Math.min(11, firstSnapshot.levelNumber);
+      startLevel = Math.min(currentMetrics.currentLevel, firstSnapshot.levelNumber);
       startIp = firstSnapshot.ip;
       startIc = firstSnapshot.ic;
       startIa = firstSnapshot.ia;
       startChc = { ...firstSnapshot.chcScores };
     } else if (startIc === 0 || startIc >= currentMetrics.ic) {
-      startLevel = 10;
-      startIp = Math.max(35, currentMetrics.ip - 14);
-      startIc = Math.max(35, currentMetrics.ic - 14);
-      startIa = Math.max(38, currentMetrics.ia - 12);
+      startLevel = 1;
+      startIp = Math.max(0, currentMetrics.ip - 12);
+      startIc = Math.max(0, currentMetrics.ic - 12);
+      startIa = Math.max(0, currentMetrics.ia - 10);
       startChc = {
-        Gf: Math.max(35, currentMetrics.chcMap.Gf - 12),
-        Gwm: Math.max(34, currentMetrics.chcMap.Gwm - 12),
-        Gc: Math.max(36, currentMetrics.chcMap.Gc - 12),
-        Gv: Math.max(35, currentMetrics.chcMap.Gv - 12),
-        Gs: Math.max(33, currentMetrics.chcMap.Gs - 12),
+        Gf: Math.max(0, currentMetrics.chcMap.Gf - 10),
+        Gwm: Math.max(0, currentMetrics.chcMap.Gwm - 10),
+        Gc: Math.max(0, currentMetrics.chcMap.Gc - 10),
+        Gv: Math.max(0, currentMetrics.chcMap.Gv - 10),
+        Gs: Math.max(0, currentMetrics.chcMap.Gs - 10),
       };
     }
   } else {
@@ -1207,51 +1141,10 @@ export function computeLongitudinalProgressRows(
 
   const startBand = getCompetencyBand(startIc, currentMetrics.isUnlocked && startIc > 0);
 
-  // Build monthly checkpoints (updated every 1st of the month)
   const existingCheckpoints: MonthlyProgressCheckpoint[] = existingActive?.monthlyCheckpoints
     ? [...existingActive.monthlyCheckpoints]
     : [];
 
-  // Seed initial month of the current age year (September / October) if unlocked and not yet present
-  if (currentMetrics.isUnlocked && existingCheckpoints.length === 0) {
-    const midIc = Math.round((startIc + currentMetrics.ic) / 2);
-    const midIp = Math.round((startIp + currentMetrics.ip) / 2);
-    const midIa = Math.round((startIa + currentMetrics.ia) / 2);
-    const midLvl = Math.max(startLevel, Math.round((startLevel + currentMetrics.currentLevel) / 2));
-
-    existingCheckpoints.push(
-      {
-        monthKey: `${ageStartYear}-09`,
-        monthLabel: `1 Set ${ageStartYear}`,
-        recordedAtDate: `${ageStartYear}-09-01`,
-        levelReached: startLevel,
-        ip: startIp,
-        ic: startIc,
-        ia: startIa,
-        ieDeltaFromStart: 0,
-        chcScores: { ...startChc },
-      },
-      {
-        monthKey: `${ageStartYear}-10`,
-        monthLabel: `1 Ott ${ageStartYear}`,
-        recordedAtDate: `${ageStartYear}-10-01`,
-        levelReached: midLvl,
-        ip: midIp,
-        ic: midIc,
-        ia: midIa,
-        ieDeltaFromStart: midIc - startIc,
-        chcScores: {
-          Gf: Math.round((startChc.Gf + currentMetrics.chcMap.Gf) / 2),
-          Gwm: Math.round((startChc.Gwm + currentMetrics.chcMap.Gwm) / 2),
-          Gc: Math.round((startChc.Gc + currentMetrics.chcMap.Gc) / 2),
-          Gv: Math.round((startChc.Gv + currentMetrics.chcMap.Gv) / 2),
-          Gs: Math.round((startChc.Gs + currentMetrics.chcMap.Gs) / 2),
-        },
-      }
-    );
-  }
-
-  // Upsert current month's 1st-of-month checkpoint
   const currentMonthCheckpoint: MonthlyProgressCheckpoint = {
     monthKey: currentMonthKey,
     monthLabel: `1 ${ITALIAN_MONTHS_SHORT[monthNum - 1]} ${yearNum}`,
@@ -1279,9 +1172,9 @@ export function computeLongitudinalProgressRows(
   });
 
   const activeRow: AnnualAgeProgressRow = {
-    id: `age_${emmaCurrentAgeYears}`,
-    ageYears: emmaCurrentAgeYears,
-    ageLabel: `${emmaCurrentAgeYears} Anni`,
+    id: `age_${childCurrentAgeYears}`,
+    ageYears: childCurrentAgeYears,
+    ageLabel: `${childCurrentAgeYears} Anni`,
     periodLabel,
     isLockedFixedRow: false,
     lastMonthlyUpdateKey: currentMonthKey,
@@ -1307,14 +1200,17 @@ export function computeLongitudinalProgressRows(
     monthlyCheckpoints: existingCheckpoints.slice(-12),
   };
 
-  rowsByAge.set(emmaCurrentAgeYears, activeRow);
+  rowsByAge.set(childCurrentAgeYears, activeRow);
 
   const sortedRows = Array.from(rowsByAge.values()).sort(
     (a, b) => a.ageYears - b.ageYears
   );
 
   return {
-    emmaCurrentAgeYears,
+    childCurrentAgeYears,
+    emmaCurrentAgeYears: childCurrentAgeYears,
+    childBirthDayMonthLabel,
+    nextBirthdayYear,
     currentMonthKey,
     currentMonthStartLabel,
     nextMonthlyUpdateLabel,

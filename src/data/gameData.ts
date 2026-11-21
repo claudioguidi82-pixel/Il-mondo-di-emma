@@ -16,7 +16,7 @@ export const TROPHIES: Trophy[] = [
   },
   {
     id: 'trophy_letters',
-    title: 'Campionessa dell’Alfabeto',
+    title: 'Stella dell’Alfabeto',
     category: 'letters',
     description: 'Conosci le lettere e le parole a memoria!',
     icon: '🔤',
@@ -25,7 +25,7 @@ export const TROPHIES: Trophy[] = [
   },
   {
     id: 'trophy_numbers',
-    title: 'Maestra dei Numeri',
+    title: 'Genio dei Numeri',
     category: 'numbers',
     description: 'Sai contare e fare le prime addizioni visive!',
     icon: '🔢',
@@ -34,7 +34,7 @@ export const TROPHIES: Trophy[] = [
   },
   {
     id: 'trophy_shapes',
-    title: 'Esploratrice delle Forme',
+    title: 'Esploratore delle Forme',
     category: 'shapes',
     description: 'Riconosci sagome, ombre e mescoli i colori!',
     icon: '🔷',
@@ -52,7 +52,7 @@ export const TROPHIES: Trophy[] = [
   },
   {
     id: 'trophy_crown',
-    title: 'Super Emma delle Meraviglie',
+    title: 'Super Stella delle Meraviglie',
     category: 'streak',
     description: 'Hai superato più di 8 enigmi magici!',
     icon: '👑',
@@ -424,9 +424,9 @@ export const COLORING_TEMPLATES = [
     emoji: '🎨'
   },
   {
-    id: 'emma_portal',
-    name: 'Emma nel Portale Arcobaleno',
-    description: 'Colora Emma con il suo sorriso radioso e il portale di luce!',
+    id: 'rainbow_portal',
+    name: 'Il Portale Arcobaleno',
+    description: 'Colora un meraviglioso portale di luce e stelle sorridenti!',
     emoji: '🌈'
   },
   {
@@ -461,18 +461,19 @@ export const STICKERS = [
   { id: 'stk_dolphin', emoji: '🐬', label: 'Delfino' },
   { id: 'stk_teddy', emoji: '🧸', label: 'Orsetto' },
   { id: 'stk_owl', emoji: '🦉', label: 'Gufetto' },
-  { id: 'stk_cake', emoji: '🎂', label: 'Torta 5 anni' },
+  { id: 'stk_cake', emoji: '🎂', label: 'Torta di festa' },
   { id: 'stk_gem', emoji: '💎', label: 'Gemma preziosa' },
   { id: 'stk_magic', emoji: '🪄', label: 'Bacchetta fatata' },
   { id: 'stk_sun', emoji: '☀️', label: 'Sole splendente' }
 ];
 
-const STORAGE_KEY = 'il_mondo_di_emma_infinite_v1';
-const INTEGRITY_KEY = 'il_mondo_di_emma_security_sig_v1';
+const STORAGE_KEY = 'il_mio_mondo_progress_v2';
+const LEGACY_STORAGE_KEY = 'il_mondo_di_emma_infinite_v1';
+const INTEGRITY_KEY = 'il_mio_mondo_security_sig_v2';
 
 export function loadUserProgress(): UserProgress {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       const validated = sanitizeAndValidateProgress(parsed);
@@ -486,6 +487,14 @@ export function loadUserProgress(): UserProgress {
 
   const today = new Date().toISOString().split('T')[0];
   return {
+    childProfile: {
+      name: '',
+      surname: '',
+      birthDate: '',
+      gender: 'n',
+      customBackgroundUrl: undefined,
+      isConfigured: false,
+    },
     currentLevel: 1,
     highestLevelReached: 1,
     stars: 0,

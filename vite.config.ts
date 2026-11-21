@@ -15,9 +15,9 @@ export default defineConfig(() => {
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg'],
         manifest: {
           id: '/',
-          name: 'Il Mondo di Emma - Gioco Educativo',
-          short_name: 'Mondo di Emma',
-          description: 'Un gioco educativo e magico per Emma con lettere, numeri, memory e animali parlanti.',
+          name: 'Il Mio Mondo - Gioco Educativo',
+          short_name: 'Il Mio Mondo',
+          description: 'Un gioco educativo e personalizzabile per bambini e bambine adattato automaticamente alla loro età.',
           theme_color: '#020617',
           background_color: '#020617',
           display: 'standalone',
