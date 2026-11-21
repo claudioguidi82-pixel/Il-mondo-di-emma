@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  ArrowLeft,
+  Home,
   RotateCcw,
   Sparkles,
   Trophy,
@@ -13,6 +13,7 @@ import { soundManager } from '../utils/audio';
 import { confetti } from '../utils/confetti';
 import { ChildProfile } from '../types/game';
 import { getDisplayChildName, getGenderedWord } from '../utils/childProfile';
+import arenaMeadowBackdrop from '../assets/images/arena_meadow_backdrop_1795268326885.jpg';
 
 interface SvagoArenaProps {
   levelNumber: number;
@@ -398,72 +399,43 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
     (gameMode === 'stars' && starsCaught >= STARS_TARGET);
 
   return (
-    <div className="relative w-full h-full flex flex-col justify-between overflow-hidden bg-gradient-to-b from-[#e0e7ff] via-[#f0f9ff] to-[#fef3c7] select-none">
-      {/* MODERN LUMINOUS PARK BACKDROP */}
+    <div className="safe-viewport-pad relative w-full h-full flex flex-col justify-between overflow-hidden bg-sky-300 select-none">
+      {/* FULL-BLEED PIXAR 3D STORYBOOK SUNNY MEADOW BACKDROP */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden z-0">
-        <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full bg-gradient-to-br from-amber-200/80 via-yellow-300/60 to-orange-300/40 blur-xs border border-white/60 flex items-center justify-center animate-float-3d">
-          <span className="text-4xl">🌞</span>
-        </div>
-
-        <svg
-          viewBox="0 0 600 220"
-          className="w-[115%] max-w-none -left-[7%] top-6 absolute opacity-35"
-          fill="none"
-        >
-          <path
-            d="M 20 210 Q 300 -30 580 210"
-            stroke="#fb7185"
-            strokeWidth="10"
-            strokeLinecap="round"
-          />
-          <path
-            d="M 32 215 Q 300 -12 568 215"
-            stroke="#fbbf24"
-            strokeWidth="10"
-            strokeLinecap="round"
-          />
-          <path
-            d="M 44 220 Q 300 6 556 220"
-            stroke="#34d399"
-            strokeWidth="10"
-            strokeLinecap="round"
-          />
-          <path
-            d="M 56 225 Q 300 24 544 225"
-            stroke="#38bdf8"
-            strokeWidth="10"
-            strokeLinecap="round"
-          />
-        </svg>
-
-        <div className="absolute top-12 left-4 w-28 h-10 bg-white/75 backdrop-blur-xs rounded-full shadow-sm animate-cloud-drift" />
-        <div
-          className="absolute top-20 right-14 w-24 h-9 bg-white/70 backdrop-blur-xs rounded-full shadow-sm animate-cloud-drift"
-          style={{ animationDelay: '1.3s' }}
+        <img
+          src={arenaMeadowBackdrop}
+          alt=""
+          aria-hidden="true"
+          referrerPolicy="no-referrer"
+          className="absolute inset-0 w-full h-full object-cover object-center scale-[1.01]"
         />
-
-        <div className="absolute -bottom-12 -left-16 w-[75%] h-26 rounded-[100%] bg-gradient-to-t from-emerald-500/35 via-teal-400/25 to-transparent" />
-        <div className="absolute -bottom-14 -right-16 w-[75%] h-28 rounded-[100%] bg-gradient-to-t from-teal-500/35 via-emerald-400/25 to-transparent" />
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(180deg, rgba(14, 165, 233, 0.14) 0%, rgba(255, 255, 255, 0.04) 48%, rgba(22, 101, 52, 0.16) 100%)',
+          }}
+        />
       </div>
 
-      {/* MODERN TOP BAR */}
-      <header className="landscape-header-compact app-shell-container relative z-10 flex items-center justify-between px-2.5 sm:px-5 lg:px-8 pt-2.5 sm:pt-3.5 pb-1 shrink-0 gap-2">
+      {/* GLOSSY 3D BUBBLE TOP BAR (ZERO TRUNCATION) */}
+      <header className="landscape-header-compact app-shell-container relative z-10 flex items-center justify-between px-2.5 sm:px-5 lg:px-8 pt-2 sm:pt-3 pb-1 shrink-0 gap-2">
         <button
           onClick={() => {
             soundManager.stopSpeech();
             soundManager.playPop();
             onExitToTitle();
           }}
-          className="toy-button-3d bg-white/90 hover:bg-white text-slate-900 px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl border border-white/90 flex items-center gap-1.5 active:scale-95 cursor-pointer min-h-[40px]"
+          className="glossy-bubble-btn bg-gradient-to-b from-white to-slate-100 text-slate-900 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border-2 border-white flex items-center gap-1.5 cursor-pointer shrink-0 min-h-[38px] sm:min-h-[42px]"
         >
-          <ArrowLeft className="w-4 h-4 text-slate-700 stroke-[2.5]" />
-          <span className="font-fun font-bold text-xs sm:text-sm whitespace-nowrap">Home</span>
+          <Home className="w-4 h-4 text-blue-700 fill-blue-700 shrink-0" />
+          <span className="font-fun font-extrabold text-xs sm:text-sm whitespace-nowrap">Home</span>
         </button>
 
-        <div className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 px-4 py-1.5 rounded-2xl border border-indigo-200/80 shadow-md flex items-center gap-2">
-          <Gamepad2 className="w-4 h-4 text-white shrink-0" />
-          <span className="font-fun font-extrabold text-xs sm:text-sm text-white tracking-tight truncate">
-            Premio Livello {levelNumber} · Parco Giochi
+        <div className="glossy-bubble-btn bg-gradient-to-b from-violet-500 via-purple-600 to-indigo-700 px-3.5 sm:px-5 py-1.5 rounded-full border-2 border-white/85 flex items-center gap-1.5 sm:gap-2 min-w-0 justify-center">
+          <Gamepad2 className="w-4 h-4 text-amber-200 shrink-0" />
+          <span className="font-kids font-bold text-xs sm:text-sm text-white leading-tight text-center">
+            Parco Giochi · Livello {levelNumber}
           </span>
         </div>
 
@@ -472,16 +444,17 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
             const nextState = soundManager.toggleMusic();
             setMusicOn(nextState);
           }}
-          className={`toy-button-3d p-2 sm:px-3.5 sm:py-2 rounded-2xl border flex items-center gap-1.5 active:scale-95 cursor-pointer min-h-[40px] ${
+          title={musicOn ? 'Disattiva Musica' : 'Attiva Musica'}
+          className={`glossy-bubble-btn w-9 h-9 sm:w-auto sm:h-10 sm:px-3.5 rounded-full border-2 flex items-center justify-center gap-1.5 cursor-pointer shrink-0 ${
             musicOn
-              ? 'bg-gradient-to-b from-amber-400 to-orange-500 text-slate-950 border-amber-200'
-              : 'bg-white/90 text-slate-600 border-white/90'
+              ? 'bg-gradient-to-b from-fuchsia-400 to-purple-600 text-white border-white/90'
+              : 'bg-gradient-to-b from-white to-slate-100 text-slate-600 border-white'
           }`}
         >
           {musicOn ? (
-            <Music className="w-4 h-4 stroke-[2.5]" />
+            <Music className="w-4 h-4 stroke-[2.6]" />
           ) : (
-            <VolumeX className="w-4 h-4 stroke-[2.5]" />
+            <VolumeX className="w-4 h-4 stroke-[2.6]" />
           )}
           <span className="font-fun font-bold text-xs hidden sm:inline whitespace-nowrap">
             Musica
@@ -489,14 +462,14 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
         </button>
       </header>
 
-      {/* MODERN 4 MINI-GAME SEGMENTED TABS */}
+      {/* CARVED HONEY-OAK WOODEN SHELF WITH 4 GLOSSY 3D MINI-GAME TABS */}
       <div className="app-shell-container relative z-10 px-2.5 sm:px-5 lg:px-8 py-1.5 w-full shrink-0">
-        <div className="grid grid-cols-4 gap-1.5 sm:gap-2 bg-white/85 backdrop-blur-xl p-1.5 rounded-2xl border border-white/95 shadow-sm max-w-3xl mx-auto">
+        <div className="storybook-wood-shelf grid grid-cols-4 gap-1.5 sm:gap-2 p-1.5 rounded-2xl max-w-3xl mx-auto">
           {[
-            { id: 'tris', label: 'Tris', emoji: '👑' },
-            { id: 'bubbles', label: 'Bolle', emoji: '🫧' },
-            { id: 'memory', label: 'Memory', emoji: '🃏' },
-            { id: 'stars', label: 'Tesori', emoji: '🌟' },
+            { id: 'tris', label: 'Tris', emoji: '👑', activeGrad: 'from-pink-400 via-rose-500 to-pink-600 text-white' },
+            { id: 'bubbles', label: 'Bolle', emoji: '🫧', activeGrad: 'from-sky-400 via-blue-500 to-indigo-600 text-white' },
+            { id: 'memory', label: 'Memory', emoji: '🃏', activeGrad: 'from-amber-300 via-yellow-400 to-orange-500 text-amber-950' },
+            { id: 'stars', label: 'Tesori', emoji: '🌟', activeGrad: 'from-emerald-400 via-green-500 to-teal-600 text-white' },
           ].map((tab) => {
             const active = gameMode === tab.id;
             return (
@@ -506,13 +479,13 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
                   soundManager.playPop();
                   setGameMode(tab.id as SvagoGameMode);
                 }}
-                className={`py-2 px-2 rounded-xl font-fun font-bold text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 transition-all cursor-pointer whitespace-nowrap ${
+                className={`py-2 px-1.5 rounded-xl font-kids font-bold text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
                   active
-                    ? 'bg-slate-900 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+                    ? `bg-gradient-to-b ${tab.activeGrad} border-2 border-white shadow-md scale-[1.02]`
+                    : 'bg-amber-950/30 text-amber-50 hover:bg-amber-950/45 border border-amber-200/20'
                 }`}
               >
-                <span className="text-base sm:text-lg leading-none">{tab.emoji}</span>
+                <span className="text-base sm:text-lg leading-none drop-shadow-xs">{tab.emoji}</span>
                 <span>{tab.label}</span>
               </button>
             );
@@ -611,11 +584,11 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
         {/* MODE 2: BOLLE 3D */}
         {gameMode === 'bubbles' && (
           <div className="w-full flex-1 flex flex-col justify-between my-1 min-h-0">
-            <div className="bg-white/95 rounded-2xl px-4 py-2 border-2 border-white flex items-center justify-between mb-2 shrink-0 shadow-md">
-              <span className="font-kids font-extrabold text-xs sm:text-sm text-pink-600">
+            <div className="storybook-footer-pill rounded-2xl px-4 py-2 flex items-center justify-between mb-2 shrink-0">
+              <span className="font-kids font-bold text-xs sm:text-sm text-amber-950">
                 🫧 Scoppia tutte le Bolle 3D!
               </span>
-              <span className="px-3 py-0.5 rounded-full bg-gradient-to-r from-pink-500 to-amber-500 text-white font-kids font-extrabold text-xs shadow tabular-nums">
+              <span className="px-3 py-0.5 rounded-full bg-gradient-to-b from-pink-400 to-rose-600 text-white border border-white font-kids font-bold text-xs shadow tabular-nums">
                 {bubblesPopped} / {BUBBLE_TARGET}
               </span>
             </div>
@@ -660,19 +633,19 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
         {/* MODE 3: MEMORY 3D */}
         {gameMode === 'memory' && (
           <div className="w-full flex-1 flex flex-col justify-between my-1 min-h-0">
-            <div className="bg-white/95 rounded-2xl px-4 py-2 border-2 border-white flex items-center justify-between mb-2 shrink-0 shadow-md">
-              <span className="font-kids font-extrabold text-xs sm:text-sm text-violet-700">
+            <div className="storybook-footer-pill rounded-2xl px-4 py-2 flex items-center justify-between mb-2 shrink-0">
+              <span className="font-kids font-bold text-xs sm:text-sm text-amber-950">
                 🃏 Trova le Coppie Magiche 3D!
               </span>
               <button
                 onClick={initMemoryGame}
-                className="px-2.5 py-1 rounded-xl bg-pink-500 text-white font-kids font-extrabold text-[11px] flex items-center gap-1 shadow cursor-pointer"
+                className="px-3 py-1 rounded-xl bg-gradient-to-b from-pink-400 to-rose-600 text-white border border-white font-kids font-bold text-xs flex items-center gap-1 shadow cursor-pointer"
               >
                 <RotateCcw className="w-3 h-3" /> Mescola
               </button>
             </div>
 
-            <div className="grid grid-cols-4 gap-2.5 my-auto p-3.5 rounded-[30px] board-3d-tabletop">
+            <div className="grid grid-cols-4 gap-2.5 my-auto p-3.5 rounded-[30px] storybook-wood-shelf">
               {memoryCards.map((card, index) => {
                 const isRevealed = card.flipped || card.matched;
                 return (
@@ -683,7 +656,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
                       card.matched
                         ? 'bg-gradient-to-b from-emerald-300 to-teal-500 border-white shadow-[0_5px_0_#0f766e] scale-105'
                         : isRevealed
-                        ? 'bg-white border-amber-300 shadow-[0_5px_0_#d97706]'
+                        ? 'bg-[#fffbf2] border-amber-300 shadow-[0_5px_0_#d97706]'
                         : 'toy-candy-pink hover:scale-105 active:scale-95'
                     }`}
                   >
@@ -706,11 +679,11 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
         {/* MODE 4: STELLINE 3D */}
         {gameMode === 'stars' && (
           <div className="w-full flex-1 flex flex-col justify-between my-1 min-h-0">
-            <div className="bg-white/95 rounded-2xl px-4 py-2 border-2 border-white flex items-center justify-between mb-2 shrink-0 shadow-md">
-              <span className="font-kids font-extrabold text-xs sm:text-sm text-amber-600">
+            <div className="storybook-footer-pill rounded-2xl px-4 py-2 flex items-center justify-between mb-2 shrink-0">
+              <span className="font-kids font-bold text-xs sm:text-sm text-amber-950">
                 🌟 Acchiappa i Tesori 3D!
               </span>
-              <span className="px-3 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-kids font-extrabold text-xs shadow tabular-nums">
+              <span className="px-3 py-0.5 rounded-full bg-gradient-to-b from-amber-300 to-orange-500 text-amber-950 border border-white font-kids font-bold text-xs shadow tabular-nums">
                 {starsCaught} / {STARS_TARGET}
               </span>
             </div>
@@ -763,7 +736,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 gap-2.5 pb-1">
             <button
               onClick={() => {
                 soundManager.playPop();
@@ -772,10 +745,12 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
                 if (gameMode === 'memory') initMemoryGame();
                 if (gameMode === 'stars') initStarsGame();
               }}
-              className="toy-button-3d min-h-[44px] py-2.5 px-4 rounded-2xl bg-white hover:bg-sky-50 text-slate-900 font-kids font-extrabold text-xs sm:text-sm border-2 border-white shadow-lg flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+              className="home-wood-outer rounded-[18px] p-[3.5px] cursor-pointer"
             >
-              <RotateCcw className="w-4 h-4 text-pink-500 shrink-0" />
-              <span>Gioca Ancora</span>
+              <span className="home-inner-orange rounded-[14px] min-h-[42px] py-2 px-3 text-white font-kids font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 whitespace-nowrap">
+                <RotateCcw className="w-4 h-4 shrink-0" />
+                <span>Gioca Ancora</span>
+              </span>
             </button>
 
             <button
@@ -783,10 +758,12 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
                 soundManager.playSuccess();
                 onComplete(gameMode, trisWinner === 'PLAYER');
               }}
-              className="toy-button-3d min-h-[44px] py-2.5 px-4 rounded-2xl bg-gradient-to-b from-emerald-400 via-green-500 to-teal-600 text-white font-kids font-extrabold text-xs sm:text-sm border-2 border-white shadow-lg flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+              className="home-wood-outer rounded-[18px] p-[3.5px] cursor-pointer"
             >
-              <Sparkles className="w-4 h-4 shrink-0" />
-              <span>Vai al Livello {levelNumber + 1}</span>
+              <span className="home-inner-green rounded-[14px] min-h-[42px] py-2 px-3 text-white font-kids font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 whitespace-nowrap">
+                <Sparkles className="w-4 h-4 shrink-0" />
+                <span>Livello {levelNumber + 1}</span>
+              </span>
             </button>
           </div>
         </div>

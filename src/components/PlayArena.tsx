@@ -1,16 +1,22 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  ArrowLeft,
+  Home,
   Volume2,
   Sparkles,
   Check,
-  Trophy,
   Star,
   ChevronRight,
   Music,
   VolumeX,
   ShieldCheck,
   Hand,
+  Lightbulb,
+  Compass,
+  Gift,
+  Palette,
+  Gem,
+  Play,
+  Crown,
 } from 'lucide-react';
 import { GameCategory, Puzzle, PuzzleOption, PuzzleType, UserProgress } from '../types/game';
 import {
@@ -21,7 +27,25 @@ import {
 } from '../utils/infiniteLevels';
 import { soundManager } from '../utils/audio';
 import { confetti } from '../utils/confetti';
-import { calculateChildAge, getDisplayChildName, getGenderedWord } from '../utils/childProfile';
+import { getDisplayChildName, getGenderedWord } from '../utils/childProfile';
+import {
+  DAILY_MISSION_TARGET,
+  getDailyMissionStatus,
+  getMindfulBreakActivity,
+  getPersonalizedBreakGreeting,
+  pickNextLockedSticker,
+} from '../utils/motivationEngine';
+import {
+  STORYBOOK_ASSETS,
+  resolveOptionArtwork,
+  resolveQuestionCameo,
+} from '../utils/cardArtwork';
+
+const {
+  arenaMeadowBackdrop,
+  treasureChest3d,
+  trophyMedallion3d,
+} = STORYBOOK_ASSETS;
 
 interface PlayArenaProps {
   progress: UserProgress;
@@ -38,8 +62,24 @@ interface PlayArenaProps {
     chcSecondary?: 'Gf' | 'Gwm' | 'Gc' | 'Gv' | 'Gs'
   ) => void;
   onOpenParents: () => void;
+  onOpenAlbum: () => void;
+  onOpenStudio: () => void;
   onExitToTitle: () => void;
 }
+
+const SUBJECT_CHOICES: Array<{
+  id: GameCategory | null;
+  label: string;
+  emoji: string;
+}> = [
+  { id: null, label: 'Sorpresa', emoji: '🎲' },
+  { id: 'logic', label: 'Logica', emoji: '🧠' },
+  { id: 'music', label: 'Musica', emoji: '🎵' },
+  { id: 'shapes', label: 'Arte', emoji: '🎨' },
+  { id: 'numbers', label: 'Numeri', emoji: '🔢' },
+  { id: 'letters', label: 'Parole', emoji: '🔤' },
+  { id: 'english', label: 'Inglese', emoji: '🇬🇧' },
+];
 
 const CATEGORY_THEMES: Record<
   GameCategory,
@@ -88,84 +128,57 @@ const CATEGORY_THEMES: Record<
   },
 };
 
-const CANDY_CARD_CLASSES = [
-  'toy-candy-pink',
-  'toy-candy-yellow',
-  'toy-candy-cyan',
-  'toy-candy-lime',
+const CANDY_CARD_THEMES = [
+  {
+    cardClass: 'toy-candy-pink',
+    ribbonClass: 'from-[#ff5fa2] via-[#ec4899] to-[#db2777]',
+    subtextClass: 'text-pink-50',
+    playIconClass: 'text-[#db2777] fill-[#db2777]',
+  },
+  {
+    cardClass: 'toy-candy-yellow',
+    ribbonClass: 'from-[#fbbf24] via-[#f59e0b] to-[#d97706]',
+    subtextClass: 'text-amber-950',
+    playIconClass: 'text-[#d97706] fill-[#d97706]',
+  },
+  {
+    cardClass: 'toy-candy-cyan',
+    ribbonClass: 'from-[#38bdf8] via-[#0284c7] to-[#1d4ed8]',
+    subtextClass: 'text-sky-50',
+    playIconClass: 'text-[#1d4ed8] fill-[#1d4ed8]',
+  },
+  {
+    cardClass: 'toy-candy-lime',
+    ribbonClass: 'from-[#4ade80] via-[#16a34a] to-[#15803d]',
+    subtextClass: 'text-emerald-50',
+    playIconClass: 'text-[#15803d] fill-[#15803d]',
+  },
 ];
 
-interface ZooTalkingAnimal {
-  id: 'leone' | 'giraffa' | 'elefante';
-  name: string;
-  englishName: string;
-  englishPhonetic: string;
-  emoji: string;
-  soundLabel: string;
-  habitat: string;
-  badgeClass: string;
-  phrases: string[];
-}
-
-const ZOO_PARLANTE_ANIMALS: ZooTalkingAnimal[] = [
-  {
-    id: 'leone',
-    name: 'Il Leone Leo',
-    englishName: 'Lion',
-    englishPhonetic: 'Làion',
-    emoji: '🦁',
-    soundLabel: 'ROAAAR!',
-    habitat: 'Re della Savana',
-    badgeClass: 'from-amber-500 to-orange-600 border-amber-200/90',
-    phrases: [
-      'Ciao {NAME}! Io sono il Leone Leo! Roaaar! Ho una grande criniera dorata e sono il re della savana! In inglese mi chiamo Làion!',
-      'Roaaar! Sapevi {NAME} che il mio ruggito si sente fino a otto chilometri di distanza nella savana?',
-      'Ciao {CHAMPION}! Io sono il Leone! Corro veloce sull’erba dorata e proteggo tutto il mio branco!',
-    ],
-  },
-  {
-    id: 'giraffa',
-    name: 'La Giraffa Gina',
-    englishName: 'Giraffe',
-    englishPhonetic: 'Giràf',
-    emoji: '🦒',
-    soundLabel: 'GNAM GNAM!',
-    habitat: 'Collo Lunghissimo',
-    badgeClass: 'from-emerald-500 to-teal-600 border-emerald-200/90',
-    phrases: [
-      'Ciao {NAME}! Io sono la Giraffa Gina! Gnam gnam! Con il mio collo lunghissimo mangio le foglioline più tenere in cima agli alberi! In inglese mi chiamo Giràf!',
-      'Gnam gnam! Sapevi {NAME} che la mia lingua è blu-viola ed è lunga quasi mezzo metro per raccogliere le foglie di acacia?',
-      'Ciao {NAME}! Dall’alto del mio collo vedo tutto lo Zoo Parlante e persino le nuvole bianche!',
-    ],
-  },
-  {
-    id: 'elefante',
-    name: 'L’Elefante Elio',
-    englishName: 'Elephant',
-    englishPhonetic: 'Èlefant',
-    emoji: '🐘',
-    soundLabel: 'PA-UUUH!',
-    habitat: 'Super Proboscide',
-    badgeClass: 'from-sky-500 to-indigo-600 border-sky-200/90',
-    phrases: [
-      'Ciao {NAME}! Io sono l’Elefante Elio! Pa-uuuh! Uso la mia lunga proboscide per bere e fare una doccia fresca! In inglese mi chiamo Èlefant!',
-      'Pa-uuuh! Sapevi {NAME} che le mie grandi orecchie mi servono per farmi vento quando fa tanto caldo nella savana?',
-      'Ciao {FRIEND}! Io sono l’Elefante! Ho una memoria straordinaria e non dimentico mai le nostre avventure!',
-    ],
-  },
+const XYLO_BAR_COLORS = [
+  'from-[#fb7185] via-[#f43f5e] to-[#be123c]',
+  'from-[#fb923c] via-[#f97316] to-[#c2410c]',
+  'from-[#fde047] via-[#facc15] to-[#ca8a04] text-amber-950',
+  'from-[#4ade80] via-[#22c55e] to-[#15803d]',
+  'from-[#38bdf8] via-[#0ea5e9] to-[#0369a1]',
+  'from-[#818cf8] via-[#6366f1] to-[#4338ca]',
+  'from-[#e879f9] via-[#c026d3] to-[#86198f]',
 ];
 
 export const PlayArena: React.FC<PlayArenaProps> = ({
   progress,
   onSolveLevel,
   onOpenParents,
+  onOpenAlbum,
+  onOpenStudio,
   onExitToTitle,
 }) => {
   const currentLevel = progress.currentLevel;
   const childProfile = progress.childProfile;
   const childName = getDisplayChildName(childProfile);
   const childGender = childProfile?.gender || 'n';
-  const ageInfo = calculateChildAge(childProfile?.birthDate);
+  const [preferredCategory, setPreferredCategory] = useState<GameCategory | null>(null);
+  const [isSubjectPickerOpen, setIsSubjectPickerOpen] = useState<boolean>(false);
   const [puzzle, setPuzzle] = useState<Puzzle>(() =>
     generateProceduralPuzzle(currentLevel, childProfile, progress)
   );
@@ -173,21 +186,15 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [attempts, setAttempts] = useState<number>(0);
   const [hintsUsed, setHintsUsed] = useState<number>(0);
+  const [magicHintMessage, setMagicHintMessage] = useState<string | null>(null);
   const [isSolved, setIsSolved] = useState<boolean>(false);
   const [tappedCountIndices, setTappedCountIndices] = useState<number[]>([]);
   const [activeNoteIdx, setActiveNoteIdx] = useState<number | null>(null);
   const [musicOn, setMusicOn] = useState<boolean>(soundManager.musicEnabled);
-  const [activeZooAnimal, setActiveZooAnimal] = useState<ZooTalkingAnimal | null>(null);
-  const [zooPhraseIndex, setZooPhraseIndex] = useState<Record<string, number>>({});
-  const [isZooExpanded, setIsZooExpanded] = useState<boolean>(() => ageInfo.years <= 7);
-
-  useEffect(() => {
-    setIsZooExpanded(ageInfo.years <= 7);
-  }, [ageInfo.years]);
 
   const countFinishTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const zooSpeechTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFinishingCountRef = useRef<boolean>(false);
+  const hasCommittedSolveRef = useRef<boolean>(false);
   const replayTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const levelStartMsRef = useRef<number>(Date.now());
   const solveElapsedMsRef = useRef<number>(4800);
@@ -203,10 +210,6 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
     return () => {
       unsub();
       clearReplayTimers();
-      if (zooSpeechTimerRef.current) {
-        clearTimeout(zooSpeechTimerRef.current);
-        zooSpeechTimerRef.current = null;
-      }
       soundManager.stopRhythmSequence();
       soundManager.stopBackgroundMusic();
       soundManager.stopSpeech();
@@ -218,26 +221,28 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
       clearTimeout(countFinishTimerRef.current);
       countFinishTimerRef.current = null;
     }
-    if (zooSpeechTimerRef.current) {
-      clearTimeout(zooSpeechTimerRef.current);
-      zooSpeechTimerRef.current = null;
-    }
     clearReplayTimers();
     soundManager.stopRhythmSequence();
     isFinishingCountRef.current = false;
+    hasCommittedSolveRef.current = false;
     levelStartMsRef.current = Date.now();
     solveElapsedMsRef.current = 4800;
 
-    const nextPuzzle = generateProceduralPuzzle(currentLevel, childProfile, progress);
+    const nextPuzzle = generateProceduralPuzzle(
+      currentLevel,
+      childProfile,
+      progress,
+      preferredCategory || undefined
+    );
     setPuzzle(nextPuzzle);
     setWrongOptionIds([]);
     setSelectedOptionId(null);
     setAttempts(0);
     setHintsUsed(0);
+    setMagicHintMessage(null);
     setIsSolved(false);
     setTappedCountIndices([]);
     setActiveNoteIdx(null);
-    setActiveZooAnimal(null);
 
     let rhythmDelayTimer: ReturnType<typeof setTimeout> | null = null;
     const timer = setTimeout(() => {
@@ -258,58 +263,15 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
         clearTimeout(countFinishTimerRef.current);
         countFinishTimerRef.current = null;
       }
-      if (zooSpeechTimerRef.current) {
-        clearTimeout(zooSpeechTimerRef.current);
-        zooSpeechTimerRef.current = null;
-      }
     };
   }, [
     currentLevel,
+    preferredCategory,
     childProfile?.birthDate,
     childProfile?.name,
     childProfile?.gender,
     clearReplayTimers,
   ]);
-
-  const handleTapZooAnimal = useCallback(
-    (animal: ZooTalkingAnimal) => {
-      setActiveZooAnimal(animal);
-      const currentIdx = zooPhraseIndex[animal.id] ?? 0;
-      const championWord = getGenderedWord(
-        childGender,
-        'campionessa',
-        'campione',
-        'campione'
-      );
-      const friendWord = getGenderedWord(
-        childGender,
-        'amica mia',
-        'amico mio',
-        'amico speciale'
-      );
-      const rawPhrase = animal.phrases[currentIdx % animal.phrases.length];
-      const phrase = rawPhrase
-        .replace(/\{NAME\}/g, childName)
-        .replace(/\{CHAMPION\}/g, championWord)
-        .replace(/\{FRIEND\}/g, friendWord);
-      setZooPhraseIndex((prev) => ({
-        ...prev,
-        [animal.id]: currentIdx + 1,
-      }));
-
-      if (zooSpeechTimerRef.current) {
-        clearTimeout(zooSpeechTimerRef.current);
-      }
-
-      // Play custom synthesized animal sound effect + expressive Italian speech
-      soundManager.playZooAnimalSound(animal.id);
-      zooSpeechTimerRef.current = setTimeout(() => {
-        soundManager.speak(phrase, { context: 'instruction' });
-        zooSpeechTimerRef.current = null;
-      }, 280);
-    },
-    [zooPhraseIndex, childName, childGender]
-  );
 
   const handleReplayRhythm = useCallback(() => {
     if (!puzzle.rhythmNotes || puzzle.rhythmNotes.length === 0) return;
@@ -401,8 +363,9 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
     }
   };
 
-  const handleNextLevel = () => {
-    soundManager.playSuccess();
+  const commitSolve = useCallback(() => {
+    if (hasCommittedSolveRef.current) return;
+    hasCommittedSolveRef.current = true;
     const totalTries = Math.max(1, attempts);
     const earnedStars =
       totalTries <= 1 && hintsUsed === 0
@@ -420,55 +383,83 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
       puzzle.chcPrimary,
       puzzle.chcSecondary
     );
+  }, [attempts, hintsUsed, onSolveLevel, puzzle]);
+
+  const handleNextLevel = (nextSubject?: GameCategory | null) => {
+    soundManager.playSuccess();
+    if (nextSubject !== undefined) {
+      setPreferredCategory(nextSubject);
+    }
+    commitSolve();
+  };
+
+  const handleMagicHint = () => {
+    if (isSolved || isCountingMode) return;
+    const remainingWrong = (puzzle.options || []).filter(
+      (o) => !o.isCorrect && !wrongOptionIds.includes(o.id)
+    );
+    if (remainingWrong.length < 2) return;
+
+    const toEliminate = remainingWrong[0];
+    setWrongOptionIds((prev) => [...prev, toEliminate.id]);
+    setHintsUsed((prev) => prev + 1);
+    soundManager.playTwinkle();
+    const hintText = `Ecco un piccolo aiuto, ${childName}: ho tolto una carta che non serve. Guarda bene quelle rimaste!`;
+    setMagicHintMessage('Ho tolto una carta sbagliata per aiutarti: osserva bene quelle rimaste!');
+    soundManager.speak(hintText, { context: 'instruction' });
   };
 
   const theme = CATEGORY_THEMES[puzzle.category] || CATEGORY_THEMES.logic;
   const optionsList = puzzle.options || [];
   const isCountingMode =
     puzzle.type === 'count_interactive' && Boolean(puzzle.targetCount);
+  const remainingWrongCount = optionsList.filter(
+    (o) => !o.isCorrect && !wrongOptionIds.includes(o.id)
+  ).length;
+  const canUseMagicHint = !isSolved && !isCountingMode && remainingWrongCount >= 2;
+  const dailyMission = getDailyMissionStatus(progress);
+  const willCompleteMission =
+    (dailyMission.completedToday + 1) % DAILY_MISSION_TARGET === 0;
+  const missionBonusSticker = willCompleteMission
+    ? pickNextLockedSticker(progress.unlockedStickerIds)
+    : null;
+  const mindfulBreak = getMindfulBreakActivity(
+    dailyMission.cyclesCompletedToday + currentLevel
+  );
+
+  const questionCameo = resolveQuestionCameo(
+    puzzle.prompt,
+    puzzle.animalGuide.name,
+    puzzle.animalGuide.emoji
+  );
 
   return (
-    <div
-      className={`relative w-full h-full flex flex-col justify-between overflow-hidden bg-gradient-to-b ${theme.bgGradient} select-none`}
-    >
+    <div className="relative w-full h-full flex flex-col justify-between overflow-hidden bg-sky-300 select-none">
       {/* ===================================================================== */}
-      {/* MODERN LUMINOUS AURORA & SOFT ATMOSPHERIC SCENERY                     */}
+      {/* LUSH 3D PIXAR STORYBOOK SUNNY SKY & MEADOW WORLD BACKDROP             */}
       {/* ===================================================================== */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden z-0">
-        {/* Soft Sun Halo */}
-        <div className="absolute -top-10 -right-10 w-36 h-36 sm:w-48 sm:h-48 rounded-full bg-gradient-to-br from-amber-200/80 via-yellow-300/60 to-orange-300/40 blur-xs border border-white/60 flex items-center justify-center animate-float-3d">
-          <span className="text-4xl sm:text-5xl drop-shadow-sm">🌞</span>
-        </div>
-
-        {/* Subtle Luminous Rainbow Arc */}
-        <svg
-          viewBox="0 0 600 220"
-          className="w-[115%] max-w-none -left-[7%] top-6 absolute opacity-35"
-          fill="none"
-        >
-          <path d="M 20 210 Q 300 -30 580 210" stroke="#fb7185" strokeWidth="10" strokeLinecap="round" />
-          <path d="M 32 215 Q 300 -12 568 215" stroke="#fbbf24" strokeWidth="10" strokeLinecap="round" />
-          <path d="M 44 220 Q 300 6 556 220" stroke="#34d399" strokeWidth="10" strokeLinecap="round" />
-          <path d="M 56 225 Q 300 24 544 225" stroke="#38bdf8" strokeWidth="10" strokeLinecap="round" />
-          <path d="M 68 230 Q 300 42 532 230" stroke="#a78bfa" strokeWidth="10" strokeLinecap="round" />
-        </svg>
-
-        {/* Soft Drifting Glass Clouds */}
-        <div className="absolute top-14 left-4 w-28 h-10 bg-white/75 backdrop-blur-xs rounded-full shadow-sm animate-cloud-drift" />
-        <div
-          className="absolute top-22 right-14 w-24 h-9 bg-white/70 backdrop-blur-xs rounded-full shadow-sm animate-cloud-drift"
-          style={{ animationDelay: '1.4s' }}
+        <img
+          src={arenaMeadowBackdrop}
+          alt=""
+          aria-hidden="true"
+          referrerPolicy="no-referrer"
+          className="absolute inset-0 w-full h-full object-cover object-center scale-[1.01]"
         />
-
-        {/* Soft Modern Meadow Horizon at bottom */}
-        <div className="absolute -bottom-12 -left-16 w-[75%] h-26 rounded-[100%] bg-gradient-to-t from-emerald-500/35 via-teal-400/25 to-transparent" />
-        <div className="absolute -bottom-14 -right-16 w-[75%] h-28 rounded-[100%] bg-gradient-to-t from-teal-500/35 via-emerald-400/25 to-transparent" />
+        {/* Gentle radial vignette so cards and boards pop with vivid storybook contrast */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(180deg, rgba(14, 165, 233, 0.14) 0%, rgba(255, 255, 255, 0.04) 45%, rgba(22, 101, 52, 0.14) 100%)',
+          }}
+        />
       </div>
 
       {/* ===================================================================== */}
-      {/* MODERN TOP NAVIGATION BAR                                             */}
+      {/* GLOSSY 3D BUBBLE TOP NAVIGATION BAR (ZERO TRUNCATION ON ALL SCREENS)  */}
       {/* ===================================================================== */}
-      <header className="landscape-header-compact app-shell-container relative z-10 flex items-center justify-between px-2.5 sm:px-5 lg:px-8 pt-2.5 sm:pt-3.5 pb-1 shrink-0 gap-2">
+      <header className="landscape-header-compact app-shell-container relative z-10 flex items-center justify-between px-2 sm:px-5 lg:px-8 pt-2 sm:pt-3 pb-1 shrink-0 gap-1.5 sm:gap-2.5">
         <button
           onClick={() => {
             soundManager.stopSpeech();
@@ -476,49 +467,55 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
             soundManager.playPop();
             onExitToTitle();
           }}
-          className="toy-button-3d bg-white/90 hover:bg-white backdrop-blur-md text-slate-900 px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl border border-white/90 flex items-center gap-1.5 active:scale-95 cursor-pointer shrink-0 min-h-[40px]"
+          className="glossy-bubble-btn bg-gradient-to-b from-white to-slate-100 text-slate-900 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full border-2 border-white flex items-center gap-1.5 cursor-pointer shrink-0 min-h-[38px] sm:min-h-[42px]"
         >
-          <ArrowLeft className="w-4 h-4 text-slate-700 stroke-[2.5]" />
-          <span className="font-fun font-bold text-xs sm:text-sm whitespace-nowrap">Home</span>
+          <Home className="w-4 h-4 text-blue-700 fill-blue-700 shrink-0" />
+          <span className="font-fun font-extrabold text-xs sm:text-sm text-slate-900 whitespace-nowrap">
+            Home
+          </span>
         </button>
 
-        {/* Center Modern Category & Level Status */}
+        {/* Center Glossy 3D Purple Level Capsule — full subject text, never cut with "..." */}
         <div
-          className={`bg-gradient-to-r ${theme.badgeGradient} px-3.5 sm:px-5 py-1.5 rounded-2xl border shadow-md flex items-center gap-2 min-w-0`}
+          className={`glossy-bubble-btn bg-gradient-to-b ${theme.badgeGradient} px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-full border-2 border-white/80 flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 sm:flex-initial justify-center`}
         >
-          <span className="text-base sm:text-xl shrink-0">{theme.emoji}</span>
-          <div className="text-left min-w-0 leading-tight">
-            <p className="text-[10px] sm:text-[11px] font-semibold text-white/95 truncate">
+          <span className="text-base sm:text-xl shrink-0 drop-shadow-xs">{theme.emoji}</span>
+          <div className="text-left leading-[1.12] min-w-0">
+            <p className="text-[9.5px] sm:text-xs font-bold text-white/95 leading-tight break-words">
               {puzzle.subjectLabel || theme.title}
             </p>
-            <p className="font-fun font-extrabold text-xs sm:text-sm text-white whitespace-nowrap tabular-nums">
-              Livello {currentLevel} <span className="opacity-60">·</span> ⭐ {progress.stars}
+            <p className="font-fun font-extrabold text-[11px] sm:text-sm text-white whitespace-nowrap tabular-nums flex items-center gap-1">
+              <span>Livello {currentLevel}</span>
+              <Star className="w-3.5 h-3.5 text-amber-300 fill-amber-300 inline shrink-0" />
+              <span>{progress.stars}</span>
               {puzzle.isMasteryUnlocked && (
-                <span className="ml-1.5 text-amber-200 font-bold text-[10px] sm:text-[11px]">
-                  · ★ Merito
+                <span className="text-amber-200 font-bold text-[10px] hidden sm:inline">
+                  · Merito
                 </span>
               )}
             </p>
           </div>
         </div>
 
-        {/* Right Controls */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        {/* Right Glossy 3D Jewel Action Bubbles */}
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           <button
             onClick={() => {
               soundManager.playPop();
-              setIsZooExpanded((prev) => !prev);
+              setIsSubjectPickerOpen((prev) => !prev);
             }}
-            title="Apri o chiudi lo Zoo Parlante"
-            className={`toy-button-3d px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-2xl border flex items-center gap-1.5 active:scale-95 cursor-pointer min-h-[40px] ${
-              isZooExpanded
-                ? 'bg-gradient-to-b from-emerald-500 to-teal-600 text-white border-emerald-200/80'
-                : 'bg-white/90 text-slate-800 border-white/90'
+            title="Scegli la materia che ti incuriosisce di più"
+            className={`glossy-bubble-btn w-9 h-9 sm:w-auto sm:h-10 sm:px-3 rounded-full border-2 flex items-center justify-center gap-1.5 cursor-pointer ${
+              isSubjectPickerOpen || preferredCategory
+                ? 'bg-gradient-to-b from-emerald-400 to-green-600 text-white border-emerald-100'
+                : 'bg-gradient-to-b from-emerald-400 to-emerald-600 text-white border-white/90'
             }`}
           >
-            <span className="text-sm sm:text-base leading-none">🦁</span>
-            <span className="font-fun font-bold text-[11px] sm:text-xs hidden md:inline whitespace-nowrap">
-              Zoo Parlante
+            <Compass className="w-4 h-4 sm:w-4.5 sm:h-4.5 stroke-[2.5] shrink-0" />
+            <span className="font-fun font-bold text-xs hidden lg:inline whitespace-nowrap">
+              {preferredCategory
+                ? SUBJECT_CHOICES.find((c) => c.id === preferredCategory)?.label || 'Materie'
+                : 'Materie'}
             </span>
           </button>
 
@@ -528,26 +525,28 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
               setMusicOn(next);
             }}
             title={musicOn ? 'Disattiva Musica' : 'Attiva Musica'}
-            className={`toy-button-3d p-2 sm:px-2.5 sm:py-2 rounded-2xl border flex items-center gap-1 active:scale-95 cursor-pointer min-h-[40px] min-w-[40px] justify-center ${
+            className={`glossy-bubble-btn w-9 h-9 sm:w-10 sm:h-10 rounded-full border-2 flex items-center justify-center cursor-pointer ${
               musicOn
-                ? 'bg-gradient-to-b from-violet-500 to-purple-600 text-white border-violet-200/80'
-                : 'bg-white/90 text-slate-600 border-white/90'
+                ? 'bg-gradient-to-b from-fuchsia-400 to-purple-600 text-white border-white/90'
+                : 'bg-gradient-to-b from-white to-slate-100 text-slate-600 border-white'
             }`}
           >
             {musicOn ? (
-              <Music className="w-4 h-4 stroke-[2.5]" />
+              <Music className="w-4 h-4 stroke-[2.6]" />
             ) : (
-              <VolumeX className="w-4 h-4 stroke-[2.5]" />
+              <VolumeX className="w-4 h-4 stroke-[2.6]" />
             )}
           </button>
 
           <button
             onClick={handleReplayVoice}
-            className="toy-button-3d bg-gradient-to-b from-amber-400 to-orange-500 text-slate-950 p-2 sm:px-3.5 sm:py-2 rounded-2xl border border-amber-200/90 flex items-center gap-1.5 active:scale-95 cursor-pointer min-h-[40px]"
+            className="glossy-bubble-btn w-9 h-9 sm:w-auto sm:h-10 sm:px-3.5 rounded-full border-2 border-amber-100 bg-gradient-to-b from-amber-300 via-orange-400 to-orange-600 text-slate-950 flex items-center justify-center gap-1.5 cursor-pointer"
             title="Riascolta la domanda"
           >
-            <Volume2 className="w-4 h-4 stroke-[2.5]" />
-            <span className="font-fun font-bold text-xs hidden sm:inline whitespace-nowrap">Ascolta</span>
+            <Volume2 className="w-4 h-4 stroke-[2.6] shrink-0" />
+            <span className="font-fun font-extrabold text-xs hidden sm:inline whitespace-nowrap">
+              Ascolta
+            </span>
           </button>
 
           <button
@@ -555,10 +554,10 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
               soundManager.playPop();
               onOpenParents();
             }}
-            className="toy-button-3d bg-white/90 hover:bg-white text-slate-800 p-2 rounded-2xl border border-white/90 active:scale-95 cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center"
+            className="glossy-bubble-btn w-9 h-9 sm:w-10 sm:h-10 rounded-full border-2 border-white bg-gradient-to-b from-white to-sky-100 text-blue-700 flex items-center justify-center cursor-pointer"
             title="Area Genitori & Profilo CHC"
           >
-            <ShieldCheck className="w-4 h-4 text-indigo-600" />
+            <ShieldCheck className="w-4.5 h-4.5 text-blue-700 stroke-[2.4]" />
           </button>
         </div>
       </header>
@@ -566,162 +565,143 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
       {/* ===================================================================== */}
       {/* MAIN GAMEPLAY STAGE (MOBILE, TABLET & PC — PORTRAIT & LANDSCAPE)      */}
       {/* ===================================================================== */}
-      <main className="arena-main-scroll app-shell-container relative z-10 flex-1 flex flex-col justify-start sm:justify-center px-2.5 sm:px-5 lg:px-8 py-1.5 sm:py-2.5 w-full min-h-0 gap-2.5 sm:gap-3.5 overflow-y-auto">
+      <main className="arena-main-scroll app-shell-container relative z-10 flex-1 flex flex-col justify-start sm:justify-center px-2.5 sm:px-5 lg:px-8 py-1 sm:py-2 w-full min-h-0 gap-2 sm:gap-3 overflow-y-auto">
         {/* =================================================================== */}
-        {/* ZOO PARLANTE INTERACTIVE BENTO SECTION (LEONE, GIRAFFA, ELEFANTE)   */}
+        {/* CHILD AUTONOMY: CURIOSITY SUBJECT CHOOSER BAR                       */}
         {/* =================================================================== */}
-        {isZooExpanded && (
+        {isSubjectPickerOpen && (
           <section
-            aria-label="Zoo Parlante"
-            className="zoo-parlante-section bg-white/88 backdrop-blur-xl rounded-3xl p-2.5 sm:p-3.5 border border-white/95 shadow-[0_14px_30px_-10px_rgba(15,23,42,0.12)] shrink-0"
+            aria-label="Scegli materia"
+            className="storybook-footer-pill rounded-2xl px-3 py-2.5 shrink-0 animate-pop-in"
           >
-            <div className="flex items-center justify-between gap-2 mb-2 px-1">
-              <div className="flex items-center gap-2 min-w-0 text-xs sm:text-sm">
-                <span className="font-fun font-extrabold text-emerald-700 whitespace-nowrap">
-                  🦁🦒🐘 Zoo Parlante
-                </span>
-                <span className="text-slate-300 hidden sm:inline" aria-hidden="true">·</span>
-                <span className="text-xs font-medium text-slate-600 truncate hidden sm:inline">
-                  Tocca un animale per sentire il suo nome, il verso e una curiosità
-                </span>
-              </div>
+            <div className="flex items-center justify-between gap-2 mb-2 px-0.5">
+              <span className="font-fun font-extrabold text-xs sm:text-sm text-amber-950">
+                🧭 Cosa vuoi esplorare adesso, {childName}?
+              </span>
               <button
                 type="button"
-                onClick={() => setIsZooExpanded(false)}
-                className="text-[11px] font-semibold text-slate-600 hover:text-slate-900 px-2.5 py-1 rounded-xl bg-slate-100/90 hover:bg-slate-200/80 transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+                onClick={() => setIsSubjectPickerOpen(false)}
+                className="text-xs font-bold text-amber-900 hover:text-amber-950 px-2.5 py-1 rounded-xl bg-amber-100 cursor-pointer"
               >
-                Nascondi
+                Chiudi
               </button>
             </div>
-
-            <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              {ZOO_PARLANTE_ANIMALS.map((animal) => {
-                const isSelected = activeZooAnimal?.id === animal.id;
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {SUBJECT_CHOICES.map((subj) => {
+                const isActive = preferredCategory === subj.id;
                 return (
                   <button
-                    key={animal.id}
+                    key={subj.id || 'surprise'}
                     type="button"
-                    onClick={() => handleTapZooAnimal(animal)}
-                    className={`zoo-parlante-card toy-button-3d relative rounded-2xl p-2 sm:px-3.5 sm:py-2.5 border flex items-center gap-2 sm:gap-3 text-left transition-all cursor-pointer bg-gradient-to-br ${
-                      animal.badgeClass
-                    } ${
-                      isSelected
-                        ? 'ring-3 ring-slate-900/20 scale-[1.01] shadow-md'
-                        : 'hover:scale-[1.01] active:scale-98'
+                    onClick={() => {
+                      soundManager.playPop();
+                      setPreferredCategory(subj.id);
+                      setIsSubjectPickerOpen(false);
+                    }}
+                    className={`min-h-[38px] px-3 py-1.5 rounded-xl text-xs sm:text-sm font-fun font-bold flex items-center gap-1.5 whitespace-nowrap cursor-pointer transition-all border-2 ${
+                      isActive
+                        ? 'bg-gradient-to-b from-violet-500 to-indigo-600 text-white border-white shadow-sm'
+                        : 'bg-white text-slate-800 border-amber-200 hover:bg-amber-50'
                     }`}
                   >
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-white/95 border border-white shadow-xs flex items-center justify-center shrink-0">
-                      <span
-                        className={`text-2xl sm:text-3xl leading-none ${
-                          isSelected ? 'animate-bounce' : 'animate-float-3d'
-                        }`}
-                      >
-                        {animal.emoji}
-                      </span>
-                    </div>
-                    <div className="min-w-0 flex-1 leading-tight">
-                      <span className="block text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-white/90">
-                        {animal.soundLabel}
-                      </span>
-                      <p className="font-fun font-extrabold text-xs sm:text-sm text-white truncate">
-                        {animal.name}
-                      </p>
-                      <p className="text-[10px] sm:text-[11px] font-medium text-white/90 truncate hidden sm:block">
-                        🇬🇧 {animal.englishName} ({animal.englishPhonetic})
-                      </p>
-                    </div>
-                    <Volume2 className="w-4 h-4 text-white/90 shrink-0 hidden md:block" />
+                    <span>{subj.emoji}</span>
+                    <span>{subj.label}</span>
                   </button>
                 );
               })}
             </div>
-
-            {activeZooAnimal && (
-              <div className="mt-2 bg-slate-50/95 rounded-2xl px-3 py-2 border border-slate-200/80 flex items-center justify-between gap-2.5 animate-pop-in">
-                <p className="text-xs sm:text-sm font-medium text-slate-700 leading-snug">
-                  <span className="font-fun font-bold text-slate-900 mr-1.5">
-                    {activeZooAnimal.emoji} {activeZooAnimal.name} ({activeZooAnimal.soundLabel}):
-                  </span>
-                  {activeZooAnimal.phrases[
-                    Math.max(0, (zooPhraseIndex[activeZooAnimal.id] ?? 1) - 1) %
-                      activeZooAnimal.phrases.length
-                  ]
-                    .replace(/\{NAME\}/g, childName)
-                    .replace(
-                      /\{CHAMPION\}/g,
-                      getGenderedWord(childGender, 'campionessa', 'campione', 'campione')
-                    )
-                    .replace(
-                      /\{FRIEND\}/g,
-                      getGenderedWord(childGender, 'amica mia', 'amico mio', 'amico speciale')
-                    )}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => handleTapZooAnimal(activeZooAnimal)}
-                  className="shrink-0 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-fun font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs whitespace-nowrap"
-                >
-                  <Volume2 className="w-3.5 h-3.5" />
-                  <span>Risenti</span>
-                </button>
-              </div>
-            )}
           </section>
         )}
 
+        {/* (Zoo Parlante is now a standalone Svago activity outside the tests!) */}
+
         {/* =================================================================== */}
-        {/* ADAPTIVE STAGE: VERTICAL ON PORTRAIT, 2-COLUMN SPLIT ON LANDSCAPE   */}
+        {/* ADAPTIVE 3D STAGE: VERTICAL ON PORTRAIT, 2-COLUMN SPLIT ON LANDSCAPE*/}
         {/* =================================================================== */}
-        <div className={optionsList.length > 0 ? 'arena-stage-grid' : 'w-full'}>
-          {/* QUESTION & INTERACTIVE SHOWCASE BOARD */}
-          <div className="board-3d-tabletop rounded-3xl p-4 sm:p-6 flex flex-col items-center justify-center text-center relative overflow-hidden shrink-0">
-            <div className="flex items-center justify-center gap-2 flex-wrap mb-2 text-xs sm:text-sm text-slate-600 font-semibold">
-              <span className="inline-flex items-center gap-1.5 text-slate-800 font-bold">
-                <span className="text-base sm:text-lg">{puzzle.animalGuide.emoji}</span>
+        <div className={`stage-3d-perspective ${optionsList.length > 0 ? 'arena-stage-grid' : 'w-full'}`}>
+          {/* CARVED WOOD & CREAM PARCHMENT QUESTION BOARD */}
+          <div className="storybook-parchment-board board-3d-tabletop rounded-[28px] px-3.5 py-3.5 sm:px-6 sm:py-5 flex flex-col items-center justify-center text-center relative overflow-hidden shrink-0">
+            {/* Guide & Difficulty Kicker */}
+            <div className="relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 flex-wrap mb-1 text-xs sm:text-sm font-bold">
+              <span className="inline-flex items-center gap-1 text-slate-900 font-extrabold">
+                <Crown className="w-4 h-4 text-amber-500 fill-amber-400 shrink-0" />
                 <span>{puzzle.animalGuide.name}</span>
               </span>
 
               {puzzle.difficultyLabel && (
                 <>
-                  <span className="text-slate-300" aria-hidden="true">·</span>
+                  <span className="text-amber-700/40" aria-hidden="true">|</span>
                   <span
                     className={
                       puzzle.isMasteryUnlocked
-                        ? 'text-amber-700 font-bold'
-                        : 'text-emerald-700 font-semibold'
+                        ? 'text-amber-700 font-extrabold'
+                        : 'text-emerald-700 font-extrabold'
                     }
                   >
                     {puzzle.isMasteryUnlocked ? `★ ${puzzle.difficultyLabel}` : puzzle.difficultyLabel}
                   </span>
                 </>
               )}
+            </div>
 
-              {puzzle.iqParameterTag && (
-                <>
-                  <span className="text-slate-300" aria-hidden="true">·</span>
-                  <span className="text-indigo-600 font-semibold">
-                    {puzzle.iqParameterTag}
-                  </span>
-                </>
+            {puzzle.iqParameterTag && (
+              <p className="relative z-10 text-[11px] sm:text-xs font-extrabold text-indigo-700 mb-1.5 leading-snug">
+                {puzzle.iqParameterTag}
+              </p>
+            )}
+
+            {/* Main Question Text + Charming 3D Character Cameo on the Right */}
+            <div className="relative z-10 flex items-center justify-center gap-2.5 sm:gap-4 w-full max-w-2xl">
+              <h2 className="font-fun font-extrabold text-base sm:text-2xl lg:text-[26px] text-slate-900 leading-snug flex-1 text-center">
+                {puzzle.prompt}
+              </h2>
+
+              {questionCameo.imageSrc && (
+                <div className="flex w-13 h-13 sm:w-18 sm:h-18 rounded-2xl overflow-hidden border-2 border-amber-300 shadow-md shrink-0 bg-sky-100">
+                  <img
+                    src={questionCameo.imageSrc}
+                    alt={questionCameo.alt}
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover object-top"
+                  />
+                </div>
               )}
             </div>
 
-            <h2 className="font-fun font-extrabold text-lg sm:text-2xl lg:text-[26px] text-slate-900 leading-snug max-w-2xl">
-              {puzzle.prompt}
-            </h2>
+            {/* GENTLE ANTI-FRUSTRATION HINT FEEDBACK & HELPER BUTTON */}
+            {(canUseMagicHint || magicHintMessage) && (
+              <div className="mt-2.5 flex flex-wrap items-center justify-center gap-2">
+                {magicHintMessage && (
+                  <span className="text-xs sm:text-sm font-semibold text-indigo-700">
+                    💡 {magicHintMessage}
+                  </span>
+                )}
+                {canUseMagicHint && (
+                  <button
+                    type="button"
+                    onClick={handleMagicHint}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/90 font-fun font-bold text-xs cursor-pointer transition-colors min-h-[36px]"
+                    title="Togli una risposta sbagliata per ragionare con calma"
+                  >
+                    <Lightbulb className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Aiuto del Maestro</span>
+                  </button>
+                )}
+              </div>
+            )}
 
-            {/* 1. INTERACTIVE FINGER COUNTING (`count_interactive`) */}
+            {/* 1. INTERACTIVE FINGER COUNTING (`count_interactive`) — 3D STORYBOOK MEADOW TRAY */}
             {isCountingMode && puzzle.targetCount && (
-              <div className="mt-3 sm:mt-4 flex flex-col items-center gap-2.5 sm:gap-3 w-full">
-                {/* Live Counter Status */}
-                <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-slate-900 text-white shadow-sm font-fun font-bold text-xs sm:text-sm tabular-nums">
+              <div className="relative z-10 mt-3 sm:mt-4 flex flex-col items-center gap-2.5 sm:gap-3 w-full">
+                {/* Carved Wood Live Counter Badge */}
+                <div className="storybook-wood-sign inline-flex items-center gap-2 px-4 py-1 rounded-full text-[#422006] font-kids font-bold text-xs sm:text-sm tabular-nums">
                   <span>{puzzle.itemGender === 'm' ? 'Contati:' : 'Contate:'}</span>
-                  <span className="text-amber-300 font-extrabold text-sm sm:text-base">
+                  <span className="px-2 py-0.5 rounded-full bg-amber-950 text-amber-300 font-extrabold text-sm sm:text-base">
                     {tappedCountIndices.length} / {puzzle.targetCount}
                   </span>
                 </div>
 
-                <div className="flex items-center justify-center gap-2.5 sm:gap-4 flex-wrap bg-slate-50/90 px-3 sm:px-5 py-3.5 sm:py-4 rounded-3xl border border-slate-200/90 w-full">
+                <div className="storybook-tray-3d flex items-center justify-center gap-3 sm:gap-4 flex-wrap px-3.5 sm:px-5 py-4 rounded-3xl w-full">
                   {Array.from({ length: puzzle.targetCount }).map((_, idx) => {
                     const isTapped = tappedCountIndices.includes(idx);
                     const orderNumber = tappedCountIndices.indexOf(idx) + 1;
@@ -736,15 +716,15 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                             : 'sphere-3d-counter animate-float-3d hover:scale-105'
                         }`}
                       >
-                        <span className="text-4xl sm:text-5xl lg:text-6xl leading-none drop-shadow-xs">
+                        <span className="text-4xl sm:text-5xl lg:text-6xl leading-none drop-shadow-[0_4px_4px_rgba(15,23,42,0.2)]">
                           {puzzle.itemEmoji || '🦋'}
                         </span>
                         {isTapped ? (
-                          <span className="absolute -top-1.5 -right-1.5 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-900 text-white font-fun font-extrabold text-sm sm:text-base border-2 border-white flex items-center justify-center shadow-md animate-pop-in tabular-nums">
+                          <span className="absolute -top-1.5 -right-1.5 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-b from-amber-300 to-orange-500 text-amber-950 font-kids font-bold text-sm sm:text-base border-2 border-white flex items-center justify-center shadow-md animate-pop-in tabular-nums">
                             {orderNumber}
                           </span>
                         ) : (
-                          <span className="absolute -bottom-1 right-0.5 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white text-pink-600 border border-pink-200 flex items-center justify-center shadow-sm">
+                          <span className="storybook-play-dot absolute -bottom-1 right-0.5 w-6 h-6 sm:w-7 sm:h-7 rounded-full text-pink-600 flex items-center justify-center">
                             <Hand className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                           </span>
                         )}
@@ -753,55 +733,59 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                   })}
                 </div>
 
-                <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-slate-600">
+                <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-amber-900">
                   <Sparkles className="w-4 h-4 text-amber-500" />
-                  Tocca ogni figura per contarla ad alta voce
+                  Tocca ogni figura 3D per contarla ad alta voce
                 </span>
               </div>
             )}
 
-            {/* 2. VISUAL ADDITION (`visual_addition`) */}
+            {/* 2. VISUAL ADDITION (`visual_addition`) — CARVED WOOD & 3D CANDY TILES */}
             {puzzle.additionParts && (
-              <div className="mt-3 flex items-center justify-center gap-2 sm:gap-3 flex-wrap bg-slate-50/95 px-3.5 sm:px-5 py-3 rounded-2xl border border-slate-200/90">
-                <div className="flex items-center gap-1 sm:gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-rose-200 shadow-2xs flex-wrap justify-center">
+              <div className="relative z-10 mt-3 storybook-tray-3d flex items-center justify-center gap-2 sm:gap-3 flex-wrap px-3.5 sm:px-5 py-3 rounded-3xl">
+                <div className="flex items-center gap-1.5 bg-gradient-to-b from-rose-50 to-pink-100 px-3 py-2 rounded-2xl border-2 border-pink-300 shadow-[0_3px_0_#ec4899] flex-wrap justify-center">
                   {Array.from({ length: puzzle.additionParts.countA }).map((_, i) => (
-                    <span key={i} className="text-2xl sm:text-3xl lg:text-4xl animate-float-3d">
+                    <span key={i} className="text-2xl sm:text-3xl lg:text-4xl animate-float-3d drop-shadow-xs">
                       {puzzle.additionParts!.emoji}
                     </span>
                   ))}
                 </div>
-                <span className="font-fun font-extrabold text-2xl sm:text-3xl text-rose-500">+</span>
-                <div className="flex items-center gap-1 sm:gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-sky-200 shadow-2xs flex-wrap justify-center">
+                <span className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-b from-rose-400 to-pink-600 border-2 border-white shadow-md flex items-center justify-center font-kids font-bold text-xl sm:text-2xl text-white">
+                  +
+                </span>
+                <div className="flex items-center gap-1.5 bg-gradient-to-b from-sky-50 to-cyan-100 px-3 py-2 rounded-2xl border-2 border-sky-300 shadow-[0_3px_0_#0284c7] flex-wrap justify-center">
                   {Array.from({ length: puzzle.additionParts.countB }).map((_, i) => (
-                    <span key={i} className="text-2xl sm:text-3xl lg:text-4xl animate-float-3d">
+                    <span key={i} className="text-2xl sm:text-3xl lg:text-4xl animate-float-3d drop-shadow-xs">
                       {puzzle.additionParts!.emoji}
                     </span>
                   ))}
                 </div>
-                <span className="font-fun font-extrabold text-2xl sm:text-3xl text-slate-700">= ?</span>
+                <span className="px-3 py-1.5 rounded-2xl bg-gradient-to-b from-amber-300 to-amber-500 border-2 border-white shadow-[0_3px_0_#b45309] font-kids font-bold text-lg sm:text-2xl text-amber-950">
+                  = ?
+                </span>
               </div>
             )}
 
-            {/* 3. VISUAL SUBTRACTION (`visual_subtraction`) */}
+            {/* 3. VISUAL SUBTRACTION (`visual_subtraction`) — 3D WOODEN ITEM TRAY */}
             {puzzle.subtractionParts && (
-              <div className="mt-3 flex items-center justify-center gap-1.5 sm:gap-2 flex-wrap bg-slate-50/95 px-3.5 sm:px-5 py-3 rounded-2xl border border-slate-200/90">
+              <div className="relative z-10 mt-3 storybook-tray-3d flex items-center justify-center gap-2 sm:gap-2.5 flex-wrap px-3.5 sm:px-5 py-3 rounded-3xl">
                 {Array.from({ length: puzzle.subtractionParts.total }).map((_, idx) => {
                   const isRemoved =
                     idx >= puzzle.subtractionParts!.total - puzzle.subtractionParts!.minus;
                   return (
                     <div
                       key={idx}
-                      className={`relative w-11 h-11 sm:w-13 sm:h-13 rounded-xl flex items-center justify-center border ${
+                      className={`relative w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center border-2 ${
                         isRemoved
-                          ? 'bg-rose-50 border-rose-200 opacity-45 scale-90'
-                          : 'bg-white border-emerald-200 shadow-2xs animate-float-3d'
+                          ? 'bg-rose-100/80 border-rose-300 opacity-55 scale-92'
+                          : 'bg-gradient-to-b from-white to-emerald-50 border-emerald-400 shadow-[0_4px_0_#16a34a] animate-float-3d'
                       }`}
                     >
-                      <span className="text-2xl sm:text-3xl">
+                      <span className="text-2xl sm:text-3xl drop-shadow-xs">
                         {puzzle.subtractionParts!.emoji}
                       </span>
                       {isRemoved && (
-                        <span className="absolute text-rose-600 font-black text-xl sm:text-2xl">✖</span>
+                        <span className="absolute text-rose-600 font-black text-2xl drop-shadow-xs">✖</span>
                       )}
                     </div>
                   );
@@ -809,12 +793,13 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
               </div>
             )}
 
-            {/* 4. MUSIC & RHYTHM XYLOPHONE (`music_rhythm`) */}
+            {/* 4. MUSIC & RHYTHM RAINBOW 3D WOODEN XYLOPHONE (`music_rhythm`) */}
             {puzzle.rhythmNotes && puzzle.rhythmNotes.length > 0 && (
-              <div className="mt-3 flex flex-col items-center gap-2.5 w-full">
-                <div className="flex items-center justify-center gap-1.5 sm:gap-2 flex-wrap bg-slate-50/95 px-3.5 py-2.5 rounded-2xl border border-slate-200/90">
+              <div className="relative z-10 mt-3 flex flex-col items-center gap-2.5 w-full">
+                <div className="storybook-wood-shelf flex items-center justify-center gap-1.5 sm:gap-2.5 flex-wrap px-3 sm:px-4 py-2.5 sm:py-3 rounded-3xl">
                   {puzzle.rhythmNotes.map((note, idx) => {
                     const isPlaying = activeNoteIdx === idx;
+                    const barColor = XYLO_BAR_COLORS[idx % XYLO_BAR_COLORS.length];
                     return (
                       <button
                         key={idx}
@@ -824,14 +809,15 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                           soundManager.playMusicalNote(note.freq, note.duration || 0.34);
                           setTimeout(() => setActiveNoteIdx(null), 340);
                         }}
-                        className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-2xl border font-fun font-bold text-xs sm:text-sm transition-all flex flex-col items-center gap-0.5 cursor-pointer shadow-xs ${
-                          isPlaying
-                            ? 'bg-gradient-to-b from-pink-500 to-rose-600 text-white border-pink-200 scale-105 shadow-md'
-                            : 'bg-gradient-to-b from-indigo-500 to-violet-600 text-white border-indigo-200 hover:scale-105'
+                        className={`xylo-bar-3d bg-gradient-to-b ${barColor} px-3 py-2 sm:px-4 sm:py-2.5 rounded-2xl font-kids font-bold text-xs sm:text-sm text-white flex flex-col items-center gap-0.5 cursor-pointer ${
+                          isPlaying ? 'scale-110 ring-4 ring-yellow-200 brightness-110' : 'hover:scale-105'
                         }`}
                       >
-                        <span className="text-xl sm:text-2xl">{note.emoji}</span>
-                        <span className="text-[11px] sm:text-xs">{note.label}</span>
+                        <span className="w-2 h-2 rounded-full bg-white/80 shadow-inner mb-0.5" aria-hidden="true" />
+                        <span className="text-xl sm:text-2xl drop-shadow-xs">{note.emoji}</span>
+                        <span className="text-[11px] sm:text-xs drop-shadow-[0_1px_1px_rgba(0,0,0,0.3)]">
+                          {note.label}
+                        </span>
                       </button>
                     );
                   })}
@@ -839,29 +825,31 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                 <button
                   type="button"
                   onClick={handleReplayRhythm}
-                  className="toy-button-3d px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-fun font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  className="home-lavender-outer rounded-2xl p-[3px] cursor-pointer"
                 >
-                  <Music className="w-4 h-4 text-pink-400" />
-                  <span>Risenti Melodia</span>
+                  <span className="home-inner-purple rounded-[13px] px-4 py-1.5 font-kids font-bold text-xs sm:text-sm text-white flex items-center gap-1.5">
+                    <Music className="w-4 h-4 text-amber-200" />
+                    <span>Risenti Melodia</span>
+                  </span>
                 </button>
               </div>
             )}
 
-            {/* 5. ENGLISH WORD FLASHCARD (`english_words`) */}
+            {/* 5. ENGLISH WORD 3D STORYBOOK FLASHCARD (`english_words`) */}
             {puzzle.englishWord && (
-              <div className="mt-3 flex items-center gap-3 bg-slate-50/95 px-4 py-2.5 rounded-2xl border border-slate-200/90 shadow-xs">
-                <div className="w-13 h-13 sm:w-15 sm:h-15 rounded-2xl bg-white border border-slate-200 shadow-2xs flex items-center justify-center text-3xl sm:text-4xl animate-float-3d shrink-0">
+              <div className="relative z-10 mt-3 storybook-tray-3d flex items-center gap-3 px-4 py-2.5 rounded-3xl">
+                <div className="orb-3d-pedestal w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-3xl sm:text-4xl animate-float-3d shrink-0">
                   {puzzle.englishWord.emoji}
                 </div>
                 <div className="text-left min-w-0">
-                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-sky-700 block truncate">
+                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-sky-700 block leading-tight">
                     🇬🇧 {puzzle.englishWord.categoryLabel}
                   </span>
-                  <p className="font-fun font-extrabold text-lg sm:text-2xl text-slate-900 leading-tight">
+                  <p className="font-kids font-bold text-lg sm:text-2xl text-slate-900 leading-tight">
                     "{puzzle.englishWord.en}"
                   </p>
-                  <p className="text-[11px] sm:text-xs font-medium text-slate-600">
-                    Pronuncia: <strong className="text-slate-800">"{puzzle.englishWord.phoneticHint}"</strong> ({puzzle.englishWord.it})
+                  <p className="text-[11px] sm:text-xs font-semibold text-amber-950/85">
+                    Pronuncia: <strong className="text-slate-900">"{puzzle.englishWord.phoneticHint}"</strong> ({puzzle.englishWord.it})
                   </p>
                 </div>
                 <button
@@ -874,22 +862,22 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                       } si dice ${puzzle.englishWord!.phoneticHint}!`
                     );
                   }}
-                  className="toy-button-3d p-2.5 sm:p-3 rounded-2xl bg-gradient-to-b from-sky-500 to-blue-600 text-white border border-sky-200 shadow-xs cursor-pointer shrink-0"
+                  className="glossy-bubble-btn p-2.5 sm:p-3 rounded-full bg-gradient-to-b from-sky-400 to-blue-600 text-white border-2 border-white cursor-pointer shrink-0"
                 >
                   <Volume2 className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
             )}
 
-            {/* 6. PATTERN / MATRIX STRIP (`patternItems`) */}
+            {/* 6. PATTERN / MATRIX 3D WOODEN RAIL (`patternItems`) */}
             {puzzle.patternItems && puzzle.patternItems.length > 0 && (
-              <div className="mt-3 flex items-center justify-center gap-1.5 sm:gap-2.5 flex-wrap bg-slate-50/95 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-2xl border border-slate-200/90">
+              <div className="relative z-10 mt-3 storybook-wood-shelf flex items-center justify-center gap-1.5 sm:gap-2.5 flex-wrap px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-3xl">
                 {puzzle.patternItems.map((item, idx) => {
                   const isMystery = item === '❓' || item === '?';
                   const isArrow = item === '➔' || item === '➡️';
                   if (isArrow) {
                     return (
-                      <span key={idx} className="text-xl sm:text-2xl font-bold text-slate-400">
+                      <span key={idx} className="text-xl sm:text-2xl font-black text-amber-100 drop-shadow-xs">
                         ➔
                       </span>
                     );
@@ -897,10 +885,10 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                   return (
                     <div
                       key={idx}
-                      className={`min-w-11 h-11 sm:min-w-14 sm:h-14 px-2.5 rounded-2xl flex items-center justify-center border shadow-2xs ${
+                      className={`min-w-12 h-12 sm:min-w-14 sm:h-14 px-2.5 rounded-2xl flex items-center justify-center border-2 ${
                         isMystery
-                          ? 'bg-gradient-to-b from-amber-300 to-amber-400 border-amber-200 text-slate-950 font-fun font-extrabold text-xl sm:text-2xl'
-                          : 'bg-white border-slate-200 text-2xl sm:text-3xl lg:text-4xl animate-float-3d'
+                          ? 'bg-gradient-to-b from-yellow-200 via-amber-400 to-orange-500 border-white text-amber-950 font-kids font-bold text-xl sm:text-2xl shadow-[0_4px_0_#b45309] animate-gentle-bounce'
+                          : 'orb-3d-pedestal text-2xl sm:text-3xl lg:text-4xl animate-float-3d'
                       }`}
                     >
                       {item}
@@ -912,7 +900,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
           </div>
 
           {/* ================================================================= */}
-          {/* MODERN TACTILE CHOICE CARDS (ONLY WHEN OPTIONS EXIST)             */}
+          {/* VIBRANT PIXAR 3D ILLUSTRATED CHOICE CARDS                         */}
           {/* ================================================================= */}
           {optionsList.length > 0 && (
             <div
@@ -926,8 +914,9 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                 const isWrong = wrongOptionIds.includes(option.id);
                 const isChosenCorrect =
                   isSolved && selectedOptionId === option.id && option.isCorrect;
-                const candyClass =
-                  CANDY_CARD_CLASSES[idx % CANDY_CARD_CLASSES.length];
+                const cardTheme =
+                  CANDY_CARD_THEMES[idx % CANDY_CARD_THEMES.length];
+                const visualScene = resolveOptionArtwork(option, puzzle.category);
                 const isLastOfThree = optionsList.length === 3 && idx === 2;
 
                 return (
@@ -935,46 +924,80 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                     key={option.id}
                     onClick={() => handleSelectOption(option)}
                     disabled={isSolved || isWrong}
-                    className={`toy-card-3d relative rounded-3xl px-3 sm:px-4 py-3 sm:py-4 flex flex-col items-center justify-center gap-2 transition-all overflow-hidden cursor-pointer ${candyClass} ${
+                    className={`toy-card-3d relative rounded-[26px] p-1.5 flex flex-col justify-between transition-all cursor-pointer ${
+                      cardTheme.cardClass
+                    } ${
                       isLastOfThree
-                        ? 'option-last-of-three col-span-2 sm:col-span-1 w-[58%] sm:w-full mx-auto'
+                        ? 'option-last-of-three col-span-2 sm:col-span-1 w-[68%] sm:w-full mx-auto'
                         : 'w-full'
                     } ${
                       isWrong
-                        ? 'opacity-40 grayscale scale-96 cursor-not-allowed'
+                        ? 'opacity-45 grayscale scale-96 cursor-not-allowed'
                         : isChosenCorrect
-                        ? 'ring-3 ring-emerald-400 scale-[1.02] shadow-xl'
-                        : 'hover:scale-[1.015] active:scale-97'
+                        ? 'ring-4 ring-emerald-300 scale-[1.02] shadow-xl'
+                        : ''
                     }`}
                   >
-                    {/* Modern Pedestal & Emoji */}
-                    <div className="option-pedestal-responsive relative z-10 w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white border border-slate-100 shadow-xs flex items-center justify-center shrink-0">
-                      <span
-                        className={`option-emoji-responsive text-4xl sm:text-5xl leading-none ${
-                          !isWrong ? 'animate-float-3d' : ''
-                        }`}
-                      >
-                        {option.emoji || '⭐'}
-                      </span>
-                    </div>
+                    {/* Upper Full-Bleed 3D Storybook Scene Window */}
+                    <div
+                      className={`relative w-full h-24 sm:h-32 rounded-t-[20px] rounded-b-[14px] overflow-hidden bg-gradient-to-b ${visualScene.skyGradient} flex items-center justify-center`}
+                    >
+                      {visualScene.imageSrc ? (
+                        <img
+                          src={visualScene.imageSrc}
+                          alt={option.label}
+                          referrerPolicy="no-referrer"
+                          style={{ objectPosition: visualScene.imagePosition || 'center center' }}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                      ) : (
+                        <>
+                          {/* Layered Sunny Storybook Hill & Cloud Stage for non-animal subjects */}
+                          <div className="pointer-events-none absolute top-2 left-3 w-10 h-4 rounded-full bg-white/75 blur-[1px]" />
+                          <div className="pointer-events-none absolute top-4 right-4 w-8 h-3 rounded-full bg-white/65 blur-[1px]" />
+                          <div
+                            className={`pointer-events-none absolute -bottom-5 -left-6 w-[130%] h-12 rounded-[100%] bg-gradient-to-t ${visualScene.hillGradient} opacity-85`}
+                          />
+                          <div className="orb-3d-pedestal option-pedestal-responsive relative z-10 w-15 h-15 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center shrink-0">
+                            <span
+                              className={`option-emoji-responsive text-4xl sm:text-5xl leading-none drop-shadow-[0_4px_4px_rgba(15,23,42,0.2)] ${
+                                !isWrong ? 'animate-float-3d' : ''
+                              }`}
+                            >
+                              {option.emoji || '⭐'}
+                            </span>
+                          </div>
+                        </>
+                      )}
 
-                    {/* Clean Typography Label */}
-                    <div className="relative z-10 max-w-full text-center px-1">
-                      <span className="font-fun font-extrabold text-base sm:text-lg lg:text-xl text-slate-900 tracking-tight block leading-snug">
-                        {option.label}
-                      </span>
-                      {option.sublabel && (
-                        <span className="font-medium text-[11px] sm:text-xs text-slate-600 block leading-tight mt-0.5">
-                          {option.sublabel}
-                        </span>
+                      {isChosenCorrect && (
+                        <div className="absolute top-2 right-2 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center shadow-md z-20">
+                          <Check className="w-4 h-4 sm:w-5 sm:h-5 text-white stroke-[3]" />
+                        </div>
                       )}
                     </div>
 
-                    {isChosenCorrect && (
-                      <div className="absolute top-2.5 right-2.5 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center shadow-md">
-                        <Check className="w-4 h-4 sm:w-5 sm:h-5 text-white stroke-[3]" />
+                    {/* Lower Curved Glossy Colored Banner — Full Readable Text, Zero Truncation */}
+                    <div
+                      className={`relative z-10 w-full -mt-2 rounded-b-[20px] rounded-t-[16px] bg-gradient-to-b ${cardTheme.ribbonClass} px-2.5 sm:px-3.5 py-2 sm:py-2.5 flex items-center justify-between gap-2 text-left`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <span className="font-kids font-bold text-sm sm:text-lg text-white drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.32)] block leading-tight break-words">
+                          {option.label}
+                        </span>
+                        {option.sublabel && (
+                          <span
+                            className={`font-semibold text-[10.5px] sm:text-xs ${cardTheme.subtextClass} block leading-tight mt-0.5 break-words`}
+                          >
+                            {option.sublabel}
+                          </span>
+                        )}
                       </div>
-                    )}
+
+                      <span className="storybook-play-dot w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center shrink-0">
+                        <Play className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ml-0.5 ${cardTheme.playIconClass}`} />
+                      </span>
+                    </div>
                   </button>
                 );
               })}
@@ -983,64 +1006,220 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
         </div>
       </main>
 
-      {/* MODERN BOTTOM STATUS BAR */}
-      <footer className="landscape-footer-compact app-shell-container relative z-10 px-2.5 sm:px-5 lg:px-8 pb-2.5 sm:pb-3.5 w-full shrink-0">
-        <div className="bg-white/88 backdrop-blur-xl rounded-2xl px-3.5 sm:px-5 py-2 border border-white/95 shadow-sm flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <Sparkles className="w-4 h-4 text-indigo-500 shrink-0" />
-            <span className="text-xs sm:text-sm font-semibold text-slate-700 truncate">
-              {puzzle.diagnosticTarget
-                ? `Parametri rilevati: ${puzzle.diagnosticTarget}`
-                : isCountingMode
-                ? `Tocca tutte e ${puzzle.targetCount} le figure per contarle`
-                : 'Seleziona la risposta corretta per completare il livello'}
-            </span>
+      {/* WARM CREAM PARCHMENT & GOLD-STAR FOOTER (FULL READABLE TEXT, ZERO TRUNCATION) */}
+      <footer className="landscape-footer-compact app-shell-container relative z-10 px-2.5 sm:px-5 lg:px-8 pb-2 sm:pb-3 w-full shrink-0">
+        <div className="storybook-footer-pill rounded-2xl px-3 sm:px-4 py-2 flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <span className="text-base sm:text-lg shrink-0" aria-hidden="true">🪄</span>
+            <div className="leading-snug min-w-0">
+              <p className="text-[11px] sm:text-xs font-fun font-extrabold text-slate-900 tabular-nums">
+                Missione: {dailyMission.inCurrentCycle}/{DAILY_MISSION_TARGET}
+                <span className="text-slate-400 mx-1">·</span>
+                <span className="text-indigo-700 font-bold">
+                  {puzzle.subjectLabel || theme.title}
+                </span>
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-1 shrink-0">
-            {[1, 2, 3].map((s) => (
-              <Star
-                key={s}
-                className="w-4 h-4 text-amber-400 fill-amber-400"
-              />
-            ))}
+
+          <div className="flex items-center gap-2 shrink-0 ml-auto">
+            <div className="flex items-center gap-0.5" aria-label="Progresso mini-missione di oggi">
+              {Array.from({ length: DAILY_MISSION_TARGET }).map((_, idx) => {
+                const isLit = idx < dailyMission.inCurrentCycle;
+                return (
+                  <Star
+                    key={idx}
+                    className={`w-4 h-4 sm:w-4.5 sm:h-4.5 transition-colors ${
+                      isLit
+                        ? 'text-amber-500 fill-amber-400 drop-shadow-xs'
+                        : 'text-amber-300/60 fill-amber-100/70'
+                    }`}
+                  />
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                soundManager.playPop();
+                onOpenAlbum();
+              }}
+              className="min-h-[34px] px-2.5 py-1 rounded-xl bg-gradient-to-b from-amber-300 to-amber-500 text-amber-950 border border-white font-fun font-extrabold text-[11px] sm:text-xs flex items-center gap-1 cursor-pointer shadow-xs whitespace-nowrap tabular-nums"
+              title="Apri l'Album dei Tesori e le Curiosità del giorno"
+            >
+              <Gift className="w-3.5 h-3.5 text-amber-900 shrink-0" />
+              <span>
+                {dailyMission.isDailyChestReady
+                  ? 'Scrigno!'
+                  : `💎 ${progress.gems}`}
+              </span>
+            </button>
           </div>
         </div>
       </footer>
 
       {/* ===================================================================== */}
-      {/* MODERN VICTORY MODAL OVERLAY                                          */}
+      {/* MODERN VICTORY & MINDFUL BRAIN-BREAK CELEBRATION OVERLAY              */}
       {/* ===================================================================== */}
       {isSolved && (
-        <div className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="relative w-full max-w-sm rounded-3xl bg-white border border-slate-100 p-6 text-center shadow-[0_24px_60px_-15px_rgba(15,23,42,0.35)] animate-pop-in">
-            <div className="mx-auto -mt-12 w-18 h-18 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 border-4 border-white shadow-lg flex items-center justify-center mb-3">
-              <Trophy className="w-9 h-9 text-white" />
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-md flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="storybook-parchment-board relative w-full max-w-md my-auto rounded-[30px] p-5 sm:p-6 text-center animate-pop-in mt-10 sm:mt-auto">
+            <div className="medallion-3d-frame mx-auto -mt-14 w-24 h-24 rounded-3xl overflow-hidden border-4 border-white bg-amber-50 flex items-center justify-center mb-3">
+              <img
+                src={willCompleteMission ? treasureChest3d : trophyMedallion3d}
+                alt={willCompleteMission ? 'Scrigno della Missione 3D' : 'Trofeo Vittoria 3D'}
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-cover"
+              />
             </div>
 
-            <h3 className="font-fun font-extrabold text-2xl sm:text-3xl text-slate-900">
-              {getGenderedWord(childGender, 'Bravissima', 'Bravissimo', 'Fantastico')} {childName}! 🎉
-            </h3>
-            <p className="text-sm sm:text-base font-medium text-slate-600 mt-1.5 leading-relaxed">
-              {puzzle.funExplanation}
-            </p>
+            {willCompleteMission ? (
+              <>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                  Mini-Missione 5/5 Completata · Scrigno Aperto!
+                </p>
+                <h3 className="font-fun font-extrabold text-xl sm:text-2xl text-slate-900 mt-0.5 leading-tight">
+                  {getPersonalizedBreakGreeting(childName, childGender)}
+                </h3>
+                <p className="text-xs sm:text-sm font-medium text-slate-600 mt-1.5 leading-relaxed">
+                  {puzzle.funExplanation}
+                </p>
 
-            <div className="flex items-center justify-center gap-3 my-4 bg-amber-50/70 py-3 px-4 rounded-2xl border border-amber-200/80">
-              {[1, 2, 3].map((starIdx) => (
-                <Star
-                  key={starIdx}
-                  className="w-9 h-9 text-amber-400 fill-amber-400 animate-bounce"
-                  style={{ animationDelay: `${starIdx * 0.12}s` }}
-                />
-              ))}
-            </div>
+                {/* Mission Bonus Reward Strip */}
+                <div className="mt-3.5 rounded-2xl bg-amber-50 border border-amber-200/90 p-3 flex items-center justify-center gap-3 text-left">
+                  <div className="w-12 h-12 rounded-2xl bg-white border border-amber-200 flex items-center justify-center text-3xl shrink-0 shadow-2xs">
+                    {missionBonusSticker ? missionBonusSticker.emoji : '💎'}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-fun font-extrabold text-sm text-amber-950 flex items-center gap-1.5 tabular-nums">
+                      <Gem className="w-4 h-4 text-amber-600" />
+                      <span>+5 Gemme Bonus!</span>
+                    </p>
+                    <p className="text-xs text-amber-900/90 leading-snug">
+                      {missionBonusSticker
+                        ? `Nuovo adesivo nell'Album: ${missionBonusSticker.name}!`
+                        : 'Hai già tutti gli adesivi! Continua a brillare!'}
+                    </p>
+                  </div>
+                </div>
 
-            <button
-              onClick={handleNextLevel}
-              className="toy-button-3d w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-fun font-extrabold text-base sm:text-lg border border-emerald-300 shadow-lg flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <span>Continua al Livello {currentLevel + 1}</span>
-              <ChevronRight className="w-5 h-5 stroke-[2.5]" />
-            </button>
+                {/* Gentle Anti-Fatigue Mindful Brain-Break Tip */}
+                <div className="mt-3 rounded-2xl bg-emerald-50/80 border border-emerald-200/80 p-3.5 text-left">
+                  <div className="flex items-start gap-2.5">
+                    <span className="text-2xl leading-none shrink-0">{mindfulBreak.emoji}</span>
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+                        Pausa Ricarica Mente · 15 Secondi
+                      </p>
+                      <p className="font-fun font-extrabold text-sm text-slate-900">
+                        {mindfulBreak.title}
+                      </p>
+                      <p className="text-xs text-slate-700 mt-0.5 leading-relaxed">
+                        {mindfulBreak.instruction}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Zero-Pressure Choices */}
+                <div className="mt-4 space-y-2">
+                  <button
+                    onClick={() => handleNextLevel()}
+                    className="toy-button-3d w-full min-h-[48px] py-3 px-5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-fun font-extrabold text-sm sm:text-base border border-emerald-300 shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <span>Continua al Livello {currentLevel + 1}</span>
+                    <ChevronRight className="w-5 h-5 stroke-[2.5]" />
+                  </button>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        soundManager.playPop();
+                        commitSolve();
+                        onOpenStudio();
+                      }}
+                      className="min-h-[44px] py-2.5 px-3 rounded-2xl bg-violet-50 hover:bg-violet-100 text-violet-800 border border-violet-200 font-fun font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                    >
+                      <Palette className="w-4 h-4 shrink-0" />
+                      <span>Pausa Disegno</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        soundManager.playPop();
+                        commitSolve();
+                        onOpenAlbum();
+                      }}
+                      className="min-h-[44px] py-2.5 px-3 rounded-2xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 font-fun font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                    >
+                      <Gift className="w-4 h-4 shrink-0" />
+                      <span>Apri Album</span>
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="font-fun font-extrabold text-2xl sm:text-3xl text-slate-900">
+                  {getGenderedWord(childGender, 'Bravissima', 'Bravissimo', 'Fantastico')} {childName}! 🎉
+                </h3>
+                <p className="text-sm sm:text-base font-medium text-slate-600 mt-1.5 leading-relaxed">
+                  {puzzle.funExplanation}
+                </p>
+
+                <div className="flex items-center justify-center gap-3 my-3.5 bg-amber-50/70 py-2.5 px-4 rounded-2xl border border-amber-200/80">
+                  {[1, 2, 3].map((starIdx) => (
+                    <Star
+                      key={starIdx}
+                      className="w-8 h-8 text-amber-400 fill-amber-400 animate-bounce"
+                      style={{ animationDelay: `${starIdx * 0.12}s` }}
+                    />
+                  ))}
+                  <span className="text-xs font-fun font-bold text-amber-800 ml-1 tabular-nums">
+                    Missione {dailyMission.inCurrentCycle + 1}/{DAILY_MISSION_TARGET}
+                  </span>
+                </div>
+
+                {/* Quick Next-Subject Curiosity Selector */}
+                <div className="mb-3.5 text-left">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 text-center">
+                    Prossima Sfida · Scegli o Sorpresa
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-1.5">
+                    {SUBJECT_CHOICES.map((subj) => {
+                      const active = preferredCategory === subj.id;
+                      return (
+                        <button
+                          key={subj.id || 'auto'}
+                          type="button"
+                          onClick={() => {
+                            soundManager.playPop();
+                            setPreferredCategory(subj.id);
+                          }}
+                          className={`px-2.5 py-1.5 rounded-xl text-xs font-fun font-bold cursor-pointer transition-colors border min-h-[34px] ${
+                            active
+                              ? 'bg-indigo-600 text-white border-indigo-500'
+                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-indigo-50'
+                          }`}
+                        >
+                          {subj.emoji} {subj.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => handleNextLevel()}
+                  className="toy-button-3d w-full min-h-[48px] py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-fun font-extrabold text-base sm:text-lg border border-emerald-300 shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>Continua al Livello {currentLevel + 1}</span>
+                  <ChevronRight className="w-5 h-5 stroke-[2.5]" />
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

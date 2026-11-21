@@ -326,6 +326,10 @@ export interface UserProgress {
   lastMonthlyUpdateKey?: string;
   parentPinHash?: string;
   parentPinHint?: string;
+  unlockedStickerIds?: string[];
+  dailyMissionDate?: string;
+  dailyMissionCount?: number;
+  dailyChestClaimedDate?: string;
 }
 
 

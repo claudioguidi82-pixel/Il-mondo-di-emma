@@ -184,23 +184,40 @@ const ALL_CATEGORIES: GameCategory[] = [
 
 function inferChcTargetsFromLevel(
   level: number,
-  category: GameCategory
+  category: GameCategory,
+  puzzleType?: string
 ): {
   chcPrimary: 'Gf' | 'Gwm' | 'Gc' | 'Gv' | 'Gs';
   chcSecondary: 'Gf' | 'Gwm' | 'Gc' | 'Gv' | 'Gs';
 } {
-  const step = ((Math.max(1, level) - 1) % 10) + 1;
-  if (step === 1) return { chcPrimary: 'Gc', chcSecondary: 'Gf' };
-  if (step === 2) return { chcPrimary: 'Gwm', chcSecondary: 'Gs' };
-  if (step === 3) return { chcPrimary: 'Gwm', chcSecondary: 'Gf' };
-  if (step === 4) return { chcPrimary: 'Gv', chcSecondary: 'Gs' };
-  if (step === 5) return { chcPrimary: 'Gc', chcSecondary: 'Gf' };
-  if (step === 6) return { chcPrimary: 'Gc', chcSecondary: 'Gwm' };
-  if (step === 7) return { chcPrimary: 'Gf', chcSecondary: 'Gv' };
-  if (step === 8) {
-    return category === 'numbers'
-      ? { chcPrimary: 'Gwm', chcSecondary: 'Gf' }
-      : { chcPrimary: 'Gv', chcSecondary: 'Gf' };
+  const tier = Math.max(1, Math.floor((Math.max(1, level) - 1) / 10) + 1);
+
+  // Category- and puzzleType-first CHC attribution so Curiosity Subject Chooser plays
+  // always credit the exact underlying Cattell-Horn-Carroll cognitive factor.
+  if (category === 'music') {
+    return { chcPrimary: 'Gwm', chcSecondary: puzzleType === 'music_rhythm' ? 'Gs' : 'Gf' };
+  }
+  if (category === 'shapes') {
+    return { chcPrimary: 'Gv', chcSecondary: tier >= 3 ? 'Gf' : 'Gs' };
+  }
+  if (category === 'numbers') {
+    if (puzzleType === 'count_interactive' || tier <= 2) {
+      return { chcPrimary: 'Gwm', chcSecondary: 'Gf' };
+    }
+    return { chcPrimary: 'Gf', chcSecondary: 'Gwm' };
+  }
+  if (category === 'letters') {
+    return { chcPrimary: 'Gc', chcSecondary: 'Gwm' };
+  }
+  if (category === 'english') {
+    return { chcPrimary: 'Gc', chcSecondary: 'Gwm' };
+  }
+  // Logic & Science/Nature reasoning
+  if (puzzleType === 'pattern_complete' || puzzleType === 'sequence_logic') {
+    return { chcPrimary: 'Gf', chcSecondary: 'Gv' };
+  }
+  if (puzzleType === 'odd_one_out' || puzzleType === 'animal_riddle') {
+    return { chcPrimary: 'Gc', chcSecondary: 'Gf' };
   }
   return { chcPrimary: 'Gf', chcSecondary: 'Gs' };
 }
@@ -208,7 +225,7 @@ function inferChcTargetsFromLevel(
 /**
  * Reconstructs normalized exercise entries for a category by combining
  * explicit `levelHistory` entries with any legacy aggregate `categoryStats` counts,
- * so 100% of Emma's existing progress is preserved and weighted accurately.
+ * preserving full historical progress with category-accurate CHC tags.
  */
 function getCategoryEntries(
   progress: UserProgress,
@@ -228,7 +245,7 @@ function getCategoryEntries(
       const wInfo = getDifficultyWeightInfo(e.level || 1, true);
       const hints = e.hintsUsed ?? 0;
       const isAutonomousFirstTry = Boolean(e.firstTry) && hints === 0;
-      const inferred = inferChcTargetsFromLevel(e.level || 1, category);
+      const inferred = inferChcTargetsFromLevel(e.level || 1, category, e.puzzleType);
       return {
         ...e,
         tier: e.tier ?? wInfo.tier,
@@ -242,7 +259,6 @@ function getCategoryEntries(
     });
   }
 
-  // Synthesize missing historical entries deterministically from aggregate categoryStats
   const missingTotal = Math.max(0, stat.total - history.length);
   const historyCorrect = history.filter((h) => h.firstTry && !(h.hintsUsed && h.hintsUsed > 0)).length;
   const missingCorrect = Math.max(0, Math.min(missingTotal, stat.correct - historyCorrect));
@@ -264,7 +280,7 @@ function getCategoryEntries(
       assistedSuccess: !isAutoCorrect,
       attempts: isAutoCorrect ? 1 : 2,
       hintsUsed: 0,
-      responseTimeMs: isAutoCorrect ? 4800 : 8200,
+      responseTimeMs: isAutoCorrect ? 5200 : 8400,
       starsEarned: isAutoCorrect ? 3 : 2,
       timestamp: progress.lastPlayedDate || new Date().toISOString(),
     });
@@ -274,7 +290,7 @@ function getCategoryEntries(
     const wInfo = getDifficultyWeightInfo(e.level || 1, true);
     const hints = e.hintsUsed ?? 0;
     const isAutonomousFirstTry = Boolean(e.firstTry) && hints === 0;
-    const inferred = inferChcTargetsFromLevel(e.level || 1, category);
+    const inferred = inferChcTargetsFromLevel(e.level || 1, category, e.puzzleType);
     return {
       ...e,
       tier: e.tier ?? wInfo.tier,
@@ -291,7 +307,42 @@ function getCategoryEntries(
 }
 
 /**
- * Computes IP, IA, IR, IT, and IC for any list of exercise entries.
+ * Computes age-calibrated target median latency (ms) for accurate responses across ages 2-14.
+ */
+function getAgeCalibratedTargetLatencyMs(ageYears: number): number {
+  if (ageYears <= 3) return 9500;
+  if (ageYears <= 5) return 7500;
+  if (ageYears <= 7) return 6400;
+  if (ageYears <= 9) return 5600;
+  if (ageYears <= 12) return 5000;
+  return 4600;
+}
+
+/**
+ * Outlier-resistant robust central latency (20%-trimmed mean when >= 5 samples, exact median otherwise)
+ * so a single bathroom/distraction pause (e.g. 40s) never distorts Processing Speed (Gs).
+ */
+function computeRobustLatencyMs(samples: number[]): number {
+  const valid = samples
+    .filter((ms) => Number.isFinite(ms) && ms >= 500 && ms <= 60000)
+    .sort((a, b) => a - b);
+  if (valid.length === 0) return 6000;
+  if (valid.length >= 5) {
+    const trim = Math.floor(valid.length * 0.2);
+    const trimmed = valid.slice(trim, valid.length - trim);
+    return trimmed.reduce((acc, v) => acc + v, 0) / trimmed.length;
+  }
+  const mid = Math.floor(valid.length / 2);
+  return valid.length % 2 === 1 ? valid[mid] : (valid[mid - 1] + valid[mid]) / 2;
+}
+
+/**
+ * Computes IP, IA, IR, IT, and IC for any chronologically ordered list of exercise entries.
+ * Incorporates:
+ * - Difficulty tier weighting (w_i in 1.00..2.00)
+ * - Mild exponential recency decay (r_i = 0.95^age) so recent learning progress shines through
+ * - Empirical Bayes small-sample shrinkage (priorWeight = 1.6) preventing 1-item 0/100 volatility
+ * - Exact competency synthesis: IC = 0.50*IP + 0.20*IA + 0.15*IR + 0.15*IT
  */
 function computeIndicatorsForEntries(
   entries: LevelPerformanceEntry[],
@@ -329,13 +380,17 @@ function computeIndicatorsForEntries(
 
   let weightedCorrectSum = 0;
   let weightedTotalSum = 0;
-  let weightedAutonomySum = 0;
+  let recencyWeightedCorrectSum = 0;
+  let recencyWeightedTotalSum = 0;
+  let recencyWeightedAutonomySum = 0;
   let autonomousCorrectCount = 0;
   let assistedSuccessCount = 0;
   let hintsUsedTotal = 0;
 
   const distinctTiers = new Set<number>();
   const distinctTypes = new Set<string>();
+  const distinctCategories = new Set<GameCategory>();
+  const totalN = entries.length;
 
   entries.forEach((e, idx) => {
     const w = e.weight ?? getDifficultyWeightInfo(e.level || 1, true).weight;
@@ -343,88 +398,115 @@ function computeIndicatorsForEntries(
     const hints = e.hintsUsed ?? 0;
     const attempts = Math.max(1, e.attempts || 1);
 
+    // Mild exponential recency factor: newest = 1.0, older items decay gently down to floor 0.32
+    const ageSteps = Math.min(22, totalN - 1 - idx);
+    const recency = Math.pow(0.95, ageSteps);
+    const effW = w * recency;
+
     // c_i = 1 if and only if solved on 1st attempt without hints
     const c_i = e.firstTry && hints === 0 && attempts === 1 ? 1 : 0;
 
     weightedTotalSum += w;
     weightedCorrectSum += w * c_i;
+    recencyWeightedTotalSum += effW;
+    recencyWeightedCorrectSum += effW * c_i;
 
     if (c_i === 1) {
       autonomousCorrectCount++;
       distinctTiers.add(tier);
-      distinctTypes.add(e.puzzleType || `${e.category}_step_${idx % 5}`);
+      distinctTypes.add(e.puzzleType || `${e.category}_tier_${tier}`);
+      distinctCategories.add(e.category);
     } else {
       assistedSuccessCount++;
     }
     hintsUsedTotal += hints;
 
-    // Autonomy score per exercise:
+    // Graduated Autonomy score per exercise:
     let a_i = 1.0;
     if (attempts === 1 && hints === 0) {
       a_i = 1.0;
     } else if (attempts === 1 && hints > 0) {
-      a_i = Math.max(0.45, 0.75 - (hints - 1) * 0.15);
+      a_i = Math.max(0.45, 0.76 - (hints - 1) * 0.15);
     } else if (attempts === 2) {
-      a_i = hints === 0 ? 0.45 : 0.3;
+      a_i = hints === 0 ? 0.48 : 0.32;
     } else {
-      a_i = 0.15;
+      a_i = 0.18;
     }
-    weightedAutonomySum += w * a_i;
+    recencyWeightedAutonomySum += effW * a_i;
   });
 
-  // A. FORMULA INDICE DI PRESTAZIONE (IP):
-  // IP = (Sum(w_i * c_i) / Sum(w_i)) * 100
+  // Empirical Bayes small-sample stabilization:
+  // Avoids volatile 0% or 100% spikes on 1-2 exercises while converging to exact weighted ratio as evidence grows.
+  const priorWeight = 1.6;
+  const ipPriorMean = 0.56;
+  const iaPriorMean = 0.6;
+
+  // A. INDICE DI PRESTAZIONE (IP) with Empirical Bayes shrinkage & recency sensitivity
   const ip =
-    weightedTotalSum > 0
-      ? Math.round((weightedCorrectSum / weightedTotalSum) * 100)
+    recencyWeightedTotalSum > 0
+      ? Math.round(
+          ((recencyWeightedCorrectSum + priorWeight * ipPriorMean) /
+            (recencyWeightedTotalSum + priorWeight)) *
+            100
+        )
       : 0;
 
-  // INDICE DI AUTONOMIA (IA):
+  // INDICE DI AUTONOMIA (IA)
   const ia =
-    weightedTotalSum > 0
-      ? Math.round((weightedAutonomySum / weightedTotalSum) * 100)
+    recencyWeightedTotalSum > 0
+      ? Math.round(
+          ((recencyWeightedAutonomySum + priorWeight * iaPriorMean) /
+            (recencyWeightedTotalSum + priorWeight)) *
+            100
+        )
       : 0;
 
   // CAPACITÀ DI RICORDARE NEL TEMPO (IR - Retention):
-  // Accelerated convergence on multi-parameter tests so valid values are determined rapidly
-  const halfIdx = Math.floor(entries.length / 2);
+  // Combines recency-half consistency, session/day persistence, and smooth asymptotic maturity.
+  const halfIdx = Math.floor(totalN / 2);
   const recentEntries = entries.slice(halfIdx);
-  const recentCorrectRate =
-    recentEntries.length > 0
-      ? recentEntries.filter((e) => e.firstTry && (e.hintsUsed ?? 0) === 0).length /
-        recentEntries.length
-      : 0;
-  const sampleMaturity = Math.min(1, entries.length / Math.max(2, expectedExercisesTarget));
+  const recentAutoCount = recentEntries.filter(
+    (e) => e.firstTry && (e.hintsUsed ?? 0) === 0 && Math.max(1, e.attempts || 1) === 1
+  ).length;
+  // Bayesian smoothed recent retention accuracy
+  const recentRetentionRate =
+    (recentAutoCount + 1.0 * 0.55) / (recentEntries.length + 1.0);
+  const asymptoticMaturity =
+    totalN / (totalN + Math.max(2.0, expectedExercisesTarget * 0.55));
   const sessionRetentionFactor = Math.min(
     1,
-    0.55 + Math.min(4, sessionsCount) * 0.1 + Math.min(7, daysSpan) * 0.015
+    0.48 + Math.min(4, sessionsCount) * 0.11 + Math.min(7, daysSpan) * 0.015
   );
   const ir = Math.round(
     Math.min(
       100,
-      (recentCorrectRate * 65 + sampleMaturity * 20 + sessionRetentionFactor * 15) *
-        (0.68 + 0.32 * sampleMaturity)
+      (recentRetentionRate * 66 + asymptoticMaturity * 19 + sessionRetentionFactor * 15) *
+        (0.72 + 0.28 * asymptoticMaturity)
     )
   );
 
   // CAPACITÀ DI TRASFERIMENTO A ESERCIZI NUOVI (IT - Transfer):
-  const tierSpread = Math.min(1, Math.max(0.45, distinctTiers.size / 2.5));
+  // Rewards mastering higher tiers and distinct puzzle types/domains autonomously.
+  const tierSpread = Math.min(1, distinctTiers.size / 2.5);
   const typeVariety = Math.min(
     1,
-    Math.max(0.45, distinctTypes.size / Math.max(1.5, Math.min(4, expectedExercisesTarget / 2)))
+    (distinctTypes.size + Math.max(0, distinctCategories.size - 1) * 0.5) /
+      Math.max(2, Math.min(5, expectedExercisesTarget * 0.65))
   );
   const highTierEntries = entries.filter((e) => (e.tier ?? 1) >= 2);
+  const highTierAutoCount = highTierEntries.filter(
+    (e) => e.firstTry && (e.hintsUsed ?? 0) === 0 && Math.max(1, e.attempts || 1) === 1
+  ).length;
   const highTierSuccessRate =
     highTierEntries.length > 0
-      ? highTierEntries.filter((e) => e.firstTry && (e.hintsUsed ?? 0) === 0).length /
-        highTierEntries.length
-      : (ip / 100) * 0.78;
+      ? (highTierAutoCount + 1.0 * (ip / 100)) / (highTierEntries.length + 1.0)
+      : (ip / 100) * 0.82;
 
   const it = Math.round(
     Math.min(
       100,
-      (highTierSuccessRate * 52 + typeVariety * 28 + tierSpread * 20) *
-        (0.65 + 0.35 * sampleMaturity)
+      (highTierSuccessRate * 54 + typeVariety * 28 + tierSpread * 18) *
+        (0.7 + 0.3 * asymptoticMaturity)
     )
   );
 
@@ -433,7 +515,7 @@ function computeIndicatorsForEntries(
   const ic = Math.round(0.5 * ip + 0.2 * ia + 0.15 * ir + 0.15 * it);
 
   return {
-    totalExercises: entries.length,
+    totalExercises: totalN,
     autonomousCorrectCount,
     assistedSuccessCount,
     hintsUsedTotal,
@@ -540,6 +622,16 @@ export function computeFullEvaluationReport(
     }
   }
 
+  // Order allEntries chronologically so recency weighting and early-vs-recent IE windows are accurate
+  allEntries.sort((a, b) => {
+    const ta = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+    const tb = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+    if (ta !== tb) return ta - tb;
+    return (a.level || 0) - (b.level || 0);
+  });
+
+  const childAgeYears = calculateChildAge(progress.childProfile?.birthDate).years;
+
   // Previous snapshot for Evolution Index (IE = IC_attuale - IC_precedente)
   const snapshots = progress.evaluationSnapshots || [];
 
@@ -560,7 +652,8 @@ export function computeFullEvaluationReport(
         ic: 0,
       };
 
-  // Compute baseline previous IC from either saved evaluationSnapshots OR earlier exercises
+  // Compute honest baseline previous IC from saved snapshots OR real earlier chronological window
+  // (never fabricating artificial positive offsets on brand-new 1-3 exercise profiles)
   let previousGlobalIc = 0;
   if (isUnlocked) {
     const priorSnap = [...snapshots]
@@ -568,17 +661,18 @@ export function computeFullEvaluationReport(
       .find((s) => s.significantExercises < globalCalc.totalExercises);
     if (priorSnap) {
       previousGlobalIc = priorSnap.ic;
-    } else if (allEntries.length >= 2) {
-      const earlierSlice = allEntries.slice(0, Math.max(1, allEntries.length - 1));
+    } else if (allEntries.length >= 4) {
+      const splitIdx = Math.max(2, Math.floor(allEntries.length * 0.6));
+      const earlierSlice = allEntries.slice(0, splitIdx);
       const prevCalc = computeIndicatorsForEntries(
         earlierSlice,
         Math.max(1, sessionsCount - 1),
         Math.max(0, daysSpan - 1),
         8
       );
-      previousGlobalIc = Math.max(0, Math.min(prevCalc.ic, globalCalc.ic - 3));
+      previousGlobalIc = prevCalc.ic;
     } else {
-      previousGlobalIc = Math.max(0, globalCalc.ic - 5);
+      previousGlobalIc = globalCalc.ic;
     }
   }
 
@@ -590,7 +684,7 @@ export function computeFullEvaluationReport(
     : 0;
 
   // Map each category to its primary CHC correlates so domains without direct plays yet
-  // can still be estimated from correlated multi-parameter tests (with lower confidence weight)
+  // can still be estimated conservatively from correlated multi-parameter tests
   const categoryCorrelatedChc: Record<GameCategory, ('Gf' | 'Gwm' | 'Gc' | 'Gv' | 'Gs')[]> = {
     logic: ['Gf', 'Gv'],
     letters: ['Gc', 'Gwm'],
@@ -604,7 +698,6 @@ export function computeFullEvaluationReport(
   const domains = {} as Record<GameCategory, DomainEvaluationMetrics>;
   ALL_CATEGORIES.forEach((cat) => {
     const directEntries = entriesByCategory[cat];
-    // Include correlated multi-parameter probes if directEntries is empty but Emma has solved other diagnostic tests
     const correlatedTargets = categoryCorrelatedChc[cat];
     const proxyEntries =
       directEntries.length > 0
@@ -617,7 +710,7 @@ export function computeFullEvaluationReport(
             )
             .map((e) => ({
               ...e,
-              weight: Math.round((e.weight ?? 1.0) * 0.65 * 100) / 100,
+              weight: Math.round((e.weight ?? 1.0) * 0.6 * 100) / 100,
             }));
 
     if (!isUnlocked || proxyEntries.length === 0) {
@@ -644,27 +737,28 @@ export function computeFullEvaluationReport(
 
     const isProxyEstimation = directEntries.length === 0;
     const cCalc = computeIndicatorsForEntries(proxyEntries, sessionsCount, daysSpan, 3);
-    const damping = isProxyEstimation ? 0.86 : 1.0;
+    const damping = isProxyEstimation ? 0.84 : 1.0;
     const finalIp = Math.round(cCalc.ip * damping);
     const finalIa = Math.round(cCalc.ia * damping);
     const finalIr = Math.round(cCalc.ir * damping);
     const finalIt = Math.round(cCalc.it * damping);
     const finalIc = Math.round(0.5 * finalIp + 0.2 * finalIa + 0.15 * finalIr + 0.15 * finalIt);
 
-    let prevCatIc = Math.max(0, finalIc - 4);
+    let prevCatIc = finalIc;
     const priorSnap = [...snapshots]
       .reverse()
       .find((s) => s.significantExercises < globalCalc.totalExercises && s.domainIC?.[cat] !== undefined);
     if (priorSnap && priorSnap.domainIC?.[cat] !== undefined && priorSnap.domainIC[cat] > 0) {
       prevCatIc = priorSnap.domainIC[cat];
-    } else if (proxyEntries.length >= 2) {
+    } else if (proxyEntries.length >= 4) {
+      const splitIdx = Math.max(2, Math.floor(proxyEntries.length * 0.6));
       const prevCatCalc = computeIndicatorsForEntries(
-        proxyEntries.slice(0, proxyEntries.length - 1),
+        proxyEntries.slice(0, splitIdx),
         Math.max(1, sessionsCount - 1),
         daysSpan,
         3
       );
-      prevCatIc = Math.min(finalIc - 2, Math.round(prevCatCalc.ic * damping));
+      prevCatIc = Math.round(prevCatCalc.ic * damping);
     }
 
     const catDelta = finalIc - prevCatIc;
@@ -816,22 +910,39 @@ export function computeFullEvaluationReport(
       4
     );
 
-    // For Gs (Velocità e precisione), blend responseTimeMs telemetry when available
+    // For Gs (Velocità e precisione):
+    // 1. Age-calibrated target latency (2-14 years) + tier complexity scaling
+    // 2. Outlier-resistant Winsorized/median response time (immune to 40s distraction pauses)
+    // 3. Speed-Accuracy Tradeoff (SAT) guard so fast wrong guessing never inflates Gs
     let speedPrecisionFactor = calc.ip;
     if (code === 'Gs') {
-      const timedEntries = combinedEntries.filter(
-        (e) => typeof e.responseTimeMs === 'number' && e.responseTimeMs > 0
+      const validTimed = combinedEntries.filter(
+        (e) => typeof e.responseTimeMs === 'number' && e.responseTimeMs >= 500
       );
-      if (timedEntries.length > 0) {
-        const avgMs =
-          timedEntries.reduce((acc, e) => acc + (e.responseTimeMs || 5500), 0) /
-          timedEntries.length;
-        // 3.5s -> 96, 6s -> 88, 10s -> 78, 18s -> 66
-        const latencyScore = Math.max(
-          56,
-          Math.min(98, Math.round(104 - Math.min(35000, avgMs) / 720))
+      if (validTimed.length > 0) {
+        const autonomousTimed = validTimed.filter(
+          (e) => e.firstTry && (e.hintsUsed ?? 0) === 0 && Math.max(1, e.attempts || 1) === 1
         );
-        speedPrecisionFactor = Math.round(calc.ip * 0.65 + latencyScore * 0.35);
+        const latencyPool = autonomousTimed.length > 0 ? autonomousTimed : validTimed;
+        const robustMs = computeRobustLatencyMs(
+          latencyPool.map((e) => e.responseTimeMs as number)
+        );
+        const avgTier =
+          latencyPool.reduce((acc, e) => acc + (e.tier ?? 1), 0) / latencyPool.length;
+        const baseTargetMs = getAgeCalibratedTargetLatencyMs(childAgeYears);
+        const adjustedTargetMs = baseTargetMs * (1 + Math.max(0, avgTier - 1) * 0.12);
+        const latencyRatio = Math.max(0.25, robustMs / adjustedTargetMs);
+
+        // Smooth monotonic curve: ratio 0.6 -> ~92, 1.0 -> 86, 1.6 -> 79, 2.5 -> 71
+        const rawLatencyScore = Math.max(
+          48,
+          Math.min(98, Math.round(112 - 26 * Math.sqrt(latencyRatio)))
+        );
+
+        // Speed-Accuracy Tradeoff (SAT) guard: speed only scores highly when paired with accuracy
+        const accuracyRatio = calc.ip / 100;
+        const satGatedLatency = Math.round(rawLatencyScore * (0.35 + 0.65 * accuracyRatio));
+        speedPrecisionFactor = Math.round(calc.ip * 0.62 + satGatedLatency * 0.38);
       }
     }
 
@@ -844,10 +955,24 @@ export function computeFullEvaluationReport(
     const priorSnap = [...snapshots]
       .reverse()
       .find((s) => s.significantExercises < globalCalc.totalExercises);
-    const prevScore =
-      priorSnap?.chcScores?.[code] && priorSnap.chcScores[code] > 0
-        ? priorSnap.chcScores[code]
-        : Math.max(0, score - 4);
+    let prevScore = score;
+    if (priorSnap?.chcScores?.[code] && priorSnap.chcScores[code] > 0) {
+      prevScore = priorSnap.chcScores[code];
+    } else if (combinedEntries.length >= 4) {
+      const splitIdx = Math.max(2, Math.floor(combinedEntries.length * 0.6));
+      const prevChcCalc = computeIndicatorsForEntries(
+        combinedEntries.slice(0, splitIdx),
+        Math.max(1, sessionsCount - 1),
+        daysSpan,
+        4
+      );
+      prevScore = Math.round(
+        0.5 * prevChcCalc.ip +
+          0.2 * prevChcCalc.ia +
+          0.15 * prevChcCalc.ir +
+          0.15 * Math.min(100, prevChcCalc.it + extraTransferBonus)
+      );
+    }
 
     return {
       code,
@@ -1112,24 +1237,19 @@ export function computeLongitudinalProgressRows(
       startIc = prevAgeRow.currentIc;
       startIa = prevAgeRow.currentIa;
       startChc = { ...prevAgeRow.currentChc };
-    } else if (firstSnapshot && firstSnapshot.ic > 0 && firstSnapshot.ic < currentMetrics.ic) {
+    } else if (firstSnapshot && firstSnapshot.ic > 0) {
       startLevel = Math.min(currentMetrics.currentLevel, firstSnapshot.levelNumber);
       startIp = firstSnapshot.ip;
       startIc = firstSnapshot.ic;
       startIa = firstSnapshot.ia;
       startChc = { ...firstSnapshot.chcScores };
-    } else if (startIc === 0 || startIc >= currentMetrics.ic) {
-      startLevel = 1;
-      startIp = Math.max(0, currentMetrics.ip - 12);
-      startIc = Math.max(0, currentMetrics.ic - 12);
-      startIa = Math.max(0, currentMetrics.ia - 10);
-      startChc = {
-        Gf: Math.max(0, currentMetrics.chcMap.Gf - 10),
-        Gwm: Math.max(0, currentMetrics.chcMap.Gwm - 10),
-        Gc: Math.max(0, currentMetrics.chcMap.Gc - 10),
-        Gv: Math.max(0, currentMetrics.chcMap.Gv - 10),
-        Gs: Math.max(0, currentMetrics.chcMap.Gs - 10),
-      };
+    } else if (startIc === 0) {
+      // Honest initial baseline anchored to first observed assessment (no artificial -12 offset)
+      startLevel = existingActive?.startLevel ?? 1;
+      startIp = currentMetrics.ip;
+      startIc = currentMetrics.ic;
+      startIa = currentMetrics.ia;
+      startChc = { ...currentMetrics.chcMap };
     }
   } else {
     startLevel = 1;

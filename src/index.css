@@ -79,50 +79,190 @@
   box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
-/* Modern Home Screen Action Cards (Sleek Neo-Glass Cards) */
-.cloud-3d-btn {
+/* ========================================================================= */
+/* HOME SCREEN: CARVED HONEY-OAK WOOD PLAQUE & GLOSSY 3D STORYBOOK DOCK      */
+/* ========================================================================= */
+
+/* Top Carved Honey-Oak Wooden Title Plaque */
+.home-wood-plaque {
   position: relative;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgba(255, 240, 200, 0.09) 0px,
+      rgba(255, 240, 200, 0.09) 2px,
+      rgba(120, 53, 15, 0.06) 2px,
+      rgba(120, 53, 15, 0.06) 6px
+    ),
+    linear-gradient(180deg, #ebac5e 0%, #d4893a 46%, #b56822 100%);
+  border: 3px solid #f7d08a;
+  outline: 2px solid #7c3c0c;
   border-radius: 26px;
-  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1), filter 0.18s ease;
+  box-shadow:
+    0 6px 0 #6e3409,
+    0 16px 32px -4px rgba(32, 14, 2, 0.52),
+    inset 0 2.5px 4px rgba(255, 247, 222, 0.85),
+    inset 0 -4px 8px rgba(105, 44, 7, 0.42);
+}
+
+.home-wood-stat-inset {
+  background: linear-gradient(180deg, #864313 0%, #69310b 100%);
+  border: 1px solid rgba(254, 215, 140, 0.38);
+  box-shadow:
+    inset 0 2px 4px rgba(36, 14, 2, 0.5),
+    0 1px 0 rgba(255, 228, 175, 0.45);
+}
+
+.home-title-white-3d {
+  color: #ffffff;
+  text-shadow:
+    0 2.5px 0 #6b340a,
+    0 4px 10px rgba(45, 18, 2, 0.55);
+}
+
+.home-title-gold-3d {
+  color: #fde047;
+  text-shadow:
+    0 2.5px 0 #78350f,
+    0 0 14px rgba(250, 204, 21, 0.5),
+    0 4px 10px rgba(45, 18, 2, 0.5);
+}
+
+/* Carved Honey-Oak Outer Frame for Home Dock Controls */
+.home-wood-outer {
+  background: linear-gradient(180deg, #eeb266 0%, #c87b2e 55%, #9b5416 100%);
+  border: 1.5px solid #fae0a8;
+  box-shadow:
+    0 5px 0 #6b3309,
+    0 14px 26px -6px rgba(15, 10, 4, 0.58),
+    inset 0 1.5px 2px rgba(255, 246, 220, 0.8);
+  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.16s cubic-bezier(0.16, 1, 0.3, 1), filter 0.16s ease;
   will-change: transform;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
 }
 
-.cloud-3d-play {
-  background: linear-gradient(165deg, rgba(255, 255, 255, 0.96) 0%, rgba(236, 253, 245, 0.94) 55%, rgba(209, 250, 229, 0.92) 100%);
-  border: 1.5px solid rgba(255, 255, 255, 0.95);
+.home-lavender-outer {
+  background: linear-gradient(180deg, #f3b5ff 0%, #c66ef2 55%, #8f35c7 100%);
+  border: 1.5px solid #fae8ff;
   box-shadow:
-    0 5px 0 #059669,
-    0 18px 32px -8px rgba(6, 78, 59, 0.45),
-    inset 0 2px 4px rgba(255, 255, 255, 1);
-}
-
-.cloud-3d-draw {
-  background: linear-gradient(165deg, rgba(255, 255, 255, 0.96) 0%, rgba(250, 245, 255, 0.94) 55%, rgba(243, 232, 255, 0.92) 100%);
-  border: 1.5px solid rgba(255, 255, 255, 0.95);
-  box-shadow:
-    0 5px 0 #7c3aed,
-    0 18px 32px -8px rgba(76, 29, 149, 0.45),
-    inset 0 2px 4px rgba(255, 255, 255, 1);
+    0 5px 0 #5b1a8a,
+    0 14px 26px -6px rgba(38, 10, 64, 0.58),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.85);
+  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.16s cubic-bezier(0.16, 1, 0.3, 1), filter 0.16s ease;
+  will-change: transform;
 }
 
 @media (hover: hover) {
-  .cloud-3d-btn:hover {
-    transform: translateY(-3px) scale(1.02);
-    filter: brightness(1.02);
+  .home-wood-outer:hover,
+  .home-lavender-outer:hover {
+    transform: translateY(-3px) scale(1.015);
+    filter: brightness(1.04);
   }
 }
 
-.cloud-3d-btn:active {
-  transform: translateY(3px) scale(0.98);
+.home-wood-outer:active,
+.home-lavender-outer:active {
+  transform: translateY(4px) scale(0.98);
   box-shadow:
-    0 2px 0 rgba(15, 23, 42, 0.3),
-    0 8px 16px rgba(15, 23, 42, 0.25),
-    inset 0 1px 3px rgba(255, 255, 255, 0.9) !important;
+    0 1px 0 #5c2a07,
+    0 6px 12px rgba(15, 10, 4, 0.42) !important;
 }
 
-/* Clean Modern Display Text Accents */
+/* Glossy Inner Candy Surfaces inside Home Frames */
+.home-inner-green {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, #5ce884 0%, #27c857 52%, #15973b 100%);
+  box-shadow:
+    inset 0 2px 4px rgba(255, 255, 255, 0.72),
+    inset 0 -4px 8px rgba(10, 82, 32, 0.35);
+}
+
+.home-inner-purple {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, #df68ff 0%, #aa40f5 52%, #7c22ce 100%);
+  box-shadow:
+    inset 0 2px 4px rgba(255, 255, 255, 0.72),
+    inset 0 -4px 8px rgba(72, 14, 128, 0.38);
+}
+
+.home-inner-gold {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, #fff5a8 0%, #facc15 48%, #f59e0b 100%);
+  box-shadow:
+    inset 0 2px 4px rgba(255, 255, 255, 0.88),
+    inset 0 -4px 8px rgba(161, 72, 6, 0.32);
+}
+
+.home-inner-teal {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, #1b9bb8 0%, #0d6f91 52%, #084a69 100%);
+  box-shadow:
+    inset 0 2px 3px rgba(186, 240, 255, 0.55),
+    inset 0 -3px 6px rgba(4, 34, 52, 0.42);
+}
+
+.home-inner-indigo {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, #9a66ff 0%, #7438e3 52%, #521eb0 100%);
+  box-shadow:
+    inset 0 2px 3px rgba(233, 213, 255, 0.6),
+    inset 0 -3px 6px rgba(46, 16, 101, 0.42);
+}
+
+.home-inner-orange {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, #ffb84d 0%, #f97316 52%, #c2410c 100%);
+  box-shadow:
+    inset 0 2px 4px rgba(255, 245, 214, 0.78),
+    inset 0 -4px 8px rgba(124, 45, 18, 0.38);
+}
+
+.home-inner-green::before,
+.home-inner-purple::before,
+.home-inner-gold::before,
+.home-inner-teal::before,
+.home-inner-indigo::before,
+.home-inner-orange::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 46%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Warm Carved Wood & Sunlit Cream Recessed Tray for Interactive Puzzle Widgets */
+.storybook-tray-3d {
+  background: linear-gradient(180deg, #fffdf7 0%, #fef3d9 100%);
+  border: 2.5px solid #e2a457;
+  box-shadow:
+    inset 0 3px 8px rgba(146, 64, 14, 0.14),
+    0 3px 0 rgba(180, 108, 36, 0.35);
+}
+
+/* 3D Rainbow Xylophone Bar */
+.xylo-bar-3d {
+  position: relative;
+  overflow: hidden;
+  border: 2.5px solid rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 5px 0 rgba(15, 23, 42, 0.25),
+    0 10px 18px -4px rgba(15, 23, 42, 0.22),
+    inset 0 2px 4px rgba(255, 255, 255, 0.75);
+  transition: transform 0.14s cubic-bezier(0.16, 1, 0.3, 1), filter 0.14s ease;
+}
+
+.xylo-bar-3d:active {
+  transform: translateY(3px) scale(0.96);
+}
+
+/* Clean Modern Display Text Accents (used in modals & secondary views) */
 .text-3d-gold {
   color: #fde047;
   text-shadow: 0 2px 10px rgba(234, 179, 8, 0.35);
@@ -134,124 +274,321 @@
 }
 
 /* ========================================================================= */
-/* MODERN EDTECH STAGE & TACTILE CARD SYSTEM                                 */
+/* PIXAR 3D STORYBOOK STAGE, WOOD SIGNBOARDS & ILLUSTRATED CHOICE CARDS      */
 /* ========================================================================= */
 
 .stage-3d-perspective {
   perspective: 1200px;
 }
 
-/* Luminous Frosted Alabaster Stage Card */
-.board-3d-tabletop {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 250, 252, 0.94) 100%);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1.5px solid rgba(255, 255, 255, 0.95);
+/* Glossy 3D Bubble Top Bar Controls */
+.glossy-bubble-btn {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.16s cubic-bezier(0.16, 1, 0.3, 1), filter 0.16s ease;
   box-shadow:
-    0 5px 0 rgba(203, 213, 225, 0.85),
-    0 22px 44px -12px rgba(15, 23, 42, 0.16),
-    inset 0 2px 4px rgba(255, 255, 255, 1);
+    0 4px 0 rgba(15, 23, 42, 0.24),
+    0 10px 18px -4px rgba(15, 23, 42, 0.25),
+    inset 0 2px 3px rgba(255, 255, 255, 0.78),
+    inset 0 -3px 5px rgba(15, 23, 42, 0.16);
+}
+
+.glossy-bubble-btn::before {
+  content: "";
+  position: absolute;
+  inset: 2px 4px auto 4px;
+  height: 44%;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+}
+
+@media (hover: hover) {
+  .glossy-bubble-btn:hover {
+    transform: translateY(-2px) scale(1.03);
+    filter: brightness(1.04);
+  }
+}
+
+.glossy-bubble-btn:active {
+  transform: translateY(3px) scale(0.96);
+  box-shadow:
+    0 1px 0 rgba(15, 23, 42, 0.25),
+    0 4px 8px rgba(15, 23, 42, 0.2);
+}
+
+/* Carved Honey-Oak Wooden Signboard ("Zoo Parlante") */
+.storybook-wood-sign {
+  position: relative;
+  background: linear-gradient(180deg, #f7c981 0%, #e19e4b 48%, #c07628 100%);
+  border: 2.5px solid #8a4b13;
+  box-shadow:
+    0 4px 0 #6f390c,
+    0 10px 20px -4px rgba(67, 30, 6, 0.38),
+    inset 0 2px 3px rgba(255, 244, 214, 0.85),
+    inset 0 -3px 5px rgba(120, 53, 15, 0.35);
+}
+
+.storybook-wood-btn {
+  position: relative;
+  background: linear-gradient(180deg, #d7883f 0%, #b36120 55%, #8f4812 100%);
+  border: 2px solid #6b340a;
+  box-shadow:
+    0 3px 0 #592907,
+    0 8px 16px -4px rgba(67, 30, 6, 0.38),
+    inset 0 1.5px 2px rgba(255, 235, 198, 0.65);
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), filter 0.15s ease;
+}
+
+.storybook-wood-btn:active {
+  transform: translateY(2px) scale(0.97);
+}
+
+.storybook-wood-shelf {
+  background: linear-gradient(180deg, #df9c50 0%, #bd7429 52%, #9a5718 100%);
+  border: 2.5px solid #7d4310;
+  box-shadow:
+    0 6px 0 #69340a,
+    0 18px 30px -8px rgba(45, 22, 5, 0.38),
+    inset 0 2px 4px rgba(255, 236, 196, 0.7),
+    inset 0 -4px 8px rgba(88, 39, 8, 0.32);
+}
+
+/* Carved Warm Wood & Sunlit Cream Parchment Question Board */
+.storybook-parchment-board,
+.board-3d-tabletop {
+  position: relative;
+  background: linear-gradient(180deg, #fffbf2 0%, #fff5e2 58%, #fcebd0 100%);
+  border: 4px solid #c97f34;
+  outline: 2px solid #8a4b14;
+  box-shadow:
+    0 7px 0 #8a4b14,
+    0 14px 0 rgba(72, 34, 6, 0.16),
+    0 24px 44px -10px rgba(45, 22, 5, 0.35),
+    inset 0 3px 6px rgba(255, 255, 255, 0.95),
+    inset 0 -6px 14px rgba(180, 110, 38, 0.22);
+}
+
+.storybook-parchment-board::before,
+.board-3d-tabletop::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 28%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+  border-radius: 20px 20px 0 0;
 }
 
 .prompt-3d-cloud {
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-  border: 1.5px solid #ffffff;
+  background: linear-gradient(180deg, #ffffff 0%, #fff7e8 100%);
+  border: 2px solid #ffffff;
   box-shadow:
-    0 4px 0 #cbd5e1,
-    0 16px 32px -8px rgba(15, 23, 42, 0.14),
-    inset 0 2px 4px rgba(255, 255, 255, 1);
+    0 6px 0 #cbd5e1,
+    0 18px 34px -8px rgba(15, 23, 42, 0.18),
+    inset 0 2px 5px rgba(255, 255, 255, 1);
 }
 
-/* 4 Modern Tactile Choice Cards with Crisp Color Accents */
+/* Zoo Parlante 3D Character Portrait Cards */
+.zoo-3d-card {
+  position: relative;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 3px solid rgba(255, 255, 255, 0.92);
+  transition: transform 0.17s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.17s ease, filter 0.17s ease;
+  will-change: transform;
+}
+
+.zoo-3d-card-lion {
+  background: linear-gradient(180deg, #ffbe3b 0%, #f97316 100%);
+  box-shadow:
+    0 5px 0 #b45309,
+    0 12px 20px -4px rgba(124, 45, 18, 0.42),
+    inset 0 2px 3px rgba(255, 255, 255, 0.85);
+}
+
+.zoo-3d-card-giraffe {
+  background: linear-gradient(180deg, #84cc16 0%, #16a34a 100%);
+  box-shadow:
+    0 5px 0 #166534,
+    0 12px 20px -4px rgba(20, 83, 45, 0.42),
+    inset 0 2px 3px rgba(255, 255, 255, 0.85);
+}
+
+.zoo-3d-card-elephant {
+  background: linear-gradient(180deg, #38bdf8 0%, #2563eb 100%);
+  box-shadow:
+    0 5px 0 #1d4ed8,
+    0 12px 20px -4px rgba(30, 58, 138, 0.42),
+    inset 0 2px 3px rgba(255, 255, 255, 0.85);
+}
+
+@media (hover: hover) {
+  .zoo-3d-card:hover {
+    transform: translateY(-3px) scale(1.02);
+    filter: brightness(1.04);
+  }
+}
+
+.zoo-3d-card:active {
+  transform: translateY(3px) scale(0.97);
+}
+
+/* 4 Vibrant Pixar 3D Illustrated Choice Cards */
 .toy-card-3d {
   position: relative;
-  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.16s cubic-bezier(0.16, 1, 0.3, 1), filter 0.16s ease;
-  transform: translateY(0);
+  transition: transform 0.17s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.17s cubic-bezier(0.16, 1, 0.3, 1), filter 0.17s ease;
+  transform: translateY(0) rotateX(0deg);
+  transform-style: preserve-3d;
   will-change: transform;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  overflow: hidden;
+}
+
+.toy-card-3d::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 24%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+  z-index: 20;
+  border-radius: 22px 22px 0 0;
 }
 
 .toy-candy-pink {
-  background: linear-gradient(180deg, #ffffff 0%, #fdf2f8 65%, #fce7f3 100%);
-  border: 2px solid #ffffff;
+  background: linear-gradient(180deg, #ff69b4 0%, #ec4899 58%, #db2777 100%);
+  border: 3.5px solid #ffd1e8;
   box-shadow:
-    0 5px 0 #f472b6,
-    0 16px 28px -8px rgba(219, 39, 119, 0.22),
-    inset 0 2px 4px rgba(255, 255, 255, 1);
+    0 7px 0 #9d174d,
+    0 13px 0 rgba(131, 24, 67, 0.2),
+    0 20px 34px -8px rgba(157, 23, 77, 0.45),
+    inset 0 2px 4px rgba(255, 255, 255, 0.9);
 }
 
 .toy-candy-yellow {
-  background: linear-gradient(180deg, #ffffff 0%, #fffbeb 65%, #fef3c7 100%);
-  border: 2px solid #ffffff;
+  background: linear-gradient(180deg, #fde047 0%, #f59e0b 58%, #d97706 100%);
+  border: 3.5px solid #fef3c7;
   box-shadow:
-    0 5px 0 #fbbf24,
-    0 16px 28px -8px rgba(217, 119, 6, 0.22),
-    inset 0 2px 4px rgba(255, 255, 255, 1);
+    0 7px 0 #92400e,
+    0 13px 0 rgba(120, 53, 15, 0.2),
+    0 20px 34px -8px rgba(146, 64, 14, 0.45),
+    inset 0 2px 4px rgba(255, 255, 255, 0.92);
 }
 
 .toy-candy-cyan {
-  background: linear-gradient(180deg, #ffffff 0%, #f0f9ff 65%, #e0f2fe 100%);
-  border: 2px solid #ffffff;
+  background: linear-gradient(180deg, #38bdf8 0%, #0284c7 58%, #1d4ed8 100%);
+  border: 3.5px solid #bae6fd;
   box-shadow:
-    0 5px 0 #38bdf8,
-    0 16px 28px -8px rgba(2, 132, 199, 0.22),
-    inset 0 2px 4px rgba(255, 255, 255, 1);
+    0 7px 0 #1e3a8a,
+    0 13px 0 rgba(30, 58, 138, 0.2),
+    0 20px 34px -8px rgba(29, 78, 216, 0.45),
+    inset 0 2px 4px rgba(255, 255, 255, 0.9);
 }
 
 .toy-candy-lime {
-  background: linear-gradient(180deg, #ffffff 0%, #ecfdf5 65%, #d1fae5 100%);
-  border: 2px solid #ffffff;
+  background: linear-gradient(180deg, #4ade80 0%, #16a34a 58%, #15803d 100%);
+  border: 3.5px solid #bbf7d0;
   box-shadow:
-    0 5px 0 #34d399,
-    0 16px 28px -8px rgba(5, 150, 105, 0.22),
-    inset 0 2px 4px rgba(255, 255, 255, 1);
+    0 7px 0 #14532d,
+    0 13px 0 rgba(20, 83, 45, 0.2),
+    0 20px 34px -8px rgba(21, 128, 61, 0.45),
+    inset 0 2px 4px rgba(255, 255, 255, 0.9);
 }
 
 @media (hover: hover) {
   .toy-card-3d:hover {
-    transform: translateY(-3px) scale(1.015);
-    filter: brightness(1.02);
+    transform: translateY(-4px) scale(1.02);
+    filter: brightness(1.03);
   }
 }
 
 .toy-card-3d:active {
-  transform: translateY(4px) scale(0.98);
+  transform: translateY(5px) scale(0.975);
   box-shadow:
-    0 2px 0 rgba(15, 23, 42, 0.2),
-    0 6px 12px rgba(15, 23, 42, 0.14),
-    inset 0 1px 2px rgba(15, 23, 42, 0.08) !important;
+    0 2px 0 rgba(15, 23, 42, 0.26),
+    0 6px 14px rgba(15, 23, 42, 0.2) !important;
 }
 
 .toy-card-3d-correct {
-  background: linear-gradient(180deg, #ecfdf5 0%, #a7f3d0 65%, #34d399 100%) !important;
-  border-color: #ffffff !important;
+  background: linear-gradient(180deg, #34d399 0%, #10b981 60%, #059669 100%) !important;
+  border-color: #d1fae5 !important;
   box-shadow:
-    0 5px 0 #059669,
-    0 20px 35px -8px rgba(16, 185, 129, 0.5),
-    inset 0 2px 4px rgba(255, 255, 255, 0.95) !important;
-  transform: translateY(-2px) scale(1.03) !important;
+    0 7px 0 #065f46,
+    0 24px 38px -8px rgba(16, 185, 129, 0.58),
+    inset 0 2px 5px rgba(255, 255, 255, 0.95) !important;
+  transform: translateY(-3px) scale(1.03) !important;
 }
 
 .toy-card-3d-wrong {
-  background: linear-gradient(180deg, #fff1f2 0%, #fecdd3 70%, #fda4af 100%) !important;
-  border-color: #ffffff !important;
+  background: linear-gradient(180deg, #fb7185 0%, #e11d48 70%, #be123c 100%) !important;
+  border-color: #ffe4e6 !important;
   box-shadow:
-    0 3px 0 #e11d48,
-    0 10px 20px -6px rgba(244, 63, 94, 0.35),
-    inset 0 2px 4px rgba(255, 255, 255, 0.9) !important;
-  transform: translateY(3px) scale(0.97) !important;
+    0 3px 0 #881337,
+    0 10px 20px -6px rgba(225, 29, 72, 0.35),
+    inset 0 2px 4px rgba(255, 255, 255, 0.85) !important;
+  transform: translateY(4px) scale(0.96) !important;
 }
 
-/* Soft Modern Pedestal behind Emojis/Objects */
-.orb-3d-pedestal {
-  position: relative;
-  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 60%, #f1f5f9 100%);
+/* Tactile White 3D Play Circle Badge */
+.storybook-play-dot {
+  background: radial-gradient(circle at 30% 25%, #ffffff 0%, #f8fafc 75%, #e2e8f0 100%);
   border: 2px solid #ffffff;
   box-shadow:
-    0 8px 18px -4px rgba(15, 23, 42, 0.1),
-    0 2px 0 #e2e8f0,
-    inset 0 2px 4px rgba(255, 255, 255, 1);
+    0 3px 0 rgba(15, 23, 42, 0.22),
+    0 6px 12px rgba(15, 23, 42, 0.18),
+    inset 0 2px 3px rgba(255, 255, 255, 1);
+}
+
+/* Warm Cream Parchment Footer Pill */
+.storybook-footer-pill {
+  background: linear-gradient(180deg, #fffdf7 0%, #fef3d9 100%);
+  border: 2.5px solid #ffffff;
+  box-shadow:
+    0 4px 0 rgba(180, 126, 48, 0.35),
+    0 12px 24px -6px rgba(45, 22, 5, 0.28),
+    inset 0 2px 4px rgba(255, 255, 255, 0.95);
+}
+
+/* Sculpted Ceramic 3D Pedestal behind Emojis/Objects */
+.orb-3d-pedestal {
+  position: relative;
+  background: radial-gradient(circle at 32% 24%, #ffffff 0%, #f8fafc 58%, #e2e8f0 100%);
+  border: 2.5px solid #ffffff;
+  box-shadow:
+    0 5px 0 #cbd5e1,
+    0 12px 22px -4px rgba(15, 23, 42, 0.16),
+    inset 0 3px 6px rgba(255, 255, 255, 1),
+    inset 0 -3px 6px rgba(148, 163, 184, 0.22);
+}
+
+/* Sculpted 3D Sticker Tile inside Album dei Tesori */
+.sticker-tile-3d {
+  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow:
+    0 5px 0 rgba(148, 163, 184, 0.42),
+    0 12px 22px -8px rgba(15, 23, 42, 0.14),
+    inset 0 2px 4px rgba(255, 255, 255, 0.95);
+}
+
+@media (hover: hover) {
+  .sticker-tile-3d:hover {
+    transform: translateY(-3px);
+  }
+}
+
+.sticker-tile-3d:active {
+  transform: translateY(3px) scale(0.98);
+  box-shadow:
+    0 2px 0 rgba(148, 163, 184, 0.45),
+    0 5px 10px -4px rgba(15, 23, 42, 0.12);
+}
+
+/* Sculpted 3D Medallion Showcase Frame */
+.medallion-3d-frame {
+  box-shadow:
+    0 7px 0 rgba(15, 23, 42, 0.22),
+    0 18px 34px -6px rgba(15, 23, 42, 0.34),
+    inset 0 2px 4px rgba(255, 255, 255, 0.9);
 }
 
 /* Modern Block for Sequences & Matrices */
@@ -460,12 +797,12 @@ button:focus-visible,
 /* 1. Ultra-compact Smartphones Portrait (<= 380px width) */
 @media (max-width: 380px) {
   .board-3d-tabletop {
-    padding: 0.75rem 0.65rem !important;
-    border-radius: 1.25rem !important;
+    padding: 0.7rem 0.65rem !important;
+    border-radius: 1.35rem !important;
   }
   .toy-card-3d {
-    padding: 0.6rem 0.45rem !important;
-    border-radius: 1.15rem !important;
+    padding: 0.28rem !important;
+    border-radius: 1.25rem !important;
   }
   .option-pedestal-responsive {
     width: 3.35rem !important;
@@ -475,7 +812,7 @@ button:focus-visible,
     font-size: 2rem !important;
   }
   .zoo-parlante-card {
-    padding: 0.45rem !important;
+    padding: 0 !important;
   }
   .count-sphere-responsive {
     width: 3.85rem !important;
@@ -489,12 +826,12 @@ button:focus-visible,
     gap: 0.65rem;
   }
   .board-3d-tabletop {
-    padding: 0.95rem 0.85rem;
+    padding: 0.85rem 0.85rem;
     border-radius: 1.5rem;
   }
   .toy-card-3d {
-    padding: 0.75rem 0.6rem;
-    border-radius: 1.35rem;
+    padding: 0.3rem;
+    border-radius: 1.45rem;
   }
 }
 
@@ -547,16 +884,11 @@ button:focus-visible,
   .board-3d-tabletop {
     padding: 0.65rem 0.85rem !important;
     border-radius: 1.25rem !important;
-    box-shadow:
-      0 4px 0 rgba(203, 213, 225, 0.85),
-      0 12px 24px -6px rgba(15, 23, 42, 0.14),
-      inset 0 2px 4px rgba(255, 255, 255, 1) !important;
   }
 
   .toy-card-3d {
-    padding: 0.45rem 0.5rem !important;
-    border-radius: 1.1rem !important;
-    gap: 0.35rem !important;
+    padding: 0.25rem !important;
+    border-radius: 1.15rem !important;
   }
 
   .option-pedestal-responsive {
@@ -574,8 +906,7 @@ button:focus-visible,
   }
 
   .zoo-parlante-section {
-    padding: 0.35rem 0.5rem !important;
-    border-radius: 1rem !important;
+    padding: 0.2rem 0.25rem !important;
   }
 
   .home-center-emblem {
@@ -764,19 +1095,24 @@ button:focus-visible,
 
 .toy-button-3d {
   transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s cubic-bezier(0.16, 1, 0.3, 1), filter 0.15s ease;
-  box-shadow: 0 3px 0 rgba(15, 23, 42, 0.14), 0 8px 18px -4px rgba(15, 23, 42, 0.12);
+  box-shadow:
+    0 4px 0 rgba(15, 23, 42, 0.2),
+    0 10px 20px -4px rgba(15, 23, 42, 0.18),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.58);
 }
 
 @media (hover: hover) {
   .toy-button-3d:hover {
-    transform: translateY(-2px);
-    filter: brightness(1.03);
+    transform: translateY(-2.5px);
+    filter: brightness(1.04);
   }
 }
 
 .toy-button-3d:active {
-  transform: translateY(2px) scale(0.97);
-  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.18), 0 4px 8px rgba(15, 23, 42, 0.1);
+  transform: translateY(3px) scale(0.97);
+  box-shadow:
+    0 1px 0 rgba(15, 23, 42, 0.24),
+    0 4px 8px rgba(15, 23, 42, 0.14);
 }
 
 .animate-cloud-drift {

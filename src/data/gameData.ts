@@ -524,6 +524,9 @@ export function loadUserProgress(): UserProgress {
     sessionsCount: 1,
     sessionDates: [today],
     annualProgressRows: [],
+    unlockedStickerIds: ['stk_star'],
+    dailyMissionDate: today,
+    dailyMissionCount: 0,
   };
 }
 

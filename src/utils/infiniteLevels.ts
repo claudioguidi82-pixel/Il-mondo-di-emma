@@ -166,7 +166,7 @@ function deterministicShuffle<T>(items: T[], seed: number): T[] {
 // =========================================================================
 const NATURE_AND_ANIMALS_5YO = [
   {
-    prompt: 'Chi è il re della savana con una grande criniera dorata e un ruggito potente? 🦁',
+    prompt: 'Chi è il re della savana con una grande criniera dorata e un ruggito potente? 🌍',
     speech: 'Esploriamo la savana! Quale grande felino ha una folta criniera dorata e ruggisce facendo Roar?',
     correct: { label: 'Leone', emoji: '🦁', sublabel: 'Re della savana!' },
     distractors: [
@@ -176,17 +176,17 @@ const NATURE_AND_ANIMALS_5YO = [
     explanation: 'Esatto! Il leone maschio ha una splendida criniera e vive nella savana!',
   },
   {
-    prompt: 'Quale animale usa la sua lunga proboscide per bere e fare la doccia? 🐘',
+    prompt: 'Quale animale usa la sua lunga proboscide per bere e fare la doccia? 🌿',
     speech: 'Qual è il mammifero terrestre più grande, che usa la proboscide per raccogliere le foglie e spruzzare l\'acqua?',
-    correct: { label: 'Elefante', emoji: '🐘', sublabel: 'Ha la proboscide!' },
+    correct: { label: 'Elefante', emoji: '🐘', sublabel: 'Usa la proboscide!' },
     distractors: [
-      { label: 'Zebra', emoji: '🦓', sublabel: 'Manto a strisce' },
-      { label: 'Cammello', emoji: '🐪', sublabel: 'Ha le gobbe' },
+      { label: 'Zebra', emoji: '🦓', sublabel: 'Ha il manto a strisce' },
+      { label: 'Cammello', emoji: '🐪', sublabel: 'Vive nel deserto' },
     ],
     explanation: 'Bravissima! L\'elefante usa la proboscide proprio come una mano e una doccia!',
   },
   {
-    prompt: 'Quale animale ha il collo così lungo da brucare le foglie in cima alle acacie? 🦒',
+    prompt: 'Quale animale ha il collo così lungo da brucare le foglie in cima alle acacie? 🌿',
     speech: 'Quale animale altissimo della savana ha il collo lungo e il manto a macchie per raggiungere i rami più alti?',
     correct: { label: 'Giraffa', emoji: '🦒', sublabel: 'L\'animale più alto!' },
     distractors: [
@@ -196,17 +196,17 @@ const NATURE_AND_ANIMALS_5YO = [
     explanation: 'Proprio la giraffa! È l\'animale più alto del pianeta!',
   },
   {
-    prompt: 'Quale insetto laborioso vola di fiore in fiore per produrre il miele nell\'alveare? 🐝',
+    prompt: 'Quale insetto laborioso vola di fiore in fiore per produrre il miele nell\'alveare? 🌸',
     speech: 'Domanda da piccola scienziata: chi raccoglie il nettare dei fiori e produce il dolce miele nell\'alveare?',
     correct: { label: 'Ape', emoji: '🐝', sublabel: 'Produce il miele!' },
     distractors: [
-      { label: 'Coccinella', emoji: '🐞', sublabel: 'Puntini neri' },
-      { label: 'Libellula', emoji: '蜻', sublabel: 'Vola sull\'acqua' },
+      { label: 'Coccinella', emoji: '🐞', sublabel: 'Ha i puntini neri' },
+      { label: 'Farfalla', emoji: '🦋', sublabel: 'Ha ali colorate' },
     ],
     explanation: 'Perfetto! Le api sono preziosissime per i fiori e preparano il miele!',
   },
   {
-    prompt: 'Quale animale costruisce dighe di legno nei fiumi usando i suoi denti forti? 🦫',
+    prompt: 'Quale animale costruisce dighe di legno nei fiumi usando i suoi denti forti? 🪵',
     speech: 'Quale piccolo ingegnere dei fiumi taglia i rametti e costruisce vere dighe sull\'acqua?',
     correct: { label: 'Castoro', emoji: '🦫', sublabel: 'Ingegnere dei fiumi!' },
     distractors: [
@@ -216,7 +216,7 @@ const NATURE_AND_ANIMALS_5YO = [
     explanation: 'Grande! Il castoro costruisce dighe perfette con rami e tronchi!',
   },
   {
-    prompt: 'Quale animale australiano salta fortissimo e porta il suo cucciolo nel marsupio? 🦘',
+    prompt: 'Quale animale australiano salta fortissimo e porta il suo cucciolo nel marsupio? 🌿',
     speech: 'Chi vive in Australia, fa salti lunghissimi e custodisce il suo piccolo in una tasca sulla pancia chiamata marsupio?',
     correct: { label: 'Canguro', emoji: '🦘', sublabel: 'Ha il marsupio!' },
     distractors: [
@@ -236,7 +236,7 @@ const NATURE_AND_ANIMALS_5YO = [
     explanation: 'Bravissima! Dalla crisalide il bruco rinasce come una farfalla colorata!',
   },
   {
-    prompt: 'Quale animale notturno vede benissimo al buio e ruota la testa sugli alberi? 🦉',
+    prompt: 'Quale animale notturno vede benissimo al buio e ruota la testa sugli alberi? 🌙',
     speech: 'Quando scende la notte nel bosco, chi si sveglia con i suoi grandi occhi rotondi e canta Hu-Hu?',
     correct: { label: 'Gufo', emoji: '🦉', sublabel: 'Vede nella notte!' },
     distractors: [
@@ -246,9 +246,9 @@ const NATURE_AND_ANIMALS_5YO = [
     explanation: 'Esatto! Il gufo è un rapace notturno dalla vista acutissima!',
   },
   {
-    prompt: 'Qual è l\'animale terrestre più veloce del mondo quando corre nella savana? 🐆',
+    prompt: 'Qual è l\'animale terrestre più veloce del mondo quando corre nella savana? 💨',
     speech: 'Chi corre più veloce di un\'automobile tra le erbe dorate della savana?',
-    correct: { label: 'Ghepardo', emoji: '🐆', sublabel: 'Campione di velocità!' },
+    correct: { label: 'Ghepardo', emoji: '🐆', sublabel: 'Velocista della savana!' },
     distractors: [
       { label: 'Tartaruga', emoji: '🐢', sublabel: 'Va pianissimo' },
       { label: 'Bradipo', emoji: '🦥', sublabel: 'Si muove lento' },
@@ -256,32 +256,32 @@ const NATURE_AND_ANIMALS_5YO = [
     explanation: 'Straordinario! Il ghepardo è il velocista più rapido di tutta la Terra!',
   },
   {
-    prompt: 'Quale gigante buono del mare respira dallo sfiatatoio facendo uno spruzzo d\'acqua? 🐳',
+    prompt: 'Quale gigante buono del mare respira dallo sfiatatoio facendo uno spruzzo d\'acqua? 🌊',
     speech: 'Qual è l\'animale più grande di tutti gli oceani, che canta sott\'acqua e spruzza una fontanella dal dorso?',
     correct: { label: 'Balena', emoji: '🐳', sublabel: 'Gigante degli oceani!' },
     distractors: [
       { label: 'Granchio', emoji: '🦀', sublabel: 'Cammina di lato' },
-      { label: 'Cavalluccio Marino', emoji: '🐡', sublabel: 'È piccolino' },
+      { label: 'Pesce Palla', emoji: '🐡', sublabel: 'Si gonfia sott\'acqua' },
     ],
     explanation: 'Proprio la balena! È il mammifero più grande del nostro pianeta!',
   },
   {
-    prompt: 'Quale animale va in letargo nella sua tana quando arriva il freddo inverno? 🐻',
+    prompt: 'Quale animale va in letargo nella sua tana quando arriva il freddo inverno? ❄️',
     speech: 'Quando cade la neve in inverno, quale grande abitante del bosco fa un lungo sonno chiamato letargo?',
     correct: { label: 'Orso Bruno', emoji: '🐻', sublabel: 'Dorme in letargo!' },
     distractors: [
-      { label: 'Pinguino', emoji: '🐧', sublabel: 'Tuffa nel ghiaccio' },
-      { label: 'Rondine', emoji: '🕊️', sublabel: 'Migra al caldo' },
+      { label: 'Pinguino', emoji: '🐧', sublabel: 'Si tuffa tra i ghiacci' },
+      { label: 'Rondine', emoji: '🕊️', sublabel: 'Migra verso il caldo' },
     ],
     explanation: 'Esatto! L\'orso dorme al calduccio nella tana fino al ritorno della primavera!',
   },
   {
     prompt: 'Di cosa ha bisogno una piantina 🌱 per crescere forte insieme alla terra?',
     speech: 'Per far sbocciare un semino nella terra, di quali due elementi naturali ha sempre bisogno?',
-    correct: { label: 'Acqua e Sole ☀️💧', emoji: '🌻', sublabel: 'Nutrono le piante!' },
+    correct: { label: 'Acqua e Sole', emoji: '🌻', sublabel: 'Nutrono le piante!' },
     distractors: [
-      { label: 'Caramelle 🍬', emoji: '🍬', sublabel: 'Sono dolci' },
-      { label: 'Giocattoli 🧸', emoji: '🧸', sublabel: 'Sono per giocare' },
+      { label: 'Caramelle', emoji: '🍬', sublabel: 'Sono dolci' },
+      { label: 'Giocattoli', emoji: '🧸', sublabel: 'Sono per giocare' },
     ],
     explanation: 'Da vera botanica! Con l\'acqua e la luce del sole le piante crescono rigogliose!',
   },
@@ -302,7 +302,7 @@ const LANGUAGE_AND_SYLLABLES_5YO: LanguageChallengeEntry[] = [
   {
     prompt: 'Rima Poetica: Quale parola fa RIMA con "STELLA" ⭐?',
     speech: 'Giochiamo con le rime! Ascolta il suono finale: Stella... quale di queste parole finisce proprio come Stella?',
-    correct: { label: 'Ombrello / Castella ➔ Sorella!', emoji: '👧', sublabel: 'Stèlla · Sorèlla (-ELLA)' },
+    correct: { label: 'Sorella', emoji: '👧', sublabel: 'Stèlla · Sorèlla (-ELLA)' },
     distractors: [
       { label: 'Pallone', emoji: '⚽', sublabel: 'Finisce in -ONE' },
       { label: 'Matita', emoji: '✏️', sublabel: 'Finisce in -ITA' },
@@ -406,7 +406,7 @@ const LANGUAGE_AND_SYLLABLES_5YO: LanguageChallengeEntry[] = [
 // =========================================================================
 export const KID_RIDDLES = [
   {
-    prompt: 'Indovinello: Chi sono? 🐴',
+    prompt: 'Indovinello: Chi sono? 🔎',
     speech: 'Ascolta l\'indovinello: Ho una folta criniera ma non sono un leone, galoppo nel prato e mangio buon fieno. Chi sono?',
     riddleText: 'Ho la criniera ma non sono un leone, galoppo nel prato e mangio buon fieno... Chi sono?',
     correct: { label: 'Cavallino', emoji: '🐴', sublabel: 'Galoppa e nitrisce!' },
@@ -417,7 +417,7 @@ export const KID_RIDDLES = [
     explanation: 'Proprio il cavallino galoppante con la sua bellissima criniera!',
   },
   {
-    prompt: 'Indovinello: Chi sono? 🌈',
+    prompt: 'Indovinello: Chi sono? 🔎',
     speech: 'Indovinello: Sette colori brillano in cielo dopo il temporale, formo un grande arco magico e speciale. Chi sono?',
     riddleText: 'Sette colori brillano in cielo dopo il temporale, formo un grande arco magico e speciale... Chi sono?',
     correct: { label: 'Arcobaleno', emoji: '🌈', sublabel: 'Ponte di 7 colori' },
@@ -428,7 +428,7 @@ export const KID_RIDDLES = [
     explanation: 'L\'arcobaleno meraviglioso che spunta tra il sole e le nuvole!',
   },
   {
-    prompt: 'Indovinello: Chi sono? 🐢',
+    prompt: 'Indovinello: Chi sono? 🔎',
     speech: 'Indovinello: Cammino pianissimo per tutta la vita, ma ho una corazza dura e sempre pulita. Chi sono?',
     riddleText: 'Cammino pianissimo per tutta la vita, ma porto sul dorso una corazza dura e pulita... Chi sono?',
     correct: { label: 'Tartaruga', emoji: '🐢', sublabel: 'Col guscio robusto' },
@@ -439,7 +439,7 @@ export const KID_RIDDLES = [
     explanation: 'Esatto! La saggia tartaruga che porta sempre con sé la sua corazza!',
   },
   {
-    prompt: 'Indovinello: Cosa sono? ☂️',
+    prompt: 'Indovinello: Cosa sono? 🔎',
     speech: 'Indovinello: Se c\'è il sole resto chiuso in un cantuccio, ma se cade la pioggia mi apro sopra il tuo cappuccio. Cosa sono?',
     riddleText: 'Col sole resto chiuso in un cantuccio, ma se piove mi apro sopra il tuo cappuccio... Cosa sono?',
     correct: { label: 'Ombrello', emoji: '☂️', sublabel: 'Ripara dalla pioggia!' },
@@ -450,7 +450,7 @@ export const KID_RIDDLES = [
     explanation: 'Bravissima! L\'ombrello si apre appena iniziano a cadere le gocce di pioggia!',
   },
   {
-    prompt: 'Indovinello: Chi sono? ⛄',
+    prompt: 'Indovinello: Chi sono? 🔎',
     speech: 'Indovinello d\'inverno: Ho il naso di carota, la sciarpa al collo e sono tutto bianco, ma se esce il sole caldo mi sciolgo in un lampo. Chi sono?',
     riddleText: 'Ho il naso di carota e sono tutto bianco, ma se esce il sole caldo mi sciolgo in un lampo... Chi sono?',
     correct: { label: 'Pupazzo di Neve', emoji: '⛄', sublabel: 'Fatto di neve fresca!' },
@@ -461,7 +461,7 @@ export const KID_RIDDLES = [
     explanation: 'Fantastico! Il simpatico pupazzo di neve col naso di carota!',
   },
   {
-    prompt: 'Indovinello: Cosa sono? ⏰',
+    prompt: 'Indovinello: Cosa sono? 🔎',
     speech: 'Indovinello: Ho due lancette che girano in tondo, faccio Tic-Tac per tutto il giorno e non mi fermo mai un secondo. Cosa sono?',
     riddleText: 'Ho le lancette che girano in tondo e faccio Tic-Tac ogni secondo... Cosa sono?',
     correct: { label: 'Orologio', emoji: '⏰', sublabel: 'Segna le ore!' },
@@ -472,7 +472,7 @@ export const KID_RIDDLES = [
     explanation: 'Proprio l\'orologio che segna il tempo con le sue lancette!',
   },
   {
-    prompt: 'Indovinello: Cosa sono? 📖',
+    prompt: 'Indovinello: Cosa sono? 🔎',
     speech: 'Indovinello: Ho tante pagine piene di parole e figure, ma se mi apri ti porto in mille avventure. Cosa sono?',
     riddleText: 'Ho tante pagine piene di figure, se mi apri e mi leggi vivi mille avventure... Cosa sono?',
     correct: { label: 'Libro di Fiabe', emoji: '📖', sublabel: 'Custode di storie!' },
@@ -483,7 +483,7 @@ export const KID_RIDDLES = [
     explanation: 'Meraviglioso! Un bel libro illustrato pieno di storie e conoscenze!',
   },
   {
-    prompt: 'Indovinello: Chi sono? 🌻',
+    prompt: 'Indovinello: Chi sono? 🔎',
     speech: 'Indovinello della natura: Sono un grande fiore giallo e per tutto il giorno giro la mia corolla per guardare il Sole. Chi sono?',
     riddleText: 'Sono un grande fiore giallo e giro sempre la corolla seguendo il Sole... Chi sono?',
     correct: { label: 'Girasole', emoji: '🌻', sublabel: 'Segue la luce del sole!' },
@@ -500,7 +500,7 @@ export const KID_RIDDLES = [
 // =========================================================================
 const GEOMETRY_AND_SPACE_5YO = [
   {
-    prompt: 'Geometria: Quale figura geometrica ha esattamente 3 LATI e 3 PUNTE? 🔺',
+    prompt: 'Geometria: Quale figura geometrica ha esattamente 3 LATI e 3 PUNTE? 📐',
     speech: 'Osserva i lati delle figure: quale forma geometrica ha esattamente tre lati e tre punte?',
     correct: { label: 'Triangolo', emoji: '🔺', sublabel: '3 lati e 3 angoli!' },
     distractors: [
@@ -510,7 +510,7 @@ const GEOMETRY_AND_SPACE_5YO = [
     explanation: 'Perfetto! Il Triangolo si chiama così proprio perché ha tre angoli e tre lati!',
   },
   {
-    prompt: 'Geometria: Quale figura ha 4 LATI TUTTI UGUALI come i dadi da gioco? 🟦',
+    prompt: 'Geometria: Quale figura ha 4 LATI TUTTI UGUALI come le facce di un dado? 📐',
     speech: 'Quale forma geometrica ha quattro lati tutti della stessa identica lunghezza?',
     correct: { label: 'Quadrato', emoji: '🟦', sublabel: '4 lati perfettamente uguali!' },
     distractors: [
@@ -520,7 +520,7 @@ const GEOMETRY_AND_SPACE_5YO = [
     explanation: 'Esatto! Il quadrato ha quattro lati uguali e quattro angoli dritti!',
   },
   {
-    prompt: 'Geometria: Quale forma assomiglia a un aquilone che vola nel cielo? 🔷',
+    prompt: 'Geometria: Quale forma assomiglia a un aquilone che vola nel cielo? 🪁',
     speech: 'Guarda bene: quale forma geometrica ha quattro lati inclinati proprio come un aquilone o un diamante?',
     correct: { label: 'Rombo', emoji: '🔷', sublabel: 'Come un aquilone!' },
     distractors: [
@@ -530,19 +530,19 @@ const GEOMETRY_AND_SPACE_5YO = [
     explanation: 'Bravissima! Il Rombo ha la stessa sagoma di un aquilone!',
   },
   {
-    prompt: 'Spazio & Forme 3D: Quale oggetto ha la forma di una SFERA perfetta? 🌍',
+    prompt: 'Spazio & Forme 3D: Quale oggetto ha la forma di una SFERA perfetta? 🔎',
     speech: 'Nella geometria solida, quale di questi oggetti ha la forma di una sfera che può rotolare in ogni direzione?',
-    correct: { label: 'Mappamondo / Palla ⚽', emoji: '⚽', sublabel: 'Sfera 3D perfetta!' },
+    correct: { label: 'Mappamondo / Palla', emoji: '⚽', sublabel: 'Sfera 3D perfetta!' },
     distractors: [
-      { label: 'Scatola Regalo 🎁', emoji: '🎁', sublabel: 'È un cubo' },
-      { label: 'Fetta di Torta 🍰', emoji: '🍰', sublabel: 'Non rotola' },
+      { label: 'Scatola Regalo', emoji: '🎁', sublabel: 'È un cubo' },
+      { label: 'Fetta di Torta', emoji: '🍰', sublabel: 'Non rotola' },
     ],
     explanation: 'Ottimo occhio spaziale! La palla e il pianeta Terra hanno la forma di una sfera!',
   },
   {
-    prompt: 'Geometria in Natura: Quante punte ha questa STELLA Marina / Stellina dorata? ⭐',
+    prompt: 'Geometria in Natura: Quante punte ha questa stellina dorata? ⭐',
     speech: 'Conta con gli occhi le punte della stellina dorata: quante punte ha in tutto?',
-    correct: { label: '5 Punte ⭐', emoji: '5️⃣', sublabel: '1, 2, 3, 4 e 5 punte!' },
+    correct: { label: '5 Punte', emoji: '5️⃣', sublabel: '1, 2, 3, 4 e 5 punte!' },
     distractors: [
       { label: '2 Punte', emoji: '2️⃣', sublabel: 'Sono poche' },
       { label: '8 Punte', emoji: '8️⃣', sublabel: 'Sono troppe' },
@@ -550,12 +550,12 @@ const GEOMETRY_AND_SPACE_5YO = [
     explanation: 'Proprio cinque punte, come le cinque dita della tua mano!',
   },
   {
-    prompt: 'Orientamento Spaziale: Se guardi il cielo sopra il tetto della casa, cosa trovi IN ALTO? ☀️',
+    prompt: 'Orientamento Spaziale: Se guardi il cielo sopra il tetto della casa, cosa trovi IN ALTO? 🏠',
     speech: 'Ragioniamo sullo spazio: cosa si trova in alto sopra le case e gli alberi?',
-    correct: { label: 'Nuvola e Sole ⛅', emoji: '⛅', sublabel: 'Stanno in alto nel cielo!' },
+    correct: { label: 'Nuvola e Sole', emoji: '⛅', sublabel: 'Stanno in alto nel cielo!' },
     distractors: [
-      { label: 'Radici dell\'Albero 🌱', emoji: '🌱', sublabel: 'Stanno sotto terra' },
-      { label: 'Tappeto di Casa 🧶', emoji: '🧶', sublabel: 'Sta sul pavimento' },
+      { label: 'Radici dell\'Albero', emoji: '🌱', sublabel: 'Stanno sotto terra' },
+      { label: 'Tappeto di Casa', emoji: '🧶', sublabel: 'Sta sul pavimento' },
     ],
     explanation: 'Esatto! Il sole e le nuvole stanno in alto, mentre le radici stanno sotto terra!',
   },
@@ -630,7 +630,7 @@ interface MusicRhythmEntry {
 const MUSIC_RHYTHM_CATALOG: MusicRhythmEntry[] = [
   {
     title: 'La Scala Musicale: Do - Re - Mi - Fa!',
-    prompt: 'Ascolta la scala che sale: DO 🎵 - RE 🎶 - MI 🎵 - ... Quale nota viene dopo il MI?',
+    prompt: 'Ascolta la scala che sale: DO - RE - MI - ... Quale nota viene subito dopo il MI? 🎼',
     speech: 'Ascolta le note che salgono in ordine: Do, Re, Mi... quale nota musicale viene subito dopo il Mi?',
     rhythmNotes: [
       { freq: 261.63, duration: 0.3, label: 'DO', emoji: '🔴' },
@@ -647,12 +647,12 @@ const MUSIC_RHYTHM_CATALOG: MusicRhythmEntry[] = [
   },
   {
     title: 'Il Re dei Tasti Bianchi e Neri',
-    prompt: 'Quale grande strumento ha 88 tasti bianchi e neri e suona melodie dolci e forti? 🎹',
+    prompt: 'Quale grande strumento ha 88 tasti bianchi e neri e suona melodie dolci e forti? 🎼',
     speech: 'Quale strumento dell\'orchestra si suona con entrambe le mani sopra tanti tasti bianchi e neri?',
     rhythmNotes: [
-      { freq: 523.25, duration: 0.25, label: 'DO', emoji: '🎹' },
-      { freq: 659.25, duration: 0.25, label: 'MI', emoji: '🎹' },
-      { freq: 783.99, duration: 0.3, label: 'SOL', emoji: '🎹' },
+      { freq: 523.25, duration: 0.25, label: 'DO', emoji: '🎵' },
+      { freq: 659.25, duration: 0.25, label: 'MI', emoji: '🎵' },
+      { freq: 783.99, duration: 0.3, label: 'SOL', emoji: '🎶' },
       { freq: 1046.5, duration: 0.4, label: 'DO+', emoji: '✨' },
     ],
     correct: { label: 'Pianoforte', emoji: '🎹', sublabel: 'Tastiera musicale', noteFreq: 523.25 },
@@ -664,11 +664,11 @@ const MUSIC_RHYTHM_CATALOG: MusicRhythmEntry[] = [
   },
   {
     title: 'L\'Archetto Magico sul Legno',
-    prompt: 'Quale strumento elegante si appoggia vicino alla spalla e si suona facendo scorrere l\'archetto sulle 4 corde? 🎻',
+    prompt: 'Quale strumento elegante si appoggia vicino alla spalla e si suona facendo scorrere l\'archetto sulle 4 corde? 🎼',
     speech: 'Nell\'orchestra, quale strumento di legno si suona facendo scivolare un archetto sulle sue quattro corde?',
     rhythmNotes: [
-      { freq: 440.0, duration: 0.35, label: 'LA', emoji: '🎻' },
-      { freq: 554.37, duration: 0.35, label: 'DO#', emoji: '🎻' },
+      { freq: 440.0, duration: 0.35, label: 'LA', emoji: '🎵' },
+      { freq: 554.37, duration: 0.35, label: 'DO#', emoji: '🎵' },
       { freq: 659.25, duration: 0.45, label: 'MI', emoji: '🎶' },
     ],
     correct: { label: 'Violino', emoji: '🎻', sublabel: 'Suona con l\'archetto!', noteFreq: 659.25 },
@@ -680,12 +680,12 @@ const MUSIC_RHYTHM_CATALOG: MusicRhythmEntry[] = [
   },
   {
     title: 'Lo Strumento d\'Oro in cui si Soffia',
-    prompt: 'Quale strumento dorato suona la fanfara reale quando soffiamo dentro e premiamo i tre pistoni? 🎺',
+    prompt: 'Quale strumento dorato suona la fanfara reale quando soffiamo dentro e premiamo i tre pistoni? 🎼',
     speech: 'Quale strumento a fiato tutto dorato annuncia l\'arrivo del re con una brillante fanfara?',
     rhythmNotes: [
-      { freq: 392.0, duration: 0.22, label: 'TA', emoji: '🎺' },
-      { freq: 523.25, duration: 0.22, label: 'TA', emoji: '🎺' },
-      { freq: 659.25, duration: 0.22, label: 'TA', emoji: '🎺' },
+      { freq: 392.0, duration: 0.22, label: 'TA', emoji: '🎵' },
+      { freq: 523.25, duration: 0.22, label: 'TA', emoji: '🎵' },
+      { freq: 659.25, duration: 0.22, label: 'TA', emoji: '🎶' },
       { freq: 783.99, duration: 0.45, label: 'TAAA!', emoji: '👑' },
     ],
     correct: { label: 'Tromba', emoji: '🎺', sublabel: 'Strumento a fiato dorato!', noteFreq: 783.99 },
@@ -697,7 +697,7 @@ const MUSIC_RHYTHM_CATALOG: MusicRhythmEntry[] = [
   },
   {
     title: 'Pattern Ritmico a 4 Tempi: Bum - Clap - Bum - ...?',
-    prompt: 'Completa il ritmo dell\'orchestra: Tamburo 🥁 ➔ Battito 👏 ➔ Tamburo 🥁 ➔ ...?',
+    prompt: 'Completa il ritmo dell\'orchestra: Tamburo ➔ Battito ➔ Tamburo ➔ ...? 🎼',
     speech: 'Segui il tempo musicale: Tamburo, Battito di mani, Tamburo... cosa viene sul quarto tempo?',
     rhythmNotes: [
       { freq: 196.0, duration: 0.28, label: 'BUM', emoji: '🥁' },
@@ -705,7 +705,7 @@ const MUSIC_RHYTHM_CATALOG: MusicRhythmEntry[] = [
       { freq: 196.0, duration: 0.28, label: 'BUM', emoji: '🥁' },
       { freq: 587.33, duration: 0.36, label: '❓', emoji: '✨' },
     ],
-    correct: { label: 'Battito di Mani 👏', emoji: '👏', sublabel: 'Chiude il tempo 4/4!', noteFreq: 587.33 },
+    correct: { label: 'Battito di Mani', emoji: '👏', sublabel: 'Chiude il tempo 4/4!', noteFreq: 587.33 },
     distractors: [
       { label: 'Cuscino Morbido', emoji: '🛏️', sublabel: 'Non tiene il ritmo', noteFreq: 220.0 },
       { label: 'Stivale', emoji: '🥾', sublabel: 'Fuori tempo', noteFreq: 246.94 },
@@ -714,14 +714,14 @@ const MUSIC_RHYTHM_CATALOG: MusicRhythmEntry[] = [
   },
   {
     title: 'Suoni Acuti e Suoni Gravi',
-    prompt: 'Ascolta la differenza: l\'uccellino fa un canto ACUTO 🐦, mentre il grande tamburo fa un suono...',
+    prompt: 'Ascolta la differenza: l\'uccellino fa un canto ACUTO, mentre il grande tamburo fa un suono... 🎼',
     speech: 'In musica i suoni alti e sottili come il flauto si chiamano acuti. Come si chiama invece il suono profondo e basso del grande tamburo?',
     rhythmNotes: [
       { freq: 987.77, duration: 0.25, label: 'ACUTO', emoji: '🐦' },
       { freq: 880.0, duration: 0.25, label: 'ALTO', emoji: '🎶' },
       { freq: 146.83, duration: 0.45, label: 'BASSO', emoji: '🥁' },
     ],
-    correct: { label: 'Grave e Profondo 🥁', emoji: '🥁', sublabel: 'Suono basso "Bum!"', noteFreq: 146.83 },
+    correct: { label: 'Grave e Profondo', emoji: '🥁', sublabel: 'Suono basso "Bum!"', noteFreq: 146.83 },
     distractors: [
       { label: 'Invisibile', emoji: '👻', sublabel: 'Non riguarda il suono', noteFreq: 440.0 },
       { label: 'Salato', emoji: '🧂', sublabel: 'È un sapore', noteFreq: 392.0 },
@@ -730,13 +730,13 @@ const MUSIC_RHYTHM_CATALOG: MusicRhythmEntry[] = [
   },
   {
     title: 'Le 6 Corde della Chitarra',
-    prompt: 'Quale strumento ha una cassa armonica col foro centrale e 6 corde da pizzicare? 🎸',
+    prompt: 'Quale strumento ha una cassa armonica col foro centrale e 6 corde da pizzicare? 🎼',
     speech: 'Quale strumento musicale portiamo anche in gita e suoniamo pizzicando le sue sei corde?',
     rhythmNotes: [
-      { freq: 329.63, duration: 0.25, label: 'MI', emoji: '🎸' },
-      { freq: 392.0, duration: 0.25, label: 'SOL', emoji: '🎸' },
-      { freq: 493.88, duration: 0.25, label: 'SI', emoji: '🎸' },
-      { freq: 659.25, duration: 0.4, label: 'MI+', emoji: '🎶' },
+      { freq: 329.63, duration: 0.25, label: 'MI', emoji: '🎵' },
+      { freq: 392.0, duration: 0.25, label: 'SOL', emoji: '🎵' },
+      { freq: 493.88, duration: 0.25, label: 'SI', emoji: '🎶' },
+      { freq: 659.25, duration: 0.4, label: 'MI+', emoji: '✨' },
     ],
     correct: { label: 'Chitarra', emoji: '🎸', sublabel: '6 corde armoniche', noteFreq: 659.25 },
     distractors: [
@@ -749,13 +749,13 @@ const MUSIC_RHYTHM_CATALOG: MusicRhythmEntry[] = [
 
 const TODDLER_MUSIC_RHYTHM: MusicRhythmEntry[] = [
   {
-    title: 'Suona il Tamburo: BUM BUM! 🥁',
-    prompt: 'Ascolta il suono forte "BUM BUM"! Tocca il TAMBURO! 🥁',
+    title: 'Suona il Tamburo: BUM BUM!',
+    prompt: 'Ascolta il suono forte "BUM BUM"! Tocca il TAMBURO! 🎼',
     speech: 'Ascolta bene: bum, bum, bum! Quale strumento fa questo bel suono ritmato? Tocca il tamburo!',
     rhythmNotes: [
-      { freq: 196.0, duration: 0.32, label: 'BUM', emoji: '🥁' },
-      { freq: 196.0, duration: 0.32, label: 'BUM', emoji: '🥁' },
-      { freq: 261.63, duration: 0.4, label: 'BUM!', emoji: '🥁' },
+      { freq: 196.0, duration: 0.32, label: 'BUM', emoji: '🎵' },
+      { freq: 196.0, duration: 0.32, label: 'BUM', emoji: '🎵' },
+      { freq: 261.63, duration: 0.4, label: 'BUM!', emoji: '🎶' },
     ],
     correct: { label: 'Tamburo', emoji: '🥁', sublabel: 'Fa BUM BUM!', noteFreq: 196.0 },
     distractors: [
@@ -765,12 +765,12 @@ const TODDLER_MUSIC_RHYTHM: MusicRhythmEntry[] = [
     explanation: 'Bravissima! Il tamburo fa BUM BUM quando teniamo il ritmo!',
   },
   {
-    title: 'Batti le Mani a Tempo! 👏',
-    prompt: 'Ascolta il ritmo allegro: CLAP, CLAP! Quali sono le MANI che battono? 👏',
+    title: 'Batti le Mani a Tempo!',
+    prompt: 'Ascolta il ritmo allegro: CLAP, CLAP! Quali sono le MANI che battono? 🎼',
     speech: 'Facciamo il ritmo insieme: clap, clap, clap! Tocca le mani che battono a tempo!',
     rhythmNotes: [
-      { freq: 523.25, duration: 0.25, label: 'CLAP', emoji: '👏' },
-      { freq: 659.25, duration: 0.25, label: 'CLAP', emoji: '👏' },
+      { freq: 523.25, duration: 0.25, label: 'CLAP', emoji: '🎵' },
+      { freq: 659.25, duration: 0.25, label: 'CLAP', emoji: '🎵' },
       { freq: 783.99, duration: 0.35, label: 'CLAP!', emoji: '✨' },
     ],
     correct: { label: 'Mani che Battono', emoji: '👏', sublabel: 'Fanno CLAP CLAP!', noteFreq: 659.25 },
@@ -781,12 +781,12 @@ const TODDLER_MUSIC_RHYTHM: MusicRhythmEntry[] = [
     explanation: 'Che ritmo allegro! Battere le mani a tempo è la prima musica del corpo!',
   },
   {
-    title: 'La Campanella Din Don! 🔔',
-    prompt: 'Ascolta il suono dolce "DIN DON"! Tocca la CAMPANELLA! 🔔',
+    title: 'La Campanella Din Don!',
+    prompt: 'Ascolta il suono dolce "DIN DON"! Tocca la CAMPANELLA! 🎼',
     speech: 'Senti che suono dolce e tintinnante: din, don, din, don! Tocca la campanella dorata!',
     rhythmNotes: [
-      { freq: 783.99, duration: 0.32, label: 'DIN', emoji: '🔔' },
-      { freq: 659.25, duration: 0.32, label: 'DON', emoji: '🔔' },
+      { freq: 783.99, duration: 0.32, label: 'DIN', emoji: '🎵' },
+      { freq: 659.25, duration: 0.32, label: 'DON', emoji: '🎶' },
       { freq: 783.99, duration: 0.38, label: 'DIN!', emoji: '✨' },
     ],
     correct: { label: 'Campanella', emoji: '🔔', sublabel: 'Fa DIN DON!', noteFreq: 783.99 },
@@ -797,13 +797,13 @@ const TODDLER_MUSIC_RHYTHM: MusicRhythmEntry[] = [
     explanation: 'Sì! La campanella suona DIN DON con una nota dolce e squillante!',
   },
   {
-    title: 'La Chitarra Musicale! 🎸',
-    prompt: 'Ascolta le corde che cantano: PLIN PLIN! Tocca la CHITARRA! 🎸',
+    title: 'La Chitarra Musicale!',
+    prompt: 'Ascolta le corde che cantano: PLIN PLIN! Tocca la CHITARRA! 🎼',
     speech: 'Ascolta queste corde allegre che suonano una melodia felice! Tocca la chitarra!',
     rhythmNotes: [
-      { freq: 329.63, duration: 0.28, label: 'PLIN', emoji: '🎸' },
-      { freq: 392.0, duration: 0.28, label: 'PLON', emoji: '🎸' },
-      { freq: 523.25, duration: 0.38, label: '🎶', emoji: '🎵' },
+      { freq: 329.63, duration: 0.28, label: 'PLIN', emoji: '🎵' },
+      { freq: 392.0, duration: 0.28, label: 'PLON', emoji: '🎶' },
+      { freq: 523.25, duration: 0.38, label: '🎶', emoji: '✨' },
     ],
     correct: { label: 'Chitarra', emoji: '🎸', sublabel: 'Suona con le corde!', noteFreq: 523.25 },
     distractors: [
@@ -1013,15 +1013,15 @@ const IQ_PSYCHOMETRIC_CATALOG: IQMatrixEntry[] = [
   },
   {
     iqParameterTag: 'Categorizzazione Semantica & Intruso (Gf · Gc)',
-    prompt: 'Trova l\'INTRUSO: Aereo ✈️, Elicottero 🚁, Mongolfiera 🎈 e Sottomarino 🚤. Chi NON vola nel cielo?',
-    speech: 'Aguzza l\'ingegno: Aereo, Elicottero, Mongolfiera e Barca. Quale di questi mezzi non vola nel cielo ma viaggia sull\'acqua?',
+    prompt: 'Trova l\'INTRUSO: Aereo ✈️, Elicottero 🚁, Mongolfiera 🎈 e Motoscafo 🚤. Chi NON vola nel cielo?',
+    speech: 'Aguzza l\'ingegno: Aereo, Elicottero, Mongolfiera e Motoscafo. Quale di questi mezzi non vola nel cielo ma viaggia sull\'acqua?',
     patternItems: ['✈️', '🚁', '🎈', '🚤'],
-    correct: { label: 'Motoscafo / Barca 🚤', emoji: '🚤', sublabel: 'Naviga sull\'acqua, non vola!' },
+    correct: { label: 'Motoscafo', emoji: '🚤', sublabel: 'Naviga sull\'acqua, non vola!' },
     distractors: [
-      { label: 'Aereo ✈️', emoji: '✈️', sublabel: 'Vola tra le nuvole' },
-      { label: 'Elicottero 🚁', emoji: '🚁', sublabel: 'Vola con l\'elica' },
+      { label: 'Aereo', emoji: '✈️', sublabel: 'Vola tra le nuvole' },
+      { label: 'Elicottero', emoji: '🚁', sublabel: 'Vola con l\'elica' },
     ],
-    explanation: 'Occhio d\'aquila! Aereo, elicottero e mongolfiera volano in cielo, mentre la barca naviga sull\'acqua!',
+    explanation: 'Occhio d\'aquila! Aereo, elicottero e mongolfiera volano in cielo, mentre il motoscafo naviga sull\'acqua!',
   },
   {
     iqParameterTag: 'Analogia Funzionale (Gf · Gc)',
@@ -1226,16 +1226,22 @@ function adaptGenderText(text: string, childProfile?: ChildProfile): string {
       .replace(/\bBravissimo\b/g, 'Bravissima')
       .replace(/\bbravissimo\b/g, 'bravissima')
       .replace(/\bvero campione\b/gi, 'vera campionessa')
+      .replace(/\bda campione\b/gi, 'da campionessa')
       .replace(/\bCampione\b/g, 'Campionessa')
       .replace(/\bcampione\b/g, 'campionessa')
       .replace(/\bpiccolo scienziato\b/gi, 'piccola scienziata')
+      .replace(/\bda scienziato\b/gi, 'da scienziata')
+      .replace(/\bScienziato perfetto\b/g, 'Scienziata perfetta')
       .replace(/\bvero botanico\b/gi, 'vera botanica')
       .replace(/\bvero musicista\b/gi, 'vera musicista')
       .replace(/\bvero matematico\b/gi, 'vera matematica')
+      .replace(/\bvero scrittore\b/gi, 'vera scrittrice')
+      .replace(/\bvero artista\b/gi, 'vera artista')
       .replace(/\bvero programmatore\b/gi, 'vera programmatrice')
       .replace(/\bvero storico\b/gi, 'vera storica')
       .replace(/\bvero custode\b/gi, 'vera custode')
       .replace(/\bda astronomo\b/gi, 'da astronoma')
+      .replace(/\bStraordinario!\s+Due/g, 'Straordinaria! Due')
       .replace(/\barrabb?iato\b/g, 'arrabbiata')
       .replace(/\bfrustrato\b/g, 'frustrata')
       .replace(/\bAttento\b/g, 'Attenta')
@@ -1246,16 +1252,22 @@ function adaptGenderText(text: string, childProfile?: ChildProfile): string {
       .replace(/\bBravissima\b/g, 'Bravissimo')
       .replace(/\bbravissima\b/g, 'bravissimo')
       .replace(/\bvera campionessa\b/gi, 'vero campione')
+      .replace(/\bda campionessa\b/gi, 'da campione')
       .replace(/\bCampionessa\b/g, 'Campione')
       .replace(/\bcampionessa\b/g, 'campione')
       .replace(/\bpiccola scienziata\b/gi, 'piccolo scienziato')
+      .replace(/\bda scienziata\b/gi, 'da scienziato')
+      .replace(/\bScienziata perfetta\b/g, 'Scienziato perfetto')
       .replace(/\bvera botanica\b/gi, 'vero botanico')
       .replace(/\bvera musicista\b/gi, 'vero musicista')
       .replace(/\bvera matematica\b/gi, 'vero matematico')
+      .replace(/\bvera scrittrice\b/gi, 'vero scrittore')
+      .replace(/\bvera artista\b/gi, 'vero artista')
       .replace(/\bvera programmatrice\b/gi, 'vero programmatore')
       .replace(/\bvera storica\b/gi, 'vero storico')
       .replace(/\bvera custode\b/gi, 'vero custode')
       .replace(/\bda astronoma\b/gi, 'da astronomo')
+      .replace(/\bStraordinaria\b/g, 'Straordinario')
       .replace(/\barrabbiata\b/g, 'arrabbiato')
       .replace(/\bfrustrata\b/g, 'frustrato')
       .replace(/\bAttenta\b/g, 'Attento')
@@ -1264,16 +1276,22 @@ function adaptGenderText(text: string, childProfile?: ChildProfile): string {
   return text
     .replace(/\bBravissim[ao]\b/g, 'Fantastico')
     .replace(/\bver[ao]\s+campion(?:essa|e)\b/gi, 'super stella')
+    .replace(/\bda\s+campion(?:essa|e)\b/gi, 'brillante')
     .replace(/\bCampion(?:essa|e)\b/g, 'Super')
     .replace(/\bcampion(?:essa|e)\b/g, 'super stella')
     .replace(/\bpiccol[ao]\s+scienziat[ao]\b/gi, 'giovane mente')
+    .replace(/\bda\s+scienziat[ao]\b/gi, 'scientifica')
+    .replace(/\bScienziat[ao]\s+perfett[ao]\b/g, 'Mente scientifica')
     .replace(/\bver[ao]\s+botanic[ao]\b/gi, 'amante della natura')
     .replace(/\bver[ao]\s+musicista\b/gi, 'grande talento musicale')
     .replace(/\bver[ao]\s+matematic[ao]\b/gi, 'mente matematica')
+    .replace(/\bver[ao]\s+scritt(?:ore|rice)\b/gi, 'grande penna')
+    .replace(/\bver[ao]\s+artista\b/gi, 'talento artistico')
     .replace(/\bver[ao]\s+programmat(?:ore|rice)\b/gi, 'mente digitale')
     .replace(/\bver[ao]\s+storic[ao]\b/gi, 'mente curiosa')
     .replace(/\bver[ao]\s+custode\b/gi, 'custode')
-    .replace(/\bda astronom[ao]\b/gi, 'di astronomia');
+    .replace(/\bda astronom[ao]\b/gi, 'di astronomia')
+    .replace(/\bStraordinaria\b/g, 'Straordinario');
 }
 
 function personalizeSpeechWithName(
@@ -1511,7 +1529,8 @@ function buildDistinctNumericValues(correct: number, deltas: number[], total = 3
 export function generateProceduralPuzzle(
   level: number,
   childProfile?: ChildProfile,
-  progress?: UserProgress
+  progress?: UserProgress,
+  preferredCategory?: GameCategory
 ): Puzzle {
   const guide = ANIMAL_GUIDES[(level * 5 + 1) % ANIMAL_GUIDES.length];
   const ageInfo = calculateChildAge(childProfile?.birthDate);
@@ -1599,7 +1618,20 @@ export function generateProceduralPuzzle(
 
   const bandPerms = stepPermutationsByBand[ageBand];
   const perm = bandPerms[Math.min(cycleIdx, bandPerms.length - 1)];
-  const step = perm[(rawStep - 1) % 9];
+  let step = perm[(rawStep - 1) % 9];
+
+  if (preferredCategory) {
+    const preferredStepMap: Record<GameCategory, number[]> = {
+      logic: [7, 1],
+      numbers: [2, 9, 8],
+      music: [3],
+      shapes: [4],
+      letters: [5],
+      english: [6],
+    };
+    const stepsForCat = preferredStepMap[preferredCategory];
+    step = stepsForCat[Math.abs(level - 1) % stepsForCat.length];
+  }
 
   const uniqueIdx = cycleIdx * 3 + Math.floor((rawStep - 1) / 3);
   const mathTheme = MATH_ITEM_CATALOG[(level * 3 + cycleIdx) % MATH_ITEM_CATALOG.length];
@@ -1634,13 +1666,15 @@ export function generateProceduralPuzzle(
       : baseBandIdx;
 
     // Prefer stretch modules above chronological age when unlocked by mastery
+    const categoryFilter = (m: (typeof ENRICHMENT_MODULES)[number]) =>
+      !preferredCategory || m.category === preferredCategory;
     const stretchModules = ENRICHMENT_MODULES.filter(
-      (m) => m.minBandIdx > baseBandIdx && m.minBandIdx <= maxUnlockedIdx
+      (m) => m.minBandIdx > baseBandIdx && m.minBandIdx <= maxUnlockedIdx && categoryFilter(m)
     );
     const eligibleModules =
       useMasteryEnrichment && stretchModules.length > 0
         ? stretchModules
-        : ENRICHMENT_MODULES.filter((m) => m.minBandIdx <= maxUnlockedIdx);
+        : ENRICHMENT_MODULES.filter((m) => m.minBandIdx <= maxUnlockedIdx && categoryFilter(m));
 
     if (eligibleModules.length > 0) {
       const mod = eligibleModules[(cycleIdx + level) % eligibleModules.length];
@@ -2027,7 +2061,7 @@ export function generateProceduralPuzzle(
         type: 'visual_addition',
         title: `Livello ${level}: Trova l'Incognita (${eq.eq}) 🧮`,
         prompt: `Risolvi l'equazione: quanto vale x in ${eq.eq}?`,
-        speechText: `Sfida di algebra, ${childName}: se ${eq.speechEq}, quanto vale la incognita x?`,
+        speechText: `Sfida di algebra, ${childName}: se ${eq.speechEq}, quanto vale l'incognita x?`,
         animalGuide: guide,
         iqParameterTag: 'Risoluzione Equazioni & Logica Algebrica (Gf · Gwm)',
         chcPrimary: 'Gf',
@@ -2167,7 +2201,7 @@ export function generateProceduralPuzzle(
         subjectLabel: 'Prime Tabelline',
         type: 'visual_addition',
         title: `Livello ${level}: Prime Tabelline (${a} × ${b}) ✖️`,
-        prompt: `Quante volte fa ${a} × ${b} = ?`,
+        prompt: `Quanto fa ${a} × ${b} = ?`,
         speechText: `Sfida delle prime tabelline, ${childName}: quanto fa ${a} per ${b}?`,
         animalGuide: guide,
         iqParameterTag: 'Moltiplicazione Introduttiva (Gf · Gwm)',
@@ -3185,7 +3219,8 @@ export function generateProceduralPuzzle(
     });
   }
 
-  const usePattern = ageBand === 'preschool_4_5' && (cycleIdx + rawStep) % 3 === 0;
+  const usePattern =
+    !preferredCategory && ageBand === 'preschool_4_5' && (cycleIdx + rawStep) % 3 === 0;
   if (usePattern) {
     const patItem = PATTERN_SEQUENCES_5YO[(cycleIdx + rawStep) % PATTERN_SEQUENCES_5YO.length];
     const options: PuzzleOption[] = deterministicShuffle(

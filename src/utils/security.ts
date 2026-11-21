@@ -301,6 +301,25 @@ export function sanitizeAndValidateProgress(raw: unknown): UserProgress | null {
       typeof parsed.parentPinHint === 'string'
         ? sanitizeSafeText(parsed.parentPinHint).slice(0, 48)
         : undefined,
+    unlockedStickerIds: Array.isArray(parsed.unlockedStickerIds)
+      ? Array.from(
+          new Set(
+            parsed.unlockedStickerIds
+              .filter((id): id is string => typeof id === 'string')
+              .map((id) => sanitizeSafeText(id).slice(0, 40))
+              .filter(Boolean)
+          )
+        ).slice(0, 40)
+      : [],
+    dailyMissionDate:
+      typeof parsed.dailyMissionDate === 'string'
+        ? sanitizeSafeText(parsed.dailyMissionDate).slice(0, 16)
+        : today,
+    dailyMissionCount: Math.round(clampSafeNumber(parsed.dailyMissionCount, 0, 200, 0)),
+    dailyChestClaimedDate:
+      typeof parsed.dailyChestClaimedDate === 'string'
+        ? sanitizeSafeText(parsed.dailyChestClaimedDate).slice(0, 16)
+        : undefined,
   };
 }
 

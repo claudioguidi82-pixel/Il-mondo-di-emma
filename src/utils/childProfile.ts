@@ -382,7 +382,8 @@ export function computeAdaptiveMasteryProfile(progress?: UserProgress): Adaptive
     (progress?.levelHistory || []).length
   );
 
-  // Measure real performance from recent history (up to last 20 exercises) or aggregate category stats
+  // Measure real performance from recent history (up to last 20 exercises) using
+  // difficulty + mild recency weighting (aligned with the CHC cognitive engine)
   const history = progress?.levelHistory || [];
   const recent = history.slice(-20);
 
@@ -390,10 +391,36 @@ export function computeAdaptiveMasteryProfile(progress?: UserProgress): Adaptive
   let autonomyPercent = 0;
 
   if (recent.length > 0) {
-    const firstTryCount = recent.filter((h) => h.firstTry).length;
-    const noHintCount = recent.filter((h) => (h.hintsUsed || 0) === 0).length;
-    accuracyPercent = Math.round((firstTryCount / recent.length) * 100);
-    autonomyPercent = Math.round((noHintCount / recent.length) * 100);
+    let wTotal = 0;
+    let wCorrect = 0;
+    let wAutonomy = 0;
+    const n = recent.length;
+
+    recent.forEach((h, idx) => {
+      const diffWeight = h.weight ?? (1 + Math.min(4, Math.floor((Math.max(1, h.level || 1) - 1) / 10)) * 0.25);
+      const recency = Math.pow(0.95, n - 1 - idx);
+      const effW = diffWeight * recency;
+      const hints = h.hintsUsed || 0;
+      const attempts = Math.max(1, h.attempts || 1);
+      const isAutoCorrect = Boolean(h.firstTry) && hints === 0 && attempts === 1;
+
+      wTotal += effW;
+      if (isAutoCorrect) wCorrect += effW;
+      const aScore =
+        attempts === 1 && hints === 0
+          ? 1
+          : attempts === 1 && hints > 0
+          ? 0.72
+          : attempts === 2
+          ? 0.45
+          : 0.2;
+      wAutonomy += effW * aScore;
+    });
+
+    // Mild Empirical Bayes smoothing on very small samples (< 5 items)
+    const priorW = n < 5 ? 0.8 : 0;
+    accuracyPercent = Math.round(((wCorrect + priorW * 0.6) / (wTotal + priorW)) * 100);
+    autonomyPercent = Math.round(((wAutonomy + priorW * 0.65) / (wTotal + priorW)) * 100);
   } else if (progress?.categoryStats) {
     const cats = Object.values(progress.categoryStats).filter(Boolean);
     const total = cats.reduce((acc, c) => acc + (c?.total || 0), 0);
