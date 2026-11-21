@@ -21,7 +21,7 @@ import {
 } from '../utils/infiniteLevels';
 import { soundManager } from '../utils/audio';
 import { confetti } from '../utils/confetti';
-import { getDisplayChildName, getGenderedWord } from '../utils/childProfile';
+import { calculateChildAge, getDisplayChildName, getGenderedWord } from '../utils/childProfile';
 
 interface PlayArenaProps {
   progress: UserProgress;
@@ -165,8 +165,9 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
   const childProfile = progress.childProfile;
   const childName = getDisplayChildName(childProfile);
   const childGender = childProfile?.gender || 'n';
+  const ageInfo = calculateChildAge(childProfile?.birthDate);
   const [puzzle, setPuzzle] = useState<Puzzle>(() =>
-    generateProceduralPuzzle(currentLevel, childProfile)
+    generateProceduralPuzzle(currentLevel, childProfile, progress)
   );
   const [wrongOptionIds, setWrongOptionIds] = useState<string[]>([]);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
@@ -178,7 +179,11 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
   const [musicOn, setMusicOn] = useState<boolean>(soundManager.musicEnabled);
   const [activeZooAnimal, setActiveZooAnimal] = useState<ZooTalkingAnimal | null>(null);
   const [zooPhraseIndex, setZooPhraseIndex] = useState<Record<string, number>>({});
-  const [isZooExpanded, setIsZooExpanded] = useState<boolean>(true);
+  const [isZooExpanded, setIsZooExpanded] = useState<boolean>(() => ageInfo.years <= 7);
+
+  useEffect(() => {
+    setIsZooExpanded(ageInfo.years <= 7);
+  }, [ageInfo.years]);
 
   const countFinishTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const zooSpeechTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -223,7 +228,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
     levelStartMsRef.current = Date.now();
     solveElapsedMsRef.current = 4800;
 
-    const nextPuzzle = generateProceduralPuzzle(currentLevel, childProfile);
+    const nextPuzzle = generateProceduralPuzzle(currentLevel, childProfile, progress);
     setPuzzle(nextPuzzle);
     setWrongOptionIds([]);
     setSelectedOptionId(null);
@@ -477,17 +482,22 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
           <span className="font-fun font-bold text-xs sm:text-sm whitespace-nowrap">Home</span>
         </button>
 
-        {/* Center Modern Category & Level Status Pill */}
+        {/* Center Modern Category & Level Status */}
         <div
           className={`bg-gradient-to-r ${theme.badgeGradient} px-3.5 sm:px-5 py-1.5 rounded-2xl border shadow-md flex items-center gap-2 min-w-0`}
         >
           <span className="text-base sm:text-xl shrink-0">{theme.emoji}</span>
           <div className="text-left min-w-0 leading-tight">
-            <p className="text-[10px] sm:text-[11px] font-semibold text-white/90 truncate">
-              {theme.title}
+            <p className="text-[10px] sm:text-[11px] font-semibold text-white/95 truncate">
+              {puzzle.subjectLabel || theme.title}
             </p>
             <p className="font-fun font-extrabold text-xs sm:text-sm text-white whitespace-nowrap tabular-nums">
               Livello {currentLevel} <span className="opacity-60">·</span> ⭐ {progress.stars}
+              {puzzle.isMasteryUnlocked && (
+                <span className="ml-1.5 text-amber-200 font-bold text-[10px] sm:text-[11px]">
+                  · ★ Merito
+                </span>
+              )}
             </p>
           </div>
         </div>
@@ -556,7 +566,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
       {/* ===================================================================== */}
       {/* MAIN GAMEPLAY STAGE (MOBILE, TABLET & PC — PORTRAIT & LANDSCAPE)      */}
       {/* ===================================================================== */}
-      <main className="app-shell-container relative z-10 flex-1 flex flex-col justify-start sm:justify-center px-2.5 sm:px-5 lg:px-8 py-1.5 sm:py-2.5 w-full min-h-0 gap-2.5 sm:gap-3.5 overflow-y-auto">
+      <main className="arena-main-scroll app-shell-container relative z-10 flex-1 flex flex-col justify-start sm:justify-center px-2.5 sm:px-5 lg:px-8 py-1.5 sm:py-2.5 w-full min-h-0 gap-2.5 sm:gap-3.5 overflow-y-auto">
         {/* =================================================================== */}
         {/* ZOO PARLANTE INTERACTIVE BENTO SECTION (LEONE, GIRAFFA, ELEFANTE)   */}
         {/* =================================================================== */}
@@ -632,12 +642,19 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                   <span className="font-fun font-bold text-slate-900 mr-1.5">
                     {activeZooAnimal.emoji} {activeZooAnimal.name} ({activeZooAnimal.soundLabel}):
                   </span>
-                  {
-                    activeZooAnimal.phrases[
-                      Math.max(0, (zooPhraseIndex[activeZooAnimal.id] ?? 1) - 1) %
-                        activeZooAnimal.phrases.length
-                    ]
-                  }
+                  {activeZooAnimal.phrases[
+                    Math.max(0, (zooPhraseIndex[activeZooAnimal.id] ?? 1) - 1) %
+                      activeZooAnimal.phrases.length
+                  ]
+                    .replace(/\{NAME\}/g, childName)
+                    .replace(
+                      /\{CHAMPION\}/g,
+                      getGenderedWord(childGender, 'campionessa', 'campione', 'campione')
+                    )
+                    .replace(
+                      /\{FRIEND\}/g,
+                      getGenderedWord(childGender, 'amica mia', 'amico mio', 'amico speciale')
+                    )}
                 </p>
                 <button
                   type="button"
@@ -663,6 +680,21 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                 <span className="text-base sm:text-lg">{puzzle.animalGuide.emoji}</span>
                 <span>{puzzle.animalGuide.name}</span>
               </span>
+
+              {puzzle.difficultyLabel && (
+                <>
+                  <span className="text-slate-300" aria-hidden="true">·</span>
+                  <span
+                    className={
+                      puzzle.isMasteryUnlocked
+                        ? 'text-amber-700 font-bold'
+                        : 'text-emerald-700 font-semibold'
+                    }
+                  >
+                    {puzzle.isMasteryUnlocked ? `★ ${puzzle.difficultyLabel}` : puzzle.difficultyLabel}
+                  </span>
+                </>
+              )}
 
               {puzzle.iqParameterTag && (
                 <>
@@ -698,7 +730,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                         key={idx}
                         type="button"
                         onClick={() => handleTapCountObject(idx)}
-                        className={`relative w-18 h-18 sm:w-22 sm:h-22 lg:w-24 lg:h-24 rounded-full flex items-center justify-center cursor-pointer transition-all ${
+                        className={`count-sphere-responsive relative w-18 h-18 sm:w-22 sm:h-22 lg:w-24 lg:h-24 rounded-full flex items-center justify-center cursor-pointer transition-all ${
                           isTapped
                             ? 'sphere-3d-counted scale-105'
                             : 'sphere-3d-counter animate-float-3d hover:scale-105'
@@ -905,7 +937,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                     disabled={isSolved || isWrong}
                     className={`toy-card-3d relative rounded-3xl px-3 sm:px-4 py-3 sm:py-4 flex flex-col items-center justify-center gap-2 transition-all overflow-hidden cursor-pointer ${candyClass} ${
                       isLastOfThree
-                        ? 'col-span-2 sm:col-span-1 w-[58%] sm:w-full mx-auto'
+                        ? 'option-last-of-three col-span-2 sm:col-span-1 w-[58%] sm:w-full mx-auto'
                         : 'w-full'
                     } ${
                       isWrong

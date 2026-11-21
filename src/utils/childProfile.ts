@@ -1,4 +1,13 @@
-import { AgeBandId, ChildGender, ChildProfile } from '../types/game';
+import { AgeBandId, ChildGender, ChildProfile, UserProgress } from '../types/game';
+
+export const AGE_BAND_ORDER: AgeBandId[] = [
+  'toddler_2_3',
+  'preschool_4_5',
+  'early_primary_6_7',
+  'upper_primary_8_9',
+  'preteen_10_12',
+  'teen_13_14',
+];
 
 export const DEFAULT_BIRTH_DATE = '2021-01-01';
 
@@ -10,6 +19,89 @@ export const DEFAULT_CHILD_PROFILE: ChildProfile = {
   customBackgroundUrl: undefined,
   isConfigured: false,
 };
+
+export interface AgeRoadmapStage {
+  band: AgeBandId;
+  ageRangeLabel: string;
+  schoolLabel: string;
+  newlyAddedSubjects: string[];
+  coreFocus: string;
+}
+
+export const AGE_CURRICULUM_ROADMAP: AgeRoadmapStage[] = [
+  {
+    band: 'toddler_2_3',
+    ageRangeLabel: '2–3 Anni',
+    schoolLabel: 'Nido & Prima Infanzia',
+    newlyAddedSubjects: [
+      'Animali & Natura',
+      'Artistica: Colori Primari & Forme',
+      'Primi Numeri (1–5)',
+      'Musica & Senso del Ritmo Base',
+    ],
+    coreFocus: 'Esplorazione sensoriale, ritmi battuti, colori primari e prime associazioni logiche.',
+  },
+  {
+    band: 'preschool_4_5',
+    ageRangeLabel: '4–5 Anni',
+    schoolLabel: 'Scuola dell’Infanzia',
+    newlyAddedSubjects: [
+      'Fonetica, Sillabe & Rime',
+      'Logica & Sequenze Visive',
+      'Artistica: Mescolanza Colori',
+      'Inglese Prescolare',
+    ],
+    coreFocus: 'Addizioni/sottrazioni visive fino a 10, strumenti musicali, rime e prime parole inglesi.',
+  },
+  {
+    band: 'early_primary_6_7',
+    ageRangeLabel: '6–7 Anni',
+    schoolLabel: '1ª–2ª Scuola Primaria',
+    newlyAddedSubjects: [
+      'Calcolo Mentale (fino a 30)',
+      'Ortografia & Contrari',
+      'Artistica: Colori Caldi/Freddi & Simmetria',
+      'Scala Musicale & Ritmo',
+    ],
+    coreFocus: 'Ragionamento deduttivo, poligoni 2D/3D, prime tabelline, armonia cromatica e inglese A1.',
+  },
+  {
+    band: 'upper_primary_8_9',
+    ageRangeLabel: '8–9 Anni',
+    schoolLabel: '3ª–4ª Scuola Primaria',
+    newlyAddedSubjects: [
+      'Tabelline, Divisioni & Frazioni',
+      'Scienze & Geografia',
+      'Grammatica & Sinonimi',
+      'Artistica: Complementari, Luce & Pittori',
+    ],
+    coreFocus: 'Perimetri e angoli, orchestra e durata delle note, geografia, scienze naturali e inglese A1+.',
+  },
+  {
+    band: 'preteen_10_12',
+    ageRangeLabel: '10–12 Anni',
+    schoolLabel: '5ª Primaria & 1ª–2ª Media',
+    newlyAddedSubjects: [
+      'Pre-Algebra, Potenze & Percentuali',
+      'Storia, Civica, Fisica & Astronomia',
+      'Logica, Coding & Probabilità',
+      'Artistica: Prospettiva & Rinascimento · Musica Classica · Inglese A2',
+    ],
+    coreFocus: 'Equazioni intuitive, aree e Pitagora, analisi logica, compositori e pensiero critico/computazionale.',
+  },
+  {
+    band: 'teen_13_14',
+    ageRangeLabel: '13–14 Anni',
+    schoolLabel: '3ª Media & Inizio Superiori',
+    newlyAddedSubjects: [
+      'Algebra, Equazioni, Radici & Teorema di Pitagora',
+      'Chimica, Biologia Cellulare & Leggi della Fisica',
+      'Letteratura Italiana & Analisi del Periodo',
+      'Arte Moderna, Teoria Musicale Avanzata, Algoritmi & Inglese B1',
+    ],
+    coreFocus: 'Ragionamento astratto e scientifico, algebra e proporzioni, logica booleana, filosofia critica e inglese B1.',
+  },
+];
 
 export interface ChildAgeInfo {
   years: number;
@@ -27,6 +119,8 @@ export interface ChildAgeInfo {
   developmentalStage: string;
   curriculumSummary: string;
   subjectsHighlight: string[];
+  newlyAddedSubjects: string[];
+  unlockedSubjectsCount: number;
   difficultyBadge: string;
 }
 
@@ -37,7 +131,8 @@ export function isValidIsoDate(dateStr?: string): boolean {
   const y = Number(match[1]);
   const m = Number(match[2]);
   const d = Number(match[3]);
-  if (y < 2005 || y > new Date().getFullYear() + 1) return false;
+  const currentYear = new Date().getFullYear();
+  if (y < currentYear - 16 || y > currentYear) return false;
   if (m < 1 || m > 12 || d < 1 || d > 31) return false;
   const check = new Date(y, m - 1, d);
   return check.getFullYear() === y && check.getMonth() === m - 1 && check.getDate() === d;
@@ -71,7 +166,7 @@ export function calculateChildAge(
     months += 12;
   }
 
-  // Keep age in a sensible educational range (2..14)
+  // Keep age within the supported educational developmental range (2..14 anni)
   if (years < 2) {
     years = 2;
     months = Math.max(0, months);
@@ -94,67 +189,139 @@ export function calculateChildAge(
   let ageBand: AgeBandId = 'preschool_4_5';
   let ageBandTitle = '4–5 Anni · Scuola dell’Infanzia';
   let developmentalStage =
-    'Percorso 4–5 Anni Pre-Primaria (Logica CHC, Sillabe & Rime, Calcolo fino a 10, Scienze, Musica & Inglese)';
+    'Percorso 4–5 Anni (Logica & Sequenze, Artistica & Colori, Musica & Ritmo, Sillabe, Calcolo fino a 10 & Inglese Base)';
   let curriculumSummary =
-    'Conteggio 4–9, addizioni e sottrazioni visive fino a 10, rime e sillabe, forme 2D/3D, natura, ritmo musicale e inglese base.';
+    'Conteggio 4–9, somme/sottrazioni visive fino a 10, rime e sillabe, mescolanza colori e forme, senso del ritmo e strumenti musicali, natura e inglese base.';
   let subjectsHighlight = [
     'Logica & Sequenze',
-    'Sillabe, Rime & Iniziali',
+    'Fonetica, Sillabe & Rime',
     'Numeri & Calcolo (fino a 10)',
-    'Geometria & Colori',
-    'Musica & Strumenti',
+    'Artistica, Colori & Forme',
+    'Musica, Ritmo & Strumenti',
     'Inglese Prescolare',
   ];
-  let difficultyBadge = 'Livello Infanzia (4–5 anni)';
+  let newlyAddedSubjects = [
+    'Fonetica & Sillabe',
+    'Logica & Sequenze',
+    'Mescolanza Colori',
+    'Inglese Prescolare',
+  ];
+  let unlockedSubjectsCount = 6;
+  let difficultyBadge = 'Fascia 2/6 · Infanzia (4–5 anni)';
 
   if (years <= 3) {
     ageBand = 'toddler_2_3';
     ageBandTitle = '2–3 Anni · Prima Infanzia';
     developmentalStage =
-      'Percorso 2–3 Anni Prima Infanzia (Colori, Versi degli Animali, Conteggio 1–4, Forme Base & Ritmi Dolci)';
+      'Percorso 2–3 Anni (Animali & Versi, Artistica Colori Primari, Primi Numeri 1–5 & Senso del Ritmo)';
     curriculumSummary =
-      'Riconoscimento colori primari, versi e curiosità degli animali, conteggio guidato 1–4, grande/piccolo, forme base e prime paroline in inglese.';
+      'Colori primari e forme semplici, versi degli animali, conteggio guidato 1–5, grande/piccolo e giochi sonori sul senso del ritmo (con prime vocali ai livelli avanzati).';
     subjectsHighlight = [
-      'Versi & Animali Amici',
-      'Prime Letterine & Suoni',
-      'Conteggio Guidato (1–4)',
-      'Colori & Forme Semplici',
-      'Ritmi Dolci & Suoni',
-      'Prime Parole Inglesi',
+      'Animali, Versi & Associazioni',
+      'Artistica: Colori Primari & Forme',
+      'Primi Numeri (1–5)',
+      'Musica & Senso del Ritmo Base',
     ];
-    difficultyBadge = 'Livello Primi Passi (2–3 anni)';
+    newlyAddedSubjects = [
+      'Versi & Associazioni',
+      'Colori Primari',
+      'Conteggio 1–5',
+      'Senso del Ritmo',
+    ];
+    unlockedSubjectsCount = 4;
+    difficultyBadge = 'Fascia 1/6 · Primi Passi (2–3 anni)';
   } else if (years >= 6 && years <= 7) {
     ageBand = 'early_primary_6_7';
     ageBandTitle = '6–7 Anni · 1ª–2ª Primaria';
     developmentalStage =
-      'Percorso 6–7 Anni Scuola Primaria (Calcolo fino a 20, Sillabe & Ortografia, Analogie Logiche, Geometria & Inglese)';
+      'Percorso 6–7 Anni (Calcolo Mentale fino a 30, Ortografia, Deduzione, Artistica & Simmetria, Scala Musicale & Inglese A1)';
     curriculumSummary =
-      'Addizioni e sottrazioni fino a 20, numeri mancanti, divisione in sillabe e ortografia, analogie logiche, poligoni, teoria musicale e inglese primaria.';
+      'Calcolo mentale e prime tabelline (×2, ×5), ortografia e contrari, logica deduttiva, artistica (colori caldi/freddi e simmetria), poligoni, scala musicale e inglese primaria.';
     subjectsHighlight = [
-      'Analogie & Matrici Logiche',
-      'Lettura, Sillabe & Ortografia',
-      'Calcolo Mentale (fino a 20)',
-      'Poligoni & Geometria 3D',
-      'Scala Musicale & Ritmo',
-      'Inglese Primaria',
+      'Logica Deduttiva & Matrici',
+      'Ortografia, Sillabe & Contrari',
+      'Calcolo Mentale (fino a 30)',
+      'Artistica, Simmetria & Poligoni',
+      'Musica, Ritmo & Scala Do-Si',
+      'Inglese Primaria (A1)',
     ];
-    difficultyBadge = 'Livello Primaria Base (6–7 anni)';
-  } else if (years >= 8) {
-    ageBand = 'primary_8_plus';
-    ageBandTitle = '8+ Anni · Primaria Avanzata';
+    newlyAddedSubjects = [
+      'Calcolo Mentale & Prime Tabelline',
+      'Ortografia & Contrari',
+      'Colori Caldi/Freddi & Simmetria',
+      'Scienze Naturali',
+    ];
+    unlockedSubjectsCount = 7;
+    difficultyBadge = 'Fascia 3/6 · Primaria Base (6–7 anni)';
+  } else if (years >= 8 && years <= 9) {
+    ageBand = 'upper_primary_8_9';
+    ageBandTitle = '8–9 Anni · 3ª–4ª Primaria';
     developmentalStage =
-      'Percorso 8+ Anni Primaria Avanzata (Calcolo & Moltiplicazioni fino a 50, Deduzione Logica, Geometria, Scienze & Inglese)';
+      'Percorso 8–9 Anni (Tabelline, Divisioni & Frazioni, Scienze & Geografia, Grammatica, Artistica & Pittori, Orchestra & Inglese A1+)';
     curriculumSummary =
-      'Calcolo rapido e tabelline/doppi fino a 50, serie numeriche avanzate, deduzione e scienze, geometria e angoli, lessico italiano e inglese avanzato.';
+      'Tabelline, divisioni esatte e prime frazioni, analisi grammaticale e sinonimi, scienze e geografia, perimetri e angoli, artistica (colori complementari, chiaroscuro e grandi pittori), musica/orchestra e inglese A1+.';
     subjectsHighlight = [
-      'Deduzione & Serie Logiche',
-      'Lessico, Grammatica & Enigmi',
-      'Aritmetica & Tabelline (fino a 50)',
-      'Geometria, Angoli & Spazio',
-      'Teoria Musicale & Orchestra',
-      'Inglese Avanzato',
+      'Logica, Scienze & Geografia',
+      'Grammatica, Sinonimi & Lessico',
+      'Tabelline, Divisioni & Frazioni',
+      'Artistica, Pittori & Geometria',
+      'Musica, Durata Note & Orchestra',
+      'Inglese Primaria Avanzato (A1+)',
     ];
-    difficultyBadge = 'Livello Esploratore Avanzato (8+ anni)';
+    newlyAddedSubjects = [
+      'Tabelline, Divisioni & Frazioni',
+      'Geografia & Scienze',
+      'Grammatica & Sinonimi',
+      'Artistica: Complementari & Pittori',
+    ];
+    unlockedSubjectsCount = 8;
+    difficultyBadge = 'Fascia 4/6 · Primaria Avanzata (8–9 anni)';
+  } else if (years >= 10 && years <= 12) {
+    ageBand = 'preteen_10_12';
+    ageBandTitle = '10–12 Anni · 5ª Primaria & Medie';
+    developmentalStage =
+      'Percorso 10–12 Anni (Pre-Algebra, Potenze & Percentuali, Storia & Fisica, Analisi Logica, Arte Rinascimentale, Coding, Musica Classica & Inglese A2)';
+    curriculumSummary =
+      'Espressioni, potenze, percentuali ed equazioni intuitive, fisica e astronomia, storia e civica, analisi logica e figure retoriche, arte e prospettiva rinascimentale, logica/coding, grandi compositori e inglese A2.';
+    subjectsHighlight = [
+      'Logica, Coding & Probabilità',
+      'Storia, Civica, Fisica & Astronomia',
+      'Pre-Algebra, Potenze & Percentuali',
+      'Analisi Logica & Figure Retoriche',
+      'Arte, Prospettiva & Geometria',
+      'Musica Classica, Tempi & Inglese A2',
+    ];
+    newlyAddedSubjects = [
+      'Pre-Algebra, Potenze & %',
+      'Storia, Civica & Fisica',
+      'Coding & Pensiero Computazionale',
+      'Prospettiva, Rinascimento & Inglese A2',
+    ];
+    unlockedSubjectsCount = 10;
+    difficultyBadge = 'Fascia 5/6 · Medie (10–12 anni)';
+  } else if (years >= 13) {
+    ageBand = 'teen_13_14';
+    ageBandTitle = '13–14 Anni · 3ª Media & Superiori';
+    developmentalStage =
+      'Percorso 13–14 Anni (Algebra & Radici, Chimica & Fisica, Letteratura & Analisi del Periodo, Arte Moderna & Volumi, Teoria Musicale, Algoritmi & Inglese B1)';
+    curriculumSummary =
+      'Equazioni algebriche, radici quadrate, proporzioni e Teorema di Pitagora, chimica/biologia cellulare e leggi di Newton, letteratura italiana e analisi del periodo, arte moderna e architettura, teoria musicale e acustica, logica booleana/algoritmi e inglese B1.';
+    subjectsHighlight = [
+      'Algebra, Equazioni, Radici & Pitagora',
+      'Chimica, Biologia & Leggi della Fisica',
+      'Letteratura & Analisi del Periodo',
+      'Arte Moderna, Sezione Aurea & Solidi',
+      'Teoria Musicale, Accordi & Acustica',
+      'Algoritmi, Logica Booleana & Inglese B1',
+    ];
+    newlyAddedSubjects = [
+      'Algebra, Radici & Proporzioni',
+      'Chimica, DNA & Leggi di Newton',
+      'Letteratura & Analisi del Periodo',
+      'Algoritmi, Arte Moderna & Inglese B1',
+    ];
+    unlockedSubjectsCount = 12;
+    difficultyBadge = 'Fascia 6/6 · Avanzato (13–14 anni)';
   }
 
   return {
@@ -173,7 +340,138 @@ export function calculateChildAge(
     developmentalStage,
     curriculumSummary,
     subjectsHighlight,
+    newlyAddedSubjects,
+    unlockedSubjectsCount,
     difficultyBadge,
+  };
+}
+
+export interface AdaptiveMasteryProfile {
+  chronologicalBand: AgeBandId;
+  effectiveBand: AgeBandId;
+  boostLevel: 0 | 1 | 2 | 3; // 0 = Età standard, 1 = Sblocco graduale +1, 2 = Avanzamento +1 completo, 3 = Eccellenza +2
+  boostLabel: string;
+  earlyUnlockRatio: number; // 0..0.65 proportion of puzzles drawn from advanced/enrichment subjects
+  unlockedBonusSubjects: string[];
+  nextThresholdHint: string;
+  progressPercentToNext: number;
+  solvedCount: number;
+  accuracyPercent: number;
+  autonomyPercent: number;
+}
+
+const BONUS_SUBJECTS_BY_STEP: Record<AgeBandId, string[]> = {
+  toddler_2_3: ['Educazione Emotiva & Empatia', 'Memoria Visiva', 'Artistica: Mescolanza Colori'],
+  preschool_4_5: ['Ecologia & Ambiente', 'Orologio & Tempo', 'Artistica: Colori Caldi/Freddi', 'Prime Tabelline'],
+  early_primary_6_7: ['Astronomia & Universo', 'Geografia del Mondo', 'Educazione Finanziaria', 'Tabelline & Divisioni'],
+  upper_primary_8_9: ['Invenzioni & Tecnologia', 'Pensiero Critico & Filosofia', 'Pre-Algebra & Potenze', 'Coding & Probabilità'],
+  preteen_10_12: ['Chimica & Leggi di Newton', 'Algebra & Radici Quadrate', 'Algoritmi & Logica Booleana', 'Inglese B1'],
+  teen_13_14: ['Pensiero Critico & Filosofia', 'Astronomia Avanzata', 'Invenzioni & Codice Binario', 'Educazione Finanziaria'],
+};
+
+/**
+ * Computes proportional early subject unlocking whenever the child's learning metrics
+ * (first-try accuracy, autonomy, and completed volume) are consistently high.
+ * Allows gradual opening of enrichment & next-age-band subjects even before reaching that age!
+ */
+export function computeAdaptiveMasteryProfile(progress?: UserProgress): AdaptiveMasteryProfile {
+  const ageInfo = calculateChildAge(progress?.childProfile?.birthDate);
+  const baseIdx = AGE_BAND_ORDER.indexOf(ageInfo.ageBand);
+  const solvedCount = Math.max(
+    progress?.totalPuzzlesSolved || 0,
+    (progress?.levelHistory || []).length
+  );
+
+  // Measure real performance from recent history (up to last 20 exercises) or aggregate category stats
+  const history = progress?.levelHistory || [];
+  const recent = history.slice(-20);
+
+  let accuracyPercent = 0;
+  let autonomyPercent = 0;
+
+  if (recent.length > 0) {
+    const firstTryCount = recent.filter((h) => h.firstTry).length;
+    const noHintCount = recent.filter((h) => (h.hintsUsed || 0) === 0).length;
+    accuracyPercent = Math.round((firstTryCount / recent.length) * 100);
+    autonomyPercent = Math.round((noHintCount / recent.length) * 100);
+  } else if (progress?.categoryStats) {
+    const cats = Object.values(progress.categoryStats).filter(Boolean);
+    const total = cats.reduce((acc, c) => acc + (c?.total || 0), 0);
+    const correct = cats.reduce((acc, c) => acc + (c?.correct || 0), 0);
+    if (total > 0) {
+      accuracyPercent = Math.round((correct / total) * 100);
+      autonomyPercent = accuracyPercent;
+    }
+  }
+
+  let boostLevel: 0 | 1 | 2 | 3 = 0;
+  let boostLabel = 'Calibrazione Standard per Età';
+  let earlyUnlockRatio = 0;
+  let nextThresholdHint =
+    'Completa almeno 6 sfide con accuratezza ≥ 78% per sbloccare in anticipo le prime materie avanzate!';
+  let progressPercentToNext = Math.min(
+    99,
+    Math.round(((Math.min(solvedCount, 6) / 6) * 0.55 + (Math.min(accuracyPercent, 78) / 78) * 0.45) * 100)
+  );
+
+  if (solvedCount >= 22 && accuracyPercent >= 90 && autonomyPercent >= 84) {
+    boostLevel = 3;
+    boostLabel = 'Eccellenza · Sblocco Avanzato (+2 Fasce)';
+    earlyUnlockRatio = 0.55;
+    nextThresholdHint =
+      'Massimo livello di sblocco attivo: tutte le materie avanzate e di ragionamento sono accessibili gradualmente!';
+    progressPercentToNext = 100;
+  } else if (solvedCount >= 12 && accuracyPercent >= 84 && autonomyPercent >= 78) {
+    boostLevel = 2;
+    boostLabel = 'Talento in Crescita · Materie +1 Fascia';
+    earlyUnlockRatio = 0.4;
+    nextThresholdHint =
+      'Raggiungi 22 prove con accuratezza ≥ 90% per aprire anche il livello Eccellenza (+2 fasce)!';
+    progressPercentToNext = Math.min(
+      99,
+      Math.round(((Math.min(solvedCount, 22) / 22) * 0.5 + (Math.min(accuracyPercent, 90) / 90) * 0.5) * 100)
+    );
+  } else if (solvedCount >= 6 && accuracyPercent >= 78) {
+    boostLevel = 1;
+    boostLabel = 'Esplorazione Anticipata (+1 Graduale)';
+    earlyUnlockRatio = 0.25;
+    nextThresholdHint =
+      'Raggiungi 12 prove con accuratezza ≥ 84% per aprire ancora più materie della fascia successiva!';
+    progressPercentToNext = Math.min(
+      99,
+      Math.round(((Math.min(solvedCount, 12) / 12) * 0.5 + (Math.min(accuracyPercent, 84) / 84) * 0.5) * 100)
+    );
+  }
+
+  const bandShift = boostLevel === 3 ? 2 : boostLevel >= 1 ? 1 : 0;
+  const effectiveIdx = Math.min(AGE_BAND_ORDER.length - 1, baseIdx + bandShift);
+  const effectiveBand = AGE_BAND_ORDER[effectiveIdx];
+
+  const baseBonus = BONUS_SUBJECTS_BY_STEP[ageInfo.ageBand] || [];
+  const nextBandBonus =
+    effectiveIdx > baseIdx ? BONUS_SUBJECTS_BY_STEP[effectiveBand] || [] : [];
+
+  const unlockedBonusSubjects =
+    boostLevel === 0
+      ? []
+      : boostLevel === 1
+      ? baseBonus.slice(0, 2)
+      : boostLevel === 2
+      ? [...baseBonus]
+      : Array.from(new Set([...baseBonus, ...nextBandBonus]));
+
+  return {
+    chronologicalBand: ageInfo.ageBand,
+    effectiveBand,
+    boostLevel,
+    boostLabel,
+    earlyUnlockRatio,
+    unlockedBonusSubjects,
+    nextThresholdHint,
+    progressPercentToNext,
+    solvedCount,
+    accuracyPercent,
+    autonomyPercent,
   };
 }
 

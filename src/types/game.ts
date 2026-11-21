@@ -96,6 +96,9 @@ export interface Puzzle {
   chcPrimary?: 'Gf' | 'Gwm' | 'Gc' | 'Gv' | 'Gs';
   chcSecondary?: 'Gf' | 'Gwm' | 'Gc' | 'Gv' | 'Gs';
   diagnosticTarget?: string;
+  subjectLabel?: string;
+  difficultyLabel?: string;
+  isMasteryUnlocked?: boolean;
   rewardStars: number;
   rewardGems: number;
   funExplanation: string;
@@ -274,7 +277,9 @@ export type AgeBandId =
   | 'toddler_2_3'
   | 'preschool_4_5'
   | 'early_primary_6_7'
-  | 'primary_8_plus';
+  | 'upper_primary_8_9'
+  | 'preteen_10_12'
+  | 'teen_13_14';
 
 export interface ChildProfile {
   name: string;
@@ -319,6 +324,8 @@ export interface UserProgress {
   sessionDates?: string[];
   annualProgressRows?: AnnualAgeProgressRow[];
   lastMonthlyUpdateKey?: string;
+  parentPinHash?: string;
+  parentPinHint?: string;
 }
 
 

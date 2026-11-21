@@ -150,9 +150,9 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
         id: idx,
         emoji: BUBBLE_EMOJIS[idx % BUBBLE_EMOJIS.length],
         color: BUBBLE_PALETTE[idx % BUBBLE_PALETTE.length],
-        size: idx % 2 === 0 ? 74 : 68,
-        left: 6 + (idx % 3) * 28 + ((idx * 5) % 7),
-        top: 6 + Math.floor(idx / 3) * 20 + ((idx * 3) % 5),
+        size: idx % 2 === 0 ? 68 : 62,
+        left: 18 + (idx % 3) * 30 + ((idx * 5) % 7) - 3,
+        top: 18 + Math.floor(idx / 3) * 21 + ((idx * 3) % 5) - 2,
         popped: false,
       })
     );
@@ -187,8 +187,8 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
       (_, idx) => ({
         id: idx,
         emoji: ['⭐', '🌟', '💖', '👑', '🦄', '🌈', '✨', '🎈'][idx % 8],
-        left: 6 + (idx % 4) * 21 + ((idx * 3) % 5),
-        top: 10 + Math.floor(idx / 4) * 40 + ((idx * 5) % 10),
+        left: 16 + (idx % 4) * 22 + ((idx * 3) % 5) - 2,
+        top: 26 + Math.floor(idx / 4) * 44 + ((idx * 5) % 8) - 4,
         caught: false,
       })
     );
@@ -615,12 +615,12 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
               <span className="font-kids font-extrabold text-xs sm:text-sm text-pink-600">
                 🫧 Scoppia tutte le Bolle 3D!
               </span>
-              <span className="px-3 py-0.5 rounded-full bg-gradient-to-r from-pink-500 to-amber-500 text-white font-kids font-extrabold text-xs shadow">
+              <span className="px-3 py-0.5 rounded-full bg-gradient-to-r from-pink-500 to-amber-500 text-white font-kids font-extrabold text-xs shadow tabular-nums">
                 {bubblesPopped} / {BUBBLE_TARGET}
               </span>
             </div>
 
-            <div className="relative flex-1 min-h-[260px] rounded-[32px] board-3d-tabletop overflow-hidden">
+            <div className="relative flex-1 min-h-[220px] sm:min-h-[260px] rounded-[28px] sm:rounded-[32px] board-3d-tabletop overflow-hidden">
               {bubbles.map((b) =>
                 b.popped ? null : (
                   <button
@@ -632,7 +632,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
                       left: `${b.left}%`,
                       top: `${b.top}%`,
                     }}
-                    className={`absolute rounded-full bg-gradient-to-br ${b.color} border-3 shadow-[0_10px_20px_rgba(0,0,0,0.2),inset_0_6px_12px_rgba(255,255,255,0.85)] flex items-center justify-center animate-float-3d active:scale-125 transition-transform cursor-pointer`}
+                    className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br ${b.color} border-3 shadow-[0_10px_20px_rgba(0,0,0,0.2),inset_0_6px_12px_rgba(255,255,255,0.85)] flex items-center justify-center animate-float-3d active:scale-125 transition-transform cursor-pointer`}
                   >
                     <div className="absolute top-2 left-3 w-4 h-2.5 rounded-full bg-white/90 -rotate-25" />
                     <span className="text-3xl drop-shadow-md select-none">
@@ -710,12 +710,12 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
               <span className="font-kids font-extrabold text-xs sm:text-sm text-amber-600">
                 🌟 Acchiappa i Tesori 3D!
               </span>
-              <span className="px-3 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-kids font-extrabold text-xs shadow">
+              <span className="px-3 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-kids font-extrabold text-xs shadow tabular-nums">
                 {starsCaught} / {STARS_TARGET}
               </span>
             </div>
 
-            <div className="relative flex-1 min-h-[260px] rounded-[32px] board-3d-tabletop overflow-hidden">
+            <div className="relative flex-1 min-h-[220px] sm:min-h-[260px] rounded-[28px] sm:rounded-[32px] board-3d-tabletop overflow-hidden">
               {starsList.map((st) =>
                 st.caught ? null : (
                   <button
@@ -725,7 +725,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
                       left: `${st.left}%`,
                       top: `${st.top}%`,
                     }}
-                    className="absolute w-16 h-16 rounded-full bg-gradient-to-b from-yellow-200 via-amber-300 to-orange-400 border-3 border-white shadow-lg flex items-center justify-center text-3xl animate-float-3d active:scale-125 transition-transform cursor-pointer"
+                    className="absolute -translate-x-1/2 -translate-y-1/2 w-15 h-15 sm:w-16 sm:h-16 rounded-full bg-gradient-to-b from-yellow-200 via-amber-300 to-orange-400 border-3 border-white shadow-lg flex items-center justify-center text-3xl animate-float-3d active:scale-125 transition-transform cursor-pointer"
                   >
                     {st.emoji}
                   </button>
@@ -772,9 +772,9 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
                 if (gameMode === 'memory') initMemoryGame();
                 if (gameMode === 'stars') initStarsGame();
               }}
-              className="toy-button-3d py-2.5 px-4 rounded-2xl bg-white hover:bg-sky-50 text-slate-900 font-kids font-extrabold text-xs sm:text-sm border-2 border-white shadow-lg flex items-center justify-center gap-1.5 cursor-pointer"
+              className="toy-button-3d min-h-[44px] py-2.5 px-4 rounded-2xl bg-white hover:bg-sky-50 text-slate-900 font-kids font-extrabold text-xs sm:text-sm border-2 border-white shadow-lg flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
             >
-              <RotateCcw className="w-4 h-4 text-pink-500" />
+              <RotateCcw className="w-4 h-4 text-pink-500 shrink-0" />
               <span>Gioca Ancora</span>
             </button>
 
@@ -783,9 +783,9 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
                 soundManager.playSuccess();
                 onComplete(gameMode, trisWinner === 'PLAYER');
               }}
-              className="toy-button-3d py-2.5 px-4 rounded-2xl bg-gradient-to-b from-emerald-400 via-green-500 to-teal-600 text-white font-kids font-extrabold text-xs sm:text-sm border-2 border-white shadow-lg flex items-center justify-center gap-1.5 cursor-pointer"
+              className="toy-button-3d min-h-[44px] py-2.5 px-4 rounded-2xl bg-gradient-to-b from-emerald-400 via-green-500 to-teal-600 text-white font-kids font-extrabold text-xs sm:text-sm border-2 border-white shadow-lg flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
             >
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="w-4 h-4 shrink-0" />
               <span>Vai al Livello {levelNumber + 1}</span>
             </button>
           </div>

@@ -71,7 +71,7 @@ export const EDUCATIONAL_PUZZLES: Puzzle[] = [
     type: 'pattern_sequence',
     title: 'Completa la Sequenza di Colori',
     prompt: 'Osserva il ritmo magico: Rosso, Giallo, Rosso, Giallo... Quale colore viene dopo?',
-    speechText: 'Emma, guarda la sequenza: Rosso, Giallo, Rosso, Giallo... Quale cerchio magico viene adesso?',
+    speechText: 'Guarda la sequenza: Rosso, Giallo, Rosso, Giallo... Quale cerchio magico viene adesso?',
     animalGuide: {
       name: 'Scoiattolo Leo',
       emoji: '🐿️',
@@ -86,7 +86,7 @@ export const EDUCATIONAL_PUZZLES: Puzzle[] = [
     ],
     rewardStars: 2,
     rewardGems: 3,
-    funExplanation: 'Bravissima! Come nel battito delle mani: Rosso, Giallo, Rosso, Giallo... tocca di nuovo al Rosso!'
+    funExplanation: 'Fantastico! Come nel battito delle mani: Rosso, Giallo, Rosso, Giallo... tocca di nuovo al Rosso!'
   },
   {
     id: 'log_odd_1',
@@ -94,7 +94,7 @@ export const EDUCATIONAL_PUZZLES: Puzzle[] = [
     type: 'odd_one_out',
     title: 'Trova l’Intruso tra gli Animali',
     prompt: 'Tre di queste figure sono dolci animali del bosco... ma una NON è un animale! Qual è l’intruso?',
-    speechText: 'Emma, aguzza la vista: c’è un intruso tra questi animaletti! Quale di queste figure non è un animale?',
+    speechText: 'Aguzza la vista: c’è un intruso tra questi animaletti! Quale di queste figure non è un animale?',
     animalGuide: {
       name: 'Volpina Fiamma',
       emoji: '🦊',
@@ -117,7 +117,7 @@ export const EDUCATIONAL_PUZZLES: Puzzle[] = [
     type: 'odd_one_out',
     title: 'Chi NON Vola nel Cielo?',
     prompt: 'Guarda bene chi viaggia nel cielo: quale di queste figure NON può volare?',
-    speechText: 'Emma, quale di queste figure non ha le ali per volare nel cielo azzurro?',
+    speechText: 'Quale di queste figure non ha le ali per volare nel cielo azzurro?',
     animalGuide: {
       name: 'Rondine Piuma',
       emoji: '🕊️',
@@ -140,7 +140,7 @@ export const EDUCATIONAL_PUZZLES: Puzzle[] = [
     type: 'pattern_sequence',
     title: 'La Sequenza della Notte Stellata',
     prompt: 'Stella, Luna, Stella, Luna... Cosa deve brillare adesso nel cielo?',
-    speechText: 'Emma, guarda il cielo notturno: Stella, Luna, Stella, Luna... Cosa viene dopo?',
+    speechText: 'Guarda il cielo notturno: Stella, Luna, Stella, Luna... Cosa viene dopo?',
     animalGuide: {
       name: 'Gufo Barnaba',
       emoji: '🦉',
@@ -163,7 +163,7 @@ export const EDUCATIONAL_PUZZLES: Puzzle[] = [
     type: 'size_sorting',
     title: 'Chi è il Più GRANDE di Tutti?',
     prompt: 'Guarda questi simpatici amici: tocca quello più GRANDE e maestoso!',
-    speechText: 'Emma, quale di questi amici è il più grande e gigante di tutti?',
+    speechText: 'Quale di questi amici è il più grande e gigante di tutti?',
     animalGuide: {
       name: 'Orsetto Miele',
       emoji: '🧸',
@@ -187,9 +187,9 @@ export const EDUCATIONAL_PUZZLES: Puzzle[] = [
     id: 'let_initial_e',
     category: 'letters',
     type: 'initial_letter',
-    title: 'La Lettera Speciale di Emma!',
-    prompt: 'Con quale bellissima lettera dell’alfabeto inizia il tuo nome: EMMA?',
-    speechText: 'Emma! Con che lettera comincia il tuo magnifico nome? E-M-M-A!',
+    title: 'La Lettera dell’Elefante!',
+    prompt: 'Con quale bellissima lettera dell’alfabeto inizia la parola ELEFANTE?',
+    speechText: 'Con quale lettera comincia la parola Elefante?',
     animalGuide: {
       name: 'Scoiattolo Leo',
       emoji: '🐿️',
@@ -197,13 +197,13 @@ export const EDUCATIONAL_PUZZLES: Puzzle[] = [
       voicePitch: 1.25
     },
     options: [
-      { id: 'let_e', label: 'E', sublabel: 'E come Emma ed Elefante!', emoji: '💖', color: '#ec4899', isCorrect: true },
+      { id: 'let_e', label: 'E', sublabel: 'E come Elefante!', emoji: '🐘', color: '#ec4899', isCorrect: true },
       { id: 'let_b', label: 'B', sublabel: 'B come Balena', emoji: '🐳', color: '#3b82f6', isCorrect: false },
       { id: 'let_m', label: 'M', sublabel: 'M come Mela', emoji: '🍎', color: '#10b981', isCorrect: false },
     ],
     rewardStars: 2,
     rewardGems: 3,
-    funExplanation: 'Evviva! La E è la tua lettera regina: E-M-M-A!'
+    funExplanation: 'Evviva! La E è la lettera di Elefante!'
   },
   {
     id: 'let_initial_cane',
@@ -211,7 +211,7 @@ export const EDUCATIONAL_PUZZLES: Puzzle[] = [
     type: 'initial_letter',
     title: 'Con che lettera inizia CANE?',
     prompt: 'Ascolta il suono: C-C-CANE! Quale lettera fa questo suono?',
-    speechText: 'Ascolta con attenzione, Emma: C-C-Cane! Con quale lettera inizia la parola Cane?',
+    speechText: 'Ascolta con attenzione: C-C-Cane! Con quale lettera inizia la parola Cane?',
     animalGuide: {
       name: 'Volpina Fiamma',
       emoji: '🦊',
@@ -233,7 +233,7 @@ export const EDUCATIONAL_PUZZLES: Puzzle[] = [
     type: 'spell_word',
     title: 'Componi la Parola: S - O - L - E',
     prompt: 'Metti insieme le letterine per formare la parola splendente: SOLE!',
-    speechText: 'Emma, componiamo insieme la parola del mattino: S - O - L - E... Sole!',
+    speechText: 'Componiamo insieme la parola del mattino: S - O - L - E... Sole!',
     animalGuide: {
       name: 'Rondine Piuma',
       emoji: '🕊️',
@@ -255,7 +255,7 @@ export const EDUCATIONAL_PUZZLES: Puzzle[] = [
     type: 'rhyme_guess',
     title: 'La Rima Divertente del Gatto',
     prompt: 'Quale parolina fa rima con GATTO? ... Un orsetto...',
-    speechText: 'Emma, divertiamoci con le rime: cosa fa rima con GATTO? Un cagnolino o un bimbo MATTO?',
+    speechText: 'Divertiamoci con le rime: cosa fa rima con GATTO? Un cagnolino o un bimbo MATTO?',
     animalGuide: {
       name: 'Gufo Barnaba',
       emoji: '🦉',
@@ -281,7 +281,7 @@ export const EDUCATIONAL_PUZZLES: Puzzle[] = [
     type: 'count_interactive',
     title: 'Conta le 5 Stelline Magiche',
     prompt: 'Tocca le stelline una alla volta per contarle tutte fino a 5!',
-    speechText: 'Emma, tocca le stelline dorate e conta con me da uno fino a cinque!',
+    speechText: 'Tocca le stelline dorate e conta con me da uno fino a cinque!',
     animalGuide: {
       name: 'Delfino Brio',
       emoji: '🐬',
@@ -293,12 +293,12 @@ export const EDUCATIONAL_PUZZLES: Puzzle[] = [
     itemName: 'Stelline',
     options: [
       { id: 'cnt_3', label: '3', sublabel: 'Tre', emoji: '✌️', color: '#3b82f6', isCorrect: false },
-      { id: 'cnt_5', label: '5', sublabel: 'Cinque come i tuoi anni!', emoji: '🖐️', color: '#ec4899', isCorrect: true },
+      { id: 'cnt_5', label: '5', sublabel: 'Cinque come le dita di una mano!', emoji: '🖐️', color: '#ec4899', isCorrect: true },
       { id: 'cnt_6', label: '6', sublabel: 'Sei', emoji: '🎁', color: '#10b981', isCorrect: false },
     ],
     rewardStars: 2,
     rewardGems: 4,
-    funExplanation: 'Bravissima! 5 dita su una manina, 5 stelline e 5 anni meravigliosi di Emma!'
+    funExplanation: 'Fantastico! 5 dita su una manina e 5 stelline dorate!'
   },
   {
     id: 'num_compare_quant',
@@ -306,7 +306,7 @@ export const EDUCATIONAL_PUZZLES: Puzzle[] = [
     type: 'compare_quantities',
     title: 'Quale Gruppo ha PIÙ Fragole?',
     prompt: 'Guarda i due piattini: tocca quello che ha PIÙ fragole golose!',
-    speechText: 'Emma, quale piattino ha più fragoline deliziose? Tocca il piattino più pieno!',
+    speechText: 'Quale piattino ha più fragoline deliziose? Tocca il piattino più pieno!',
     animalGuide: {
       name: 'Tartaruga Camilla',
       emoji: '🐢',
@@ -342,7 +342,7 @@ export const EDUCATIONAL_PUZZLES: Puzzle[] = [
     ],
     rewardStars: 2,
     rewardGems: 4,
-    funExplanation: 'Campionessa! 2 + 1 fa 3: hai fatto una vera addizione matematica!'
+    funExplanation: 'Super! 2 + 1 fa 3: hai fatto una vera addizione matematica!'
   },
 
   // ==========================================
@@ -354,7 +354,7 @@ export const EDUCATIONAL_PUZZLES: Puzzle[] = [
     type: 'match_shadow',
     title: 'Trova l’Ombra del Gattino',
     prompt: 'Guarda il gattino con la codina alzata: quale di queste ombre nere è la sua sagoma?',
-    speechText: 'Emma, guarda il micio con le orecchiette a punta: qual è la sua ombra nera?',
+    speechText: 'Guarda il micio con le orecchiette a punta: qual è la sua ombra nera?',
     animalGuide: {
       name: 'Volpina Fiamma',
       emoji: '🦊',
@@ -368,7 +368,7 @@ export const EDUCATIONAL_PUZZLES: Puzzle[] = [
     ],
     rewardStars: 2,
     rewardGems: 3,
-    funExplanation: 'Bravissima! L’ombra corrisponde perfettamente alle orecchiette e alla codina del gatto!'
+    funExplanation: 'Fantastico! L’ombra corrisponde perfettamente alle orecchiette e alla codina del gatto!'
   },
   {
     id: 'shp_mix_orange',
@@ -376,7 +376,7 @@ export const EDUCATIONAL_PUZZLES: Puzzle[] = [
     type: 'color_mix',
     title: 'Il Calderone dei Colori: Arancione!',
     prompt: 'Cosa succede se mescoliamo insieme il ROSSO fuoco e il GIALLO sole?',
-    speechText: 'Emma, versiamo nel calderone magico il Rosso e il Giallo... quale colore brillante otteniamo?',
+    speechText: 'Versiamo nel calderone magico il Rosso e il Giallo... quale colore brillante otteniamo?',
     animalGuide: {
       name: 'Orsetto Miele',
       emoji: '🧸',
@@ -398,7 +398,7 @@ export const EDUCATIONAL_PUZZLES: Puzzle[] = [
     type: 'match_shape',
     title: 'Trova il Triangolo con 3 Punte',
     prompt: 'Quale di queste forme ha esattamente 3 punte come una fetta di torta?',
-    speechText: 'Emma, cerca la forma con tre lati e tre punte: il Triangolo magico!',
+    speechText: 'Cerca la forma con tre lati e tre punte: il Triangolo magico!',
     animalGuide: {
       name: 'Scoiattolo Leo',
       emoji: '🐿️',
@@ -412,7 +412,7 @@ export const EDUCATIONAL_PUZZLES: Puzzle[] = [
     ],
     rewardStars: 2,
     rewardGems: 3,
-    funExplanation: 'Bravissima! Il triangolo ha 3 punte e 3 lati, proprio come il tetto di una casetta!'
+    funExplanation: 'Perfetto! Il triangolo ha 3 punte e 3 lati, proprio come il tetto di una casetta!'
   }
 ];
 

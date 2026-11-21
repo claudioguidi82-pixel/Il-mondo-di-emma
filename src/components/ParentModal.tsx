@@ -23,6 +23,9 @@ import {
   Clock,
   Layers,
   UserRoundCog,
+  KeyRound,
+  GraduationCap,
+  HelpCircle,
 } from 'lucide-react';
 import {
   UserProgress,
@@ -30,7 +33,9 @@ import {
   CompetencyBandLabel,
 } from '../types/game';
 import {
+  AGE_CURRICULUM_ROADMAP,
   calculateChildAge,
+  computeAdaptiveMasteryProfile,
   getDisplayChildName,
   getFullChildName,
   getGenderedWord,
@@ -40,12 +45,18 @@ import {
   computeFullEvaluationReport,
   getDifficultyWeightInfo,
 } from '../utils/evaluationEngine';
-import { getSecurityComplianceReport } from '../utils/security';
+import {
+  getSecurityComplianceReport,
+  hashParentPin,
+  isValidParentPinFormat,
+  verifyParentPin,
+} from '../utils/security';
 
 interface ParentModalProps {
   progress: UserProgress;
   onUpdateAudio: (soundEnabled: boolean, voiceEnabled: boolean) => void;
   onOpenProfile?: () => void;
+  onUpdateParentPin?: (pinHash?: string, pinHint?: string) => void;
   onResetProgress: () => void;
   onClose: () => void;
 }
@@ -407,18 +418,56 @@ export const ParentModal: React.FC<ParentModalProps> = ({
   progress,
   onUpdateAudio,
   onOpenProfile,
+  onUpdateParentPin,
   onResetProgress,
   onClose,
 }) => {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const [showResetGate, setShowResetGate] = useState(false);
-  const [gateInput, setGateInput] = useState('');
-  const [gateError, setGateError] = useState(false);
+  type SecurityPanelMode = 'closed' | 'verify_reset' | 'setup_pin' | 'forgot_pin' | 'recovery_set_pin';
+  const [securityPanel, setSecurityPanel] = useState<SecurityPanelMode>('closed');
+  const [pinEntry, setPinEntry] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [pinHintInput, setPinHintInput] = useState(progress.parentPinHint || '');
+  const [recoveryBirthYear, setRecoveryBirthYear] = useState('');
+  const [recoveryMathInput, setRecoveryMathInput] = useState('');
+  const [recoveryChallenge, setRecoveryChallenge] = useState<{ label: string; answer: number }>({
+    label: '13 × 4 + 6',
+    answer: 58,
+  });
+  const [securityError, setSecurityError] = useState<string | null>(null);
+  const [securitySuccess, setSecuritySuccess] = useState<string | null>(null);
+
+  const hasParentPin = Boolean(progress.parentPinHash);
   const childProfile = progress.childProfile;
   const ageInfo = useMemo(
     () => calculateChildAge(childProfile?.birthDate),
     [childProfile?.birthDate]
   );
+  const masteryProfile = useMemo(
+    () => computeAdaptiveMasteryProfile(progress),
+    [progress]
+  );
+
+  const generateAdultMathChallenge = () => {
+    const a = 11 + Math.floor(Math.random() * 8); // 11..18
+    const b = 3 + Math.floor(Math.random() * 4);  // 3..6
+    const c = 4 + Math.floor(Math.random() * 9);  // 4..12
+    return { label: `${a} × ${b} + ${c}`, answer: a * b + c };
+  };
+
+  const openSecurityPanel = (mode: SecurityPanelMode) => {
+    setSecurityError(null);
+    setSecuritySuccess(null);
+    setPinEntry('');
+    setNewPin('');
+    setConfirmPin('');
+    setPinHintInput(progress.parentPinHint || '');
+    setRecoveryBirthYear('');
+    setRecoveryMathInput('');
+    setRecoveryChallenge(generateAdultMathChallenge());
+    setSecurityPanel(mode);
+  };
   const childName = useMemo(() => getDisplayChildName(childProfile), [childProfile]);
   const fullChildName = useMemo(() => getFullChildName(childProfile), [childProfile]);
   const fullChildNameUpper = fullChildName.toUpperCase();
@@ -1834,7 +1883,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
   );
 
   return (
-    <div className="safe-viewport-pad fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-2xl flex items-center justify-center p-2 sm:p-4 lg:p-6 overflow-y-auto">
+    <div className="safe-viewport-pad fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-2xl flex items-start sm:items-center justify-center p-2 sm:p-4 lg:p-6 overflow-y-auto">
       <div className="bg-slate-900/95 border border-white/12 rounded-3xl max-w-5xl xl:max-w-6xl w-full p-4 sm:p-6 lg:p-8 shadow-[0_24px_64px_-12px_rgba(0,0,0,0.65)] text-white my-auto max-h-[94dvh] overflow-y-auto">
         {/* MODERN TOP HEADER */}
         <div className="flex flex-wrap items-start justify-between gap-3 pb-4 sm:pb-5 border-b border-white/10">
@@ -1943,6 +1992,115 @@ export const ParentModal: React.FC<ParentModalProps> = ({
             >
               <span>🗣️ Voce {progress.voiceEnabled ? 'ON' : 'OFF'}</span>
             </button>
+          </div>
+        </div>
+
+        {/* ===================================================================== */}
+        {/* PERCORSO PROGRESSIVO (2 -> 14 ANNI) & SBLOCCO MATERIE PER MERITO      */}
+        {/* ===================================================================== */}
+        <div className="mt-4 bg-gradient-to-br from-indigo-950/75 via-slate-900 to-sky-950/60 rounded-2xl p-4 sm:p-5 border border-indigo-400/30 shadow-lg">
+          <div className="flex flex-wrap items-start justify-between gap-3 pb-3.5 border-b border-white/10">
+            <div>
+              <div className="flex items-center gap-2">
+                <GraduationCap className="w-5 h-5 text-amber-300 shrink-0" />
+                <h3 className="font-fun font-extrabold text-sm sm:text-base text-white">
+                  Percorso Progressivo (2 → 14 Anni) & Sblocco Materie per Merito
+                </h3>
+              </div>
+              <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                Le materie si sbloccano automaticamente con l’età anagrafica ({ageInfo.displayText} ·{' '}
+                <strong className="text-amber-200">{ageInfo.ageBandTitle}</strong>) e{' '}
+                <strong className="text-emerald-300">proporzionalmente in anticipo</strong> quando le statistiche di apprendimento risultano molto alte.
+              </p>
+            </div>
+            <div className="bg-slate-950/80 border border-indigo-400/35 rounded-xl px-3.5 py-2 text-right tabular-nums shrink-0">
+              <span className="block text-[10px] font-bold uppercase tracking-wider text-indigo-300">
+                Stato Sblocco Adattivo
+              </span>
+              <span className="block font-fun font-extrabold text-xs sm:text-sm text-amber-300">
+                {masteryProfile.boostLabel}
+              </span>
+            </div>
+          </div>
+
+          {/* 6 Developmental Age Bands (2 -> 14 Anni) */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mt-3.5">
+            {AGE_CURRICULUM_ROADMAP.map((stage, idx) => {
+              const isChronological = stage.band === masteryProfile.chronologicalBand;
+              const isBoostedTarget =
+                masteryProfile.boostLevel > 0 &&
+                stage.band === masteryProfile.effectiveBand &&
+                stage.band !== masteryProfile.chronologicalBand;
+              const baseIdx = AGE_CURRICULUM_ROADMAP.findIndex(
+                (s) => s.band === masteryProfile.chronologicalBand
+              );
+              const isAlreadyUnlocked = idx <= baseIdx || isBoostedTarget;
+
+              return (
+                <div
+                  key={stage.band}
+                  className={`rounded-xl p-2.5 border text-left transition ${
+                    isChronological
+                      ? 'bg-indigo-600/30 border-amber-300/80 text-white'
+                      : isBoostedTarget
+                      ? 'bg-emerald-600/25 border-emerald-400/80 text-white'
+                      : isAlreadyUnlocked
+                      ? 'bg-slate-950/60 border-white/15 text-slate-200'
+                      : 'bg-slate-950/35 border-white/8 text-slate-400'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="font-fun font-extrabold text-xs tabular-nums">
+                      {stage.ageRangeLabel}
+                    </span>
+                    <span className="text-[10px] font-bold">
+                      {isChronological
+                        ? 'Attuale'
+                        : isBoostedTarget
+                        ? '★ Merito'
+                        : isAlreadyUnlocked
+                        ? '✓'
+                        : '🔒'}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-white/75 truncate mt-0.5">
+                    {stage.schoolLabel}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Mastery Early Unlock Meter & Unlocked Extra Subjects */}
+          <div className="mt-3.5 bg-slate-950/75 rounded-xl p-3.5 border border-white/10">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span className="font-bold text-emerald-300">
+                Avanzamento Sblocco Anticipato per Merito
+              </span>
+              <span className="text-slate-300 tabular-nums">
+                Prove: <strong className="text-white">{masteryProfile.solvedCount}</strong> · Accuratezza:{' '}
+                <strong className="text-amber-300">{masteryProfile.accuracyPercent}%</strong> · Autonomia:{' '}
+                <strong className="text-cyan-300">{masteryProfile.autonomyPercent}%</strong>
+              </span>
+            </div>
+
+            <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden my-2">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-amber-400 via-emerald-400 to-cyan-400 transition-all duration-500"
+                style={{ width: `${Math.max(4, masteryProfile.progressPercentToNext)}%` }}
+              />
+            </div>
+
+            <p className="text-[11px] text-slate-300 leading-snug">
+              {masteryProfile.nextThresholdHint}
+            </p>
+
+            {masteryProfile.unlockedBonusSubjects.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-white/10 text-[11px] text-amber-200">
+                <strong className="text-white">Materie extra già aperte per merito:</strong>{' '}
+                {masteryProfile.unlockedBonusSubjects.join(' · ')}
+              </div>
+            )}
           </div>
         </div>
 
@@ -2125,7 +2283,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 tabular-nums">
               {evalReport.chcAbilities.map((ab) => (
                 <div
                   key={ab.code}
@@ -2315,7 +2473,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
 
           {/* TABELLA STORICA ANNUALE PER ETÀ (RIGHE FISSE + RIGA ATTIVA + PROSSIMO COMPLEANNO) */}
           <div className="overflow-x-auto rounded-2xl border border-white/15 bg-slate-950/80">
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full min-w-[640px] text-left border-collapse text-xs tabular-nums">
               <thead>
                 <tr className="bg-emerald-950/90 text-emerald-200 border-b border-white/15 text-[11px] uppercase tracking-wider">
                   <th className="py-3 px-3.5 font-extrabold">
@@ -2520,7 +2678,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                   <Layers className="w-3.5 h-3.5" /> Pesi degli Esercizi in
                   Funzione della Difficoltà (wᵢ)
                 </p>
-                <div className="grid grid-cols-5 gap-1.5 text-center text-[11px]">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 text-center text-[11px] tabular-nums">
                   {weightTiers.map((wt) => (
                     <div
                       key={wt.tier}
@@ -2545,7 +2703,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                 <p className="text-xs font-extrabold text-purple-300 uppercase tracking-wider mb-2">
                   Fasce dell’Indice di Competenza (IC 0–100)
                 </p>
-                <div className="grid grid-cols-5 gap-1.5 text-center text-[10px]">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 text-center text-[10px] tabular-nums">
                   {[
                     { range: '0–39', label: 'In esplorazione' },
                     { range: '40–59', label: 'In apprendimento' },
@@ -2830,70 +2988,416 @@ export const ParentModal: React.FC<ParentModalProps> = ({
           </div>
         </div>
 
-        {/* PARENTAL SECURITY GATE FOR RESETTING PROGRESS */}
-        {showResetGate && (
-          <div className="mb-5 p-4 rounded-2xl bg-rose-950/80 border-2 border-rose-400/60 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="text-xs text-rose-100">
-              <p className="font-kids font-bold text-sm text-white flex items-center gap-1.5">
-                <Lock className="w-4 h-4 text-amber-300" /> Filtro di Sicurezza
-                Genitori (Anti-Cancellazione Accidentale)
-              </p>
-              <p className="mt-0.5 text-rose-200">
-                Per confermare l’azzeramento dei progressi, scrivi il risultato
-                di <strong className="text-yellow-300">7 + 5</strong>:
-              </p>
-            </div>
-            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-              <input
-                type="number"
-                inputMode="numeric"
-                value={gateInput}
-                onChange={(e) => {
-                  setGateInput(e.target.value);
-                  setGateError(false);
-                }}
-                placeholder="7 + 5 = ?"
-                className={`w-24 px-3 py-2 rounded-xl bg-slate-950 text-white font-bold text-sm border ${
-                  gateError ? 'border-rose-400' : 'border-white/25'
-                } focus:outline-none`}
-              />
-              <button
-                onClick={() => {
-                  if (gateInput.trim() === '12') {
-                    setShowResetGate(false);
-                    setGateInput('');
-                    setGateError(false);
-                    onResetProgress();
-                  } else {
-                    setGateError(true);
-                  }
-                }}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs cursor-pointer"
-              >
-                Conferma Reset
-              </button>
-              <button
-                onClick={() => {
-                  setShowResetGate(false);
-                  setGateInput('');
-                  setGateError(false);
-                }}
-                className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold cursor-pointer"
-              >
-                Annulla
-              </button>
-            </div>
+        {/* ===================================================================== */}
+        {/* CODICE GENITORE (PIN) · RESET STATISTICHE · RECUPERO CODICE           */}
+        {/* ===================================================================== */}
+        {securitySuccess && (
+          <div className="mb-4 rounded-2xl bg-emerald-950/70 border border-emerald-400/50 px-4 py-3 text-xs sm:text-sm font-semibold text-emerald-200 flex items-center justify-between gap-2">
+            <span>✓ {securitySuccess}</span>
+            <button
+              type="button"
+              onClick={() => setSecuritySuccess(null)}
+              className="text-xs text-emerald-300 hover:text-white underline cursor-pointer"
+            >
+              Chiudi
+            </button>
+          </div>
+        )}
+
+        {securityPanel !== 'closed' && (
+          <div className="mb-5 p-4 sm:p-5 rounded-2xl bg-slate-950/90 border-2 border-indigo-400/50 shadow-xl space-y-3.5">
+            {/* MODE 1: SETUP OR CHANGE PARENT PIN */}
+            {(securityPanel === 'setup_pin' || securityPanel === 'recovery_set_pin') && (
+              <>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-fun font-extrabold text-sm sm:text-base text-white flex items-center gap-2">
+                      <KeyRound className="w-4 h-4 text-amber-300" />
+                      {securityPanel === 'recovery_set_pin'
+                        ? 'Verifica Genitore Riuscita · Imposta Nuovo Codice Genitore'
+                        : hasParentPin
+                        ? 'Modifica Codice Genitore (PIN)'
+                        : 'Imposta Codice Genitore (PIN 4–6 Cifre)'}
+                    </p>
+                    <p className="text-xs text-slate-300 mt-0.5">
+                      Il codice protegge l’azzeramento delle statistiche. Viene salvato cifrato (hash non reversibile) solo sul dispositivo.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSecurityPanel('closed')}
+                    className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white cursor-pointer"
+                    aria-label="Chiudi pannello codice"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {securityError && (
+                  <p className="text-xs font-bold text-rose-300 bg-rose-950/60 border border-rose-400/40 rounded-xl px-3 py-2">
+                    {securityError}
+                  </p>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                      Nuovo Codice (4–6 cifre) *
+                    </label>
+                    <input
+                      type="password"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={newPin}
+                      onChange={(e) => {
+                        setNewPin(e.target.value.replace(/\D/g, ''));
+                        setSecurityError(null);
+                      }}
+                      placeholder="Es. 2468"
+                      className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-slate-900 text-white font-bold text-sm tracking-widest border border-white/25 focus:border-amber-300 focus:outline-none tabular-nums"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                      Conferma Codice *
+                    </label>
+                    <input
+                      type="password"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={confirmPin}
+                      onChange={(e) => {
+                        setConfirmPin(e.target.value.replace(/\D/g, ''));
+                        setSecurityError(null);
+                      }}
+                      placeholder="Ripeti codice"
+                      className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-slate-900 text-white font-bold text-sm tracking-widest border border-white/25 focus:border-amber-300 focus:outline-none tabular-nums"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                      Promemoria (opzionale)
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={40}
+                      value={pinHintInput}
+                      onChange={(e) => setPinHintInput(e.target.value)}
+                      placeholder="Es. Anno matrimonio"
+                      className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-slate-900 text-white font-medium text-sm border border-white/25 focus:border-amber-300 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <div className="flex items-center gap-2">
+                    {hasParentPin && onUpdateParentPin && securityPanel === 'recovery_set_pin' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onUpdateParentPin(undefined, undefined);
+                          setSecurityPanel('closed');
+                          setSecuritySuccess('Codice Genitore rimosso con successo.');
+                        }}
+                        className="px-3.5 py-2 rounded-xl bg-rose-950/70 hover:bg-rose-900/70 border border-rose-400/40 text-rose-200 text-xs font-bold cursor-pointer min-h-[40px]"
+                      >
+                        Rimuovi Codice Esistente
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSecurityPanel('closed')}
+                      className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold cursor-pointer min-h-[40px]"
+                    >
+                      Annulla
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!isValidParentPinFormat(newPin)) {
+                          setSecurityError('Inserisci un codice numerico composto da 4 a 6 cifre.');
+                          return;
+                        }
+                        if (newPin !== confirmPin) {
+                          setSecurityError('I due codici inseriti non coincidono. Controlla e riprova.');
+                          return;
+                        }
+                        const hash = hashParentPin(newPin);
+                        onUpdateParentPin?.(hash, pinHintInput.trim() || undefined);
+                        setSecurityPanel('closed');
+                        setSecuritySuccess(
+                          'Codice Genitore salvato e protetto! Ora è richiesto per azzerare le statistiche.'
+                        );
+                      }}
+                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs cursor-pointer min-h-[40px]"
+                    >
+                      Salva Codice Genitore
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* MODE 2: VERIFY PARENT PIN TO RESET STATISTICS */}
+            {securityPanel === 'verify_reset' && (
+              <>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-fun font-extrabold text-sm sm:text-base text-rose-200 flex items-center gap-2">
+                      <Lock className="w-4 h-4 text-amber-300" />
+                      Azzeramento Statistiche · Inserisci Codice Genitore
+                    </p>
+                    <p className="text-xs text-slate-300 mt-0.5">
+                      {hasParentPin
+                        ? 'Inserisci il tuo Codice Genitore (4–6 cifre) per confermare l’azzeramento di livelli e statistiche.'
+                        : 'Non hai ancora impostato un Codice Genitore. Puoi impostarlo ora oppure confermare il reset con verifica adulto.'}
+                    </p>
+                    {hasParentPin && progress.parentPinHint && (
+                      <p className="text-xs text-amber-200 mt-1">
+                        Promemoria salvato: <strong>{progress.parentPinHint}</strong>
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSecurityPanel('closed')}
+                    className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white cursor-pointer"
+                    aria-label="Chiudi"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {securityError && (
+                  <p className="text-xs font-bold text-rose-300 bg-rose-950/60 border border-rose-400/40 rounded-xl px-3 py-2">
+                    {securityError}
+                  </p>
+                )}
+
+                {hasParentPin ? (
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 flex-1">
+                      <input
+                        type="password"
+                        inputMode="numeric"
+                        maxLength={6}
+                        value={pinEntry}
+                        onChange={(e) => {
+                          setPinEntry(e.target.value.replace(/\D/g, ''));
+                          setSecurityError(null);
+                        }}
+                        placeholder="Codice PIN..."
+                        className="flex-1 min-w-[130px] sm:max-w-[200px] min-h-[44px] px-3.5 py-2 rounded-xl bg-slate-900 text-white font-bold text-sm tracking-widest border border-white/25 focus:border-rose-400 focus:outline-none tabular-nums"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (verifyParentPin(pinEntry, progress.parentPinHash)) {
+                            setSecurityPanel('closed');
+                            setPinEntry('');
+                            setSecurityError(null);
+                            onResetProgress();
+                            setSecuritySuccess('Statistiche azzerate correttamente.');
+                          } else {
+                            setSecurityError(
+                              'Codice Genitore errato. Riprova oppure usa «Hai dimenticato il codice?» per reimpostarlo.'
+                            );
+                          }
+                        }}
+                        className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs cursor-pointer min-h-[44px]"
+                      >
+                        Conferma Reset
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => openSecurityPanel('forgot_pin')}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-300 hover:text-amber-200 underline cursor-pointer self-start sm:self-center"
+                    >
+                      <HelpCircle className="w-3.5 h-3.5" />
+                      <span>Hai dimenticato il codice? Reimpostalo</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                          Verifica Adulto · Quanto fa <strong className="text-amber-300">{recoveryChallenge.label}</strong>?
+                        </label>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          value={recoveryMathInput}
+                          onChange={(e) => {
+                            setRecoveryMathInput(e.target.value);
+                            setSecurityError(null);
+                          }}
+                          placeholder="Risultato..."
+                          className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-slate-900 text-white font-bold text-sm border border-white/25 focus:border-amber-300 focus:outline-none tabular-nums"
+                        />
+                      </div>
+                      <div className="flex items-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (Number(recoveryMathInput.trim()) === recoveryChallenge.answer) {
+                              setSecurityPanel('closed');
+                              onResetProgress();
+                              setSecuritySuccess('Statistiche azzerate correttamente.');
+                            } else {
+                              setSecurityError('Risultato non corretto. Controlla il calcolo e riprova.');
+                            }
+                          }}
+                          className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs cursor-pointer min-h-[44px]"
+                        >
+                          Conferma Reset
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openSecurityPanel('setup_pin')}
+                          className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs cursor-pointer min-h-[44px]"
+                        >
+                          Imposta un Codice PIN
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* MODE 3: FORGOT PARENT PIN RECOVERY (2-STEP ADULT VERIFICATION) */}
+            {securityPanel === 'forgot_pin' && (
+              <>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-fun font-extrabold text-sm sm:text-base text-amber-300 flex items-center gap-2">
+                      <HelpCircle className="w-4 h-4 shrink-0" />
+                      Verifica Genitore · Cambia o Recupera Codice (2 Passi)
+                    </p>
+                    <p className="text-xs text-slate-300 mt-0.5">
+                      Per proteggere il profilo e reimpostare il codice, inserisci l’anno di nascita di {childName} e risolvi il calcolo per adulti.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSecurityPanel('closed')}
+                    className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white cursor-pointer"
+                    aria-label="Chiudi"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {securityError && (
+                  <p className="text-xs font-bold text-rose-300 bg-rose-950/60 border border-rose-400/40 rounded-xl px-3 py-2">
+                    {securityError}
+                  </p>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                      1. Anno di nascita di {childName} (4 cifre) *
+                    </label>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      value={recoveryBirthYear}
+                      onChange={(e) => {
+                        setRecoveryBirthYear(e.target.value);
+                        setSecurityError(null);
+                      }}
+                      placeholder="Es. 2020"
+                      className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-slate-900 text-white font-bold text-sm border border-white/25 focus:border-amber-300 focus:outline-none tabular-nums"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                      2. Calcolo Adulto: Quanto fa <strong className="text-amber-300">{recoveryChallenge.label}</strong>? *
+                    </label>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      value={recoveryMathInput}
+                      onChange={(e) => {
+                        setRecoveryMathInput(e.target.value);
+                        setSecurityError(null);
+                      }}
+                      placeholder="Inserisci risultato"
+                      className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-slate-900 text-white font-bold text-sm border border-white/25 focus:border-amber-300 focus:outline-none tabular-nums"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openSecurityPanel('verify_reset')}
+                    className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold cursor-pointer min-h-[40px]"
+                  >
+                    Torna Indietro
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const yearOk = Number(recoveryBirthYear.trim()) === ageInfo.birthYear;
+                      const mathOk = Number(recoveryMathInput.trim()) === recoveryChallenge.answer;
+                      if (!yearOk) {
+                        setSecurityError(
+                          'L’anno di nascita non corrisponde al profilo configurato. Controlla e riprova.'
+                        );
+                        return;
+                      }
+                      if (!mathOk) {
+                        setSecurityError(
+                          'Il risultato del calcolo non è corretto. Ricorda: prima la moltiplicazione, poi la somma!'
+                        );
+                        return;
+                      }
+                      setSecurityError(null);
+                      setNewPin('');
+                      setConfirmPin('');
+                      setSecurityPanel('recovery_set_pin');
+                    }}
+                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs cursor-pointer min-h-[40px]"
+                  >
+                    Verifica e Reimposta Codice
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
 
         {/* FOOTER ACTIONS */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-white/10">
-          <button
-            onClick={() => setShowResetGate(true)}
-            className="flex items-center gap-1.5 text-xs font-bold text-rose-400 hover:text-rose-300 transition-colors px-3 py-2 rounded-xl hover:bg-rose-500/10 cursor-pointer"
-          >
-            <RotateCcw className="w-4 h-4" /> Azzera Percorso e Statistiche
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => openSecurityPanel('verify_reset')}
+              className="flex items-center gap-1.5 text-xs font-bold text-rose-400 hover:text-rose-300 transition-colors px-3 py-2 rounded-xl hover:bg-rose-500/10 cursor-pointer min-h-[40px]"
+            >
+              <RotateCcw className="w-4 h-4" /> Azzera Percorso e Statistiche
+            </button>
+
+            {onUpdateParentPin && (
+              <button
+                type="button"
+                onClick={() => openSecurityPanel(hasParentPin ? 'forgot_pin' : 'setup_pin')}
+                className="flex items-center gap-1.5 text-xs font-bold text-amber-300 hover:text-amber-200 transition-colors px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-400/25 cursor-pointer min-h-[40px]"
+              >
+                <KeyRound className="w-4 h-4" />
+                <span>
+                  {hasParentPin ? 'Codice Genitore Attivo · Cambia / Recupera' : 'Imposta Codice Genitore (PIN)'}
+                </span>
+              </button>
+            )}
+          </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
             <button

@@ -284,11 +284,15 @@ export default function App() {
       sessionsCount: 1,
       sessionDates: [today],
       annualProgressRows: [],
+      parentPinHash: progress.parentPinHash,
+      parentPinHint: progress.parentPinHint,
     };
     const syncedFresh = syncAnnualAndMonthlyProgress(fresh);
     setProgress(syncedFresh);
     saveUserProgress(syncedFresh);
-    soundManager.speak('Progressi azzerati! Si riparte dal primo livello con gioia!');
+    soundManager.speak(
+      `Progressi azzerati, ${childName}! Si riparte dal primo livello con gioia!`
+    );
   };
 
   // Every 10 levels (Level 10, 20, 30...) is a Svago Level (Tris, Bolle, Memory...)
@@ -306,6 +310,7 @@ export default function App() {
           <img
             src={childProfile.customBackgroundUrl}
             alt={childName}
+            referrerPolicy="no-referrer"
             className={`w-full h-full object-cover object-center transition-all duration-700 ease-out ${
               currentView === 'title'
                 ? 'scale-100 brightness-100 contrast-100'
@@ -325,8 +330,8 @@ export default function App() {
             <div className="absolute top-1/4 -right-24 w-72 h-72 sm:w-[420px] sm:h-[420px] rounded-full bg-fuchsia-500/20 blur-3xl" />
             <div className="absolute bottom-16 left-1/4 w-80 h-80 rounded-full bg-amber-400/15 blur-3xl" />
             {/* Subtle decorative stars */}
-            <div className="absolute top-[16%] left-[12%] text-amber-200/50 text-lg animate-pulse">✦</div>
-            <div className="absolute top-[22%] right-[16%] text-sky-200/50 text-xl animate-pulse">✦</div>
+            <div className="absolute top-[16%] left-[12%] text-amber-200/45 text-lg">✦</div>
+            <div className="absolute top-[22%] right-[16%] text-sky-200/45 text-xl">✦</div>
             <div className="absolute top-[42%] left-[8%] text-pink-200/40 text-sm">★</div>
             <div className="absolute top-[38%] right-[10%] text-amber-200/45 text-base">★</div>
           </div>
@@ -402,8 +407,8 @@ export default function App() {
             title={`Tocca per un saluto a ${childName}!`}
           >
             {!hasCustomBackground && (
-              <div className="flex flex-col items-center gap-2.5 animate-fade-in">
-                <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-[30px] overflow-hidden border-2 border-white/40 shadow-[0_20px_50px_-10px_rgba(15,23,42,0.7)] bg-slate-900/40 backdrop-blur-md">
+              <div className="home-center-emblem flex flex-col items-center gap-2.5 animate-fade-in">
+                <div className="home-center-emblem-icon w-28 h-28 sm:w-36 sm:h-36 rounded-[30px] overflow-hidden border-2 border-white/40 shadow-[0_20px_50px_-10px_rgba(15,23,42,0.7)] bg-slate-900/40 backdrop-blur-md shrink-0">
                   <img
                     src="/pwa-512x512.png"
                     alt="Il Mio Mondo"
@@ -417,10 +422,10 @@ export default function App() {
                     soundManager.playPop();
                     setIsProfileModalOpen(true);
                   }}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-white/15 hover:bg-white/25 backdrop-blur-xl border border-white/30 text-xs sm:text-sm font-fun font-bold text-white shadow-lg cursor-pointer transition-all min-h-[40px]"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-white/15 hover:bg-white/25 backdrop-blur-xl border border-white/30 text-xs sm:text-sm font-fun font-bold text-white shadow-lg cursor-pointer transition-all min-h-[44px]"
                 >
-                  <Camera className="w-4 h-4 text-amber-300" />
-                  <span>Personalizza sfondo con una foto</span>
+                  <Camera className="w-4 h-4 text-amber-300 shrink-0" />
+                  <span className="whitespace-nowrap">Personalizza sfondo con una foto</span>
                 </button>
               </div>
             )}
@@ -430,7 +435,7 @@ export default function App() {
           <div className="home-landscape-dock w-full flex flex-col items-center shrink-0 gap-2 sm:gap-2.5">
             
             {/* TWO MODERN TACTILE CARDS CONNECTED BY A LUMINOUS RAINBOW ARCH */}
-            <div className="relative w-full max-w-[380px] sm:max-w-[440px] pt-5 sm:pt-6 pb-1 flex items-stretch justify-between gap-3 sm:gap-4 mx-auto">
+            <div className="home-landscape-cards relative w-full max-w-[380px] sm:max-w-[440px] pt-5 sm:pt-6 pb-1 flex items-stretch justify-between gap-2.5 sm:gap-4 mx-auto">
               
               {/* Luminous Rainbow Arch connecting Left Card and Right Card */}
               <svg
@@ -486,7 +491,7 @@ export default function App() {
             </div>
 
             {/* BOTTOM-MOST CONTROLS: AREA GENITORI + PROFILO & SFONDO */}
-            <div className="w-full max-w-[380px] sm:max-w-[440px] mx-auto flex items-stretch gap-2">
+            <div className="home-landscape-actions w-full max-w-[380px] sm:max-w-[440px] mx-auto flex items-stretch gap-2">
               <button
                 onClick={() => {
                   soundManager.playPop();
@@ -569,6 +574,13 @@ export default function App() {
           onOpenProfile={() => {
             setIsParentsOpen(false);
             setIsProfileModalOpen(true);
+          }}
+          onUpdateParentPin={(pinHash, pinHint) => {
+            updateProgress(prev => ({
+              ...prev,
+              parentPinHash: pinHash,
+              parentPinHint: pinHint,
+            }));
           }}
           onResetProgress={handleResetProgress}
           onClose={() => setIsParentsOpen(false)}

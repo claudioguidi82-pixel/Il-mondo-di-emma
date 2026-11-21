@@ -36,6 +36,44 @@ export function computeProgressIntegrityHash(progress: UserProgress): string {
 }
 
 /**
+ * Validates that a parent PIN consists of 4 to 6 numeric digits.
+ */
+export function isValidParentPinFormat(pin: string): boolean {
+  return /^\d{4,6}$/.test(pin.trim());
+}
+
+/**
+ * Computes a salted multi-round non-reversible hash for the local Parent PIN
+ * so the raw PIN is never stored in plaintext inside localStorage.
+ */
+export function hashParentPin(pin: string): string {
+  const clean = pin.trim();
+  const salted = `IL_MIO_MONDO_PIN_V2::${clean}::${clean.length * 97}`;
+  let h1 = 0x811c9dc5;
+  let h2 = 0x9e3779b9;
+  for (let round = 0; round < 5; round++) {
+    for (let i = 0; i < salted.length; i++) {
+      const code = salted.charCodeAt(i) + round * 31;
+      h1 ^= code;
+      h1 = Math.imul(h1, 0x01000193);
+      h2 ^= (code << 3) ^ (h1 >>> 5);
+      h2 = Math.imul(h2, 0x85ebca6b);
+    }
+  }
+  return (
+    'PIN-' +
+    (h1 >>> 0).toString(16).toUpperCase().padStart(8, '0') +
+    '-' +
+    (h2 >>> 0).toString(16).toUpperCase().padStart(8, '0')
+  );
+}
+
+export function verifyParentPin(pin: string, expectedHash?: string): boolean {
+  if (!expectedHash || !isValidParentPinFormat(pin)) return false;
+  return hashParentPin(pin) === expectedHash;
+}
+
+/**
  * Strips any unsafe HTML/script characters from user-facing strings.
  */
 export function sanitizeSafeText(input: unknown, fallback = ''): string {
@@ -255,6 +293,14 @@ export function sanitizeAndValidateProgress(raw: unknown): UserProgress | null {
       typeof parsed.lastMonthlyUpdateKey === 'string'
         ? sanitizeSafeText(parsed.lastMonthlyUpdateKey)
         : undefined,
+    parentPinHash:
+      typeof parsed.parentPinHash === 'string' && /^PIN-[0-9A-F]{8}-[0-9A-F]{8}$/.test(parsed.parentPinHash)
+        ? parsed.parentPinHash
+        : undefined,
+    parentPinHint:
+      typeof parsed.parentPinHint === 'string'
+        ? sanitizeSafeText(parsed.parentPinHint).slice(0, 48)
+        : undefined,
   };
 }
 
@@ -306,10 +352,11 @@ export function getSecurityComplianceReport(progress: UserProgress): {
     {
       id: 'sec_parental_gate',
       code: 'PIN-ADULTI',
-      title: 'Protezione Operazioni Sensibili Area Genitori',
-      description:
-        'Blocco di sicurezza con verifica matematica per impedire l\'azzeramento accidentale dei progressi da parte del bambino o della bambina.',
-      statusLabel: 'Protetto',
+      title: 'Codice Genitore & Recupero Sicuro',
+      description: progress.parentPinHash
+        ? 'Codice Genitore personale (PIN) attivo e cifrato in locale per proteggere il reset delle statistiche, con recupero sicuro.'
+        : 'Protezione con Codice Genitore personalizzabile e verifica adulti per impedire l’azzeramento accidentale dei progressi.',
+      statusLabel: progress.parentPinHash ? 'PIN Attivo' : 'Protetto',
       verified: true,
     },
     {

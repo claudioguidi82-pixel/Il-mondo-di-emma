@@ -85,9 +85,10 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return;
 
-    // Available space inside container
-    const width = Math.min(1200, Math.max(300, container.clientWidth));
-    const height = Math.min(900, Math.max(250, container.clientHeight));
+    // Match canvas internal resolution 1:1 with the rendered stage box (prevents pointer offset)
+    const rect = canvas.getBoundingClientRect();
+    const width = Math.max(240, Math.round(rect.width || container.clientWidth));
+    const height = Math.max(160, Math.round(rect.height || container.clientHeight));
 
     // Save previous drawing as offscreen canvas if canvas already has content
     let prevOffscreen: HTMLCanvasElement | null = null;
@@ -176,7 +177,8 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     saveCanvasState();
-    soundManager.speak('Tela pulita! Pronta per un nuovo disegno!');
+    const readyWord = getGenderedWord(childGender, 'Pronta', 'Pronto', 'Pronto');
+    soundManager.speak(`Tela pulita, ${childName}! ${readyWord} per un nuovo disegno!`);
   };
 
   // Convert client coordinates to canvas internal coordinates
@@ -398,7 +400,7 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
     link.download = `${safeFileName}_Capolavoro_${new Date().toISOString().slice(0, 10)}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
-    soundManager.speakPraise('Disegno scaricato sul tuo dispositivo!');
+    soundManager.speakPraise(`Disegno scaricato sul tuo dispositivo, ${childName}!`);
   };
 
   return (
@@ -476,8 +478,8 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
         ref={containerRef}
         className="relative z-10 flex-1 min-h-0 w-full flex items-center justify-center p-2.5 sm:p-4 overflow-hidden"
       >
-        <div className="relative w-full h-full max-w-5xl max-h-[80vh] flex items-center justify-center">
-          {/* Framed White Canvas with modern border and soft shadow */}
+        <div className="relative w-full h-full max-w-5xl flex items-center justify-center">
+          {/* Framed White Canvas with 1:1 pointer-accurate sizing */}
           <canvas
             ref={canvasRef}
             onPointerDown={handlePointerDown}
@@ -485,7 +487,7 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
             onPointerUp={handlePointerUpOrCancel}
             onPointerCancel={handlePointerUpOrCancel}
             style={{ touchAction: 'none' }}
-            className="w-full h-full object-contain bg-white rounded-3xl border-2 border-white/80 shadow-[0_24px_60px_-15px_rgba(0,0,0,0.65)] cursor-crosshair select-none"
+            className="w-full h-full bg-white rounded-2xl sm:rounded-3xl border-2 border-white/80 shadow-[0_24px_60px_-15px_rgba(0,0,0,0.65)] cursor-crosshair select-none block"
           />
 
           {/* Quick Brush Mode Indicator Floater in Corner */}
@@ -521,7 +523,7 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
       {/* ============================================================== */}
       {/* 3. BOTTOM CONTROL DOCK: MAGIC BRUSHES, PALETTE, SIZES, STICKERS */}
       {/* ============================================================== */}
-      <div className="relative z-20 bg-slate-950/90 border-t border-white/10 backdrop-blur-xl px-2.5 sm:px-5 py-2.5 shrink-0 flex flex-col gap-2">
+      <div className="studio-toolbar-dock relative z-20 bg-slate-950/90 border-t border-white/10 backdrop-blur-xl px-2.5 sm:px-5 py-2.5 shrink-0 flex flex-col gap-2">
         
         {/* Row 1: Brush Modes & Sizes */}
         <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar py-0.5">
@@ -620,8 +622,8 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
                 soundManager.playPop();
                 setBrushSize(12);
               }}
-              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center cursor-pointer ${
-                brushSize === 12 ? 'bg-amber-400 text-slate-950 font-bold' : 'text-slate-400'
+              className={`w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer ${
+                brushSize === 12 ? 'bg-amber-400 text-slate-950 font-bold' : 'text-slate-300'
               }`}
               title="Tratto Sottile"
             >
@@ -632,8 +634,8 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
                 soundManager.playPop();
                 setBrushSize(22);
               }}
-              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center cursor-pointer ${
-                brushSize === 22 ? 'bg-amber-400 text-slate-950 font-bold' : 'text-slate-400'
+              className={`w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer ${
+                brushSize === 22 ? 'bg-amber-400 text-slate-950 font-bold' : 'text-slate-300'
               }`}
               title="Tratto Medio"
             >
@@ -644,8 +646,8 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
                 soundManager.playPop();
                 setBrushSize(38);
               }}
-              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center cursor-pointer ${
-                brushSize === 38 ? 'bg-amber-400 text-slate-950 font-bold' : 'text-slate-400'
+              className={`w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer ${
+                brushSize === 38 ? 'bg-amber-400 text-slate-950 font-bold' : 'text-slate-300'
               }`}
               title="Tratto Grande"
             >
@@ -658,7 +660,7 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
         {brushMode === 'sticker' || isStickerDrawerOpen ? (
           /* Stickers Carousel */
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 px-1 bg-white/5 rounded-2xl border border-white/10">
-            <span className="text-xs font-kids font-bold text-pink-300 whitespace-nowrap pl-2">
+            <span className="text-xs font-kids font-bold text-pink-300 whitespace-nowrap pl-2 shrink-0">
               Tocca e timbra:
             </span>
             {STICKERS_LIST.map((stk, idx) => (
@@ -669,9 +671,9 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
                   setSelectedSticker(stk);
                   setBrushMode('sticker');
                 }}
-                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl text-xl sm:text-2xl flex items-center justify-center cursor-pointer transition-transform ${
+                className={`w-10 h-10 shrink-0 rounded-xl text-xl sm:text-2xl flex items-center justify-center cursor-pointer transition-transform ${
                   selectedSticker === stk && brushMode === 'sticker'
-                    ? 'bg-amber-400 scale-120 shadow-lg'
+                    ? 'bg-amber-400 scale-115 shadow-lg'
                     : 'bg-white/10 hover:bg-white/20 active:scale-95'
                 }`}
               >
@@ -681,8 +683,8 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
           </div>
         ) : (
           /* Color Palette Buttons */
-          <div className="flex items-center gap-1.5 sm:gap-2.5 overflow-x-auto no-scrollbar py-1 px-1">
-            <span className="text-xs font-kids font-bold text-yellow-300 whitespace-nowrap hidden sm:inline pl-1">
+          <div className="flex items-center gap-2 sm:gap-2.5 overflow-x-auto no-scrollbar py-1 px-1">
+            <span className="text-xs font-kids font-bold text-yellow-300 whitespace-nowrap hidden sm:inline pl-1 shrink-0">
               Colori:
             </span>
             {BRUSH_COLORS.map(c => {
@@ -697,8 +699,8 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
                       setBrushMode('color');
                     }
                   }}
-                  className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full ${c.bg} cursor-pointer transition-all duration-150 flex items-center justify-center border-2 ${
-                    isCurrent ? 'border-white scale-120 shadow-lg shadow-pink-500/40 ring-2 ring-yellow-400' : 'border-white/40 hover:scale-110 active:scale-95'
+                  className={`w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-full ${c.bg} cursor-pointer transition-all duration-150 flex items-center justify-center border-2 ${
+                    isCurrent ? 'border-white scale-115 shadow-lg shadow-pink-500/40 ring-2 ring-yellow-400' : 'border-white/40 hover:scale-110 active:scale-95'
                   }`}
                   title={c.name}
                 >

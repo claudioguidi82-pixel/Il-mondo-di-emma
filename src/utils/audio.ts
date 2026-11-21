@@ -1,5 +1,5 @@
-// Natural & Realistic Italian Voice & Audio Engine for "Il Mondo di Emma"
-// Designed for 5-Year-Old Emma:
+// Natural & Realistic Italian Voice & Audio Engine for "Il Mio Mondo"
+// Personalized adaptive Italian prosody for children of every age:
 // - Warm, natural human prosody (no metallic pitch-shifting or time-stretch warble)
 // - Sentence-level natural breathing & intonation contours
 // - Strict Italian masculine/feminine and singular/plural grammatical concordance
@@ -137,10 +137,28 @@ export function formatItalianProsody(
 } {
   let s = enforceItalianGenderConcordance(text.trim());
 
-  // Verbalize math operators smoothly in natural Italian
+  // Verbalize math, pre-algebra & science operators smoothly in natural Italian
   s = s
+    .replace(/%/g, ' per cento')
+    .replace(/²/g, ' alla seconda')
+    .replace(/³/g, ' alla terza')
+    .replace(/⁴/g, ' alla quarta')
+    .replace(/√/g, 'radice quadrata di ')
+    .replace(/°/g, ' gradi')
+    .replace(/½/g, 'un mezzo')
+    .replace(/⅓/g, 'un terzo')
+    .replace(/¼/g, 'un quarto')
+    .replace(/⅕/g, 'un quinto')
+    .replace(/⅔/g, 'due terzi')
+    .replace(/¾/g, 'tre quarti')
+    .replace(/⅖/g, 'due quinti')
+    .replace(/⅗/g, 'tre quinti')
+    .replace(/⅜/g, 'tre ottavi')
+    .replace(/⅚/g, 'cinque sesti')
     .replace(/\+/g, ' più ')
-    .replace(/\s-\s/g, ' meno ')
+    .replace(/\s[-−]\s/g, ' meno ')
+    .replace(/×/g, ' per ')
+    .replace(/÷/g, ' diviso ')
     .replace(/=/g, ' fa ')
     .replace(/\s+/g, ' ');
 
@@ -159,7 +177,7 @@ export function formatItalianProsody(
 
   const isPraise =
     context === 'praise' ||
-    /(bravissima|fantastico|evviva|meraviglios|perfett|campionessa|vinto|tris)/i.test(
+    /(bravissim|fantastico|evviva|meraviglios|perfett|campion|vinto|tris)/i.test(
       s
     );
   const isRiddle =

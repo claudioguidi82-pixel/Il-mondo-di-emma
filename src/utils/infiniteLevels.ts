@@ -1,31 +1,58 @@
 // Infinite Adaptive Curriculum & Procedural Generator for "Il Mio Mondo"
-// Dynamically adapts levels, difficulty, numerical range & subjects right from Level 1
-// based on the child's entered birthDate (2-3, 4-5, 6-7, 8+ years) and personalizes copy with name & gender.
-import { ChildProfile, GameCategory, Puzzle, PuzzleOption, RhythmNote, EnglishWordHighlight } from '../types/game';
+// Dynamically adapts levels, difficulty tiers, numerical range & progressive subjects right from Level 1
+// across 5 developmental bands (2-3, 4-5, 6-7, 8-9, 10-12 years) and personalizes copy with name & gender.
+import { AgeBandId, ChildProfile, GameCategory, Puzzle, PuzzleOption, RhythmNote, EnglishWordHighlight, UserProgress } from '../types/game';
 import {
+  AGE_BAND_ORDER,
   calculateChildAge,
   ChildAgeInfo,
+  computeAdaptiveMasteryProfile,
   DEFAULT_BIRTH_DATE,
   getDisplayChildName,
   getGenderedWord,
 } from './childProfile';
 import {
+  AgeQuizEntry,
   TODDLER_ANIMALS,
   TODDLER_COLORS_SHAPES,
   TODDLER_ENGLISH,
   TODDLER_LETTERS,
   TODDLER_LOGIC,
+  EARLY_PRIMARY_ART,
   EARLY_PRIMARY_ENGLISH,
   EARLY_PRIMARY_GEOMETRY,
   EARLY_PRIMARY_LANGUAGE,
   EARLY_PRIMARY_LOGIC,
+  EARLY_PRIMARY_MUSIC,
   EARLY_PRIMARY_SCIENCE,
   PRIMARY_ADV_ENGLISH,
   PRIMARY_ADV_GEOMETRY,
   PRIMARY_ADV_LANGUAGE,
   PRIMARY_ADV_LOGIC,
   PRIMARY_ADV_SCIENCE,
+  UPPER_PRIMARY_ART,
+  UPPER_PRIMARY_MUSIC,
+  PRETEEN_ART_GEOMETRY,
+  PRETEEN_ENGLISH_A2,
+  PRETEEN_LANGUAGE_LOGIC,
+  PRETEEN_LOGIC_CODING,
+  PRETEEN_MUSIC_CULTURE,
+  PRETEEN_SCIENCE_HISTORY,
   INITIAL_LETTER_WORD_BANK,
+  EMOTIONAL_EMPATHY_CATALOG,
+  MEMORY_ATTENTION_CATALOG,
+  NATURE_ECOLOGY_CATALOG,
+  FINANCIAL_TIME_CATALOG,
+  ASTRONOMY_SPACE_CATALOG,
+  GEOGRAPHY_WORLD_CATALOG,
+  INVENTIONS_TECH_CATALOG,
+  PHILOSOPHY_CRITICAL_CATALOG,
+  TEEN_SCIENCE_CHEMISTRY_PHYSICS,
+  TEEN_LANGUAGE_LITERATURE,
+  TEEN_ART_ARCHITECTURE,
+  TEEN_MUSIC_THEORY,
+  TEEN_ENGLISH_B1,
+  TEEN_LOGIC_ALGORITHMS,
 } from './ageBandCatalogs';
 
 export const DEFAULT_CHILD_BIRTH_DATE = DEFAULT_BIRTH_DATE;
@@ -720,6 +747,73 @@ const MUSIC_RHYTHM_CATALOG: MusicRhythmEntry[] = [
   },
 ];
 
+const TODDLER_MUSIC_RHYTHM: MusicRhythmEntry[] = [
+  {
+    title: 'Suona il Tamburo: BUM BUM! 🥁',
+    prompt: 'Ascolta il suono forte "BUM BUM"! Tocca il TAMBURO! 🥁',
+    speech: 'Ascolta bene: bum, bum, bum! Quale strumento fa questo bel suono ritmato? Tocca il tamburo!',
+    rhythmNotes: [
+      { freq: 196.0, duration: 0.32, label: 'BUM', emoji: '🥁' },
+      { freq: 196.0, duration: 0.32, label: 'BUM', emoji: '🥁' },
+      { freq: 261.63, duration: 0.4, label: 'BUM!', emoji: '🥁' },
+    ],
+    correct: { label: 'Tamburo', emoji: '🥁', sublabel: 'Fa BUM BUM!', noteFreq: 196.0 },
+    distractors: [
+      { label: 'Mela', emoji: '🍎', sublabel: 'Si mangia, non suona', noteFreq: 440.0 },
+      { label: 'Pallone', emoji: '⚽', sublabel: 'Rimbalza nel prato', noteFreq: 392.0 },
+    ],
+    explanation: 'Bravissima! Il tamburo fa BUM BUM quando teniamo il ritmo!',
+  },
+  {
+    title: 'Batti le Mani a Tempo! 👏',
+    prompt: 'Ascolta il ritmo allegro: CLAP, CLAP! Quali sono le MANI che battono? 👏',
+    speech: 'Facciamo il ritmo insieme: clap, clap, clap! Tocca le mani che battono a tempo!',
+    rhythmNotes: [
+      { freq: 523.25, duration: 0.25, label: 'CLAP', emoji: '👏' },
+      { freq: 659.25, duration: 0.25, label: 'CLAP', emoji: '👏' },
+      { freq: 783.99, duration: 0.35, label: 'CLAP!', emoji: '✨' },
+    ],
+    correct: { label: 'Mani che Battono', emoji: '👏', sublabel: 'Fanno CLAP CLAP!', noteFreq: 659.25 },
+    distractors: [
+      { label: 'Scarpa', emoji: '👟', sublabel: 'Si mette ai piedi', noteFreq: 261.63 },
+      { label: 'Cappello', emoji: '🧢', sublabel: 'Si mette in testa', noteFreq: 293.66 },
+    ],
+    explanation: 'Che ritmo allegro! Battere le mani a tempo è la prima musica del corpo!',
+  },
+  {
+    title: 'La Campanella Din Don! 🔔',
+    prompt: 'Ascolta il suono dolce "DIN DON"! Tocca la CAMPANELLA! 🔔',
+    speech: 'Senti che suono dolce e tintinnante: din, don, din, don! Tocca la campanella dorata!',
+    rhythmNotes: [
+      { freq: 783.99, duration: 0.32, label: 'DIN', emoji: '🔔' },
+      { freq: 659.25, duration: 0.32, label: 'DON', emoji: '🔔' },
+      { freq: 783.99, duration: 0.38, label: 'DIN!', emoji: '✨' },
+    ],
+    correct: { label: 'Campanella', emoji: '🔔', sublabel: 'Fa DIN DON!', noteFreq: 783.99 },
+    distractors: [
+      { label: 'Cuscino', emoji: '🛏️', sublabel: 'È morbido per dormire', noteFreq: 220.0 },
+      { label: 'Carota', emoji: '🥕', sublabel: 'È croccante', noteFreq: 329.63 },
+    ],
+    explanation: 'Sì! La campanella suona DIN DON con una nota dolce e squillante!',
+  },
+  {
+    title: 'La Chitarra Musicale! 🎸',
+    prompt: 'Ascolta le corde che cantano: PLIN PLIN! Tocca la CHITARRA! 🎸',
+    speech: 'Ascolta queste corde allegre che suonano una melodia felice! Tocca la chitarra!',
+    rhythmNotes: [
+      { freq: 329.63, duration: 0.28, label: 'PLIN', emoji: '🎸' },
+      { freq: 392.0, duration: 0.28, label: 'PLON', emoji: '🎸' },
+      { freq: 523.25, duration: 0.38, label: '🎶', emoji: '🎵' },
+    ],
+    correct: { label: 'Chitarra', emoji: '🎸', sublabel: 'Suona con le corde!', noteFreq: 523.25 },
+    distractors: [
+      { label: 'Cucchiaio', emoji: '🥄', sublabel: 'Si usa per la pappa', noteFreq: 293.66 },
+      { label: 'Ombrello', emoji: '☂️', sublabel: 'Ripara dalla pioggia', noteFreq: 246.94 },
+    ],
+    explanation: 'Evviva! La chitarra fa cantare le sue corde musicali!',
+  },
+];
+
 // =========================================================================
 // 6. INGLESE PER 5-6 ANNI (VOCABOLARIO AMPIO & FRASI) (Gc)
 // =========================================================================
@@ -1126,21 +1220,92 @@ export function getEncouragementPhrase(
 }
 
 function adaptGenderText(text: string, childProfile?: ChildProfile): string {
-  if (!childProfile || childProfile.gender === 'f') return text;
-  if (childProfile.gender === 'm') {
+  const gender = childProfile?.gender || 'n';
+  if (gender === 'f') {
+    return text
+      .replace(/\bBravissimo\b/g, 'Bravissima')
+      .replace(/\bbravissimo\b/g, 'bravissima')
+      .replace(/\bvero campione\b/gi, 'vera campionessa')
+      .replace(/\bCampione\b/g, 'Campionessa')
+      .replace(/\bcampione\b/g, 'campionessa')
+      .replace(/\bpiccolo scienziato\b/gi, 'piccola scienziata')
+      .replace(/\bvero botanico\b/gi, 'vera botanica')
+      .replace(/\bvero musicista\b/gi, 'vera musicista')
+      .replace(/\bvero matematico\b/gi, 'vera matematica')
+      .replace(/\bvero programmatore\b/gi, 'vera programmatrice')
+      .replace(/\bvero storico\b/gi, 'vera storica')
+      .replace(/\bvero custode\b/gi, 'vera custode')
+      .replace(/\bda astronomo\b/gi, 'da astronoma')
+      .replace(/\barrabb?iato\b/g, 'arrabbiata')
+      .replace(/\bfrustrato\b/g, 'frustrata')
+      .replace(/\bAttento\b/g, 'Attenta')
+      .replace(/\battento\b/g, 'attenta');
+  }
+  if (gender === 'm') {
     return text
       .replace(/\bBravissima\b/g, 'Bravissimo')
+      .replace(/\bbravissima\b/g, 'bravissimo')
+      .replace(/\bvera campionessa\b/gi, 'vero campione')
       .replace(/\bCampionessa\b/g, 'Campione')
-      .replace(/\bpiccola scienziata\b/g, 'piccolo scienziato')
-      .replace(/\bvera botanica\b/g, 'vero botanico')
-      .replace(/\bvera musicista\b/g, 'vero musicista');
+      .replace(/\bcampionessa\b/g, 'campione')
+      .replace(/\bpiccola scienziata\b/gi, 'piccolo scienziato')
+      .replace(/\bvera botanica\b/gi, 'vero botanico')
+      .replace(/\bvera musicista\b/gi, 'vero musicista')
+      .replace(/\bvera matematica\b/gi, 'vero matematico')
+      .replace(/\bvera programmatrice\b/gi, 'vero programmatore')
+      .replace(/\bvera storica\b/gi, 'vero storico')
+      .replace(/\bvera custode\b/gi, 'vero custode')
+      .replace(/\bda astronoma\b/gi, 'da astronomo')
+      .replace(/\barrabbiata\b/g, 'arrabbiato')
+      .replace(/\bfrustrata\b/g, 'frustrato')
+      .replace(/\bAttenta\b/g, 'Attento')
+      .replace(/\battenta\b/g, 'attento');
   }
   return text
-    .replace(/\bBravissima\b/g, 'Fantastico')
-    .replace(/\bCampionessa\b/g, 'Super')
-    .replace(/\bpiccola scienziata\b/g, 'giovane scienziato')
-    .replace(/\bvera botanica\b/g, 'vero genio della natura')
-    .replace(/\bvera musicista\b/g, 'grande talento musicale');
+    .replace(/\bBravissim[ao]\b/g, 'Fantastico')
+    .replace(/\bver[ao]\s+campion(?:essa|e)\b/gi, 'super stella')
+    .replace(/\bCampion(?:essa|e)\b/g, 'Super')
+    .replace(/\bcampion(?:essa|e)\b/g, 'super stella')
+    .replace(/\bpiccol[ao]\s+scienziat[ao]\b/gi, 'giovane mente')
+    .replace(/\bver[ao]\s+botanic[ao]\b/gi, 'amante della natura')
+    .replace(/\bver[ao]\s+musicista\b/gi, 'grande talento musicale')
+    .replace(/\bver[ao]\s+matematic[ao]\b/gi, 'mente matematica')
+    .replace(/\bver[ao]\s+programmat(?:ore|rice)\b/gi, 'mente digitale')
+    .replace(/\bver[ao]\s+storic[ao]\b/gi, 'mente curiosa')
+    .replace(/\bver[ao]\s+custode\b/gi, 'custode')
+    .replace(/\bda astronom[ao]\b/gi, 'di astronomia');
+}
+
+function personalizeSpeechWithName(
+  speechText: string,
+  childProfile: ChildProfile | undefined,
+  level: number
+): string {
+  const cleanName = childProfile?.name?.trim();
+  if (!cleanName) return speechText;
+
+  // Avoid duplicating the child's name if already explicitly included in the sentence
+  const escapedName = cleanName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (new RegExp(`\\b${escapedName}\\b`, 'i').test(speechText)) {
+    return speechText;
+  }
+
+  const trimmed = speechText.trim();
+  if (!trimmed) return speechText;
+
+  const canLowercaseOpening =
+    /^(Ascolta|Guarda|Tocca|Trova|Cerca|Osserva|Scegli|Conta|Completa|Indovina|Quale|Quali|Chi|Quanti|Quante|Dove|Cosa|Quanto|Come|Perché|Nel|Nella|In|Se|Un|Una|La|Il|Lo|Le|I|Sommiamo|Risolvi|Ricorda|Scopri|Aiuta|Abbina|Collega)\b/.test(
+      trimmed
+    );
+
+  if (canLowercaseOpening) {
+    const lowered = trimmed.charAt(0).toLowerCase() + trimmed.slice(1);
+    return level % 3 === 1
+      ? `Dai ${cleanName}, ${lowered}`
+      : `${cleanName}, ${lowered}`;
+  }
+
+  return `${cleanName}! ${trimmed}`;
 }
 
 function buildPersonalizedInitialLetterPuzzle(
@@ -1209,62 +1374,324 @@ function buildPersonalizedInitialLetterPuzzle(
   };
 }
 
+interface EnrichmentModule {
+  id: string;
+  subjectLabel: string;
+  titlePrefix: string;
+  emoji: string;
+  category: GameCategory;
+  chcPrimary: 'Gf' | 'Gwm' | 'Gc' | 'Gv' | 'Gs';
+  chcSecondary: 'Gf' | 'Gwm' | 'Gc' | 'Gv' | 'Gs';
+  minBandIdx: number; // 0=2-3, 1=4-5, 2=6-7, 3=8-9, 4=10-12
+  entries: AgeQuizEntry[];
+}
+
+const ENRICHMENT_MODULES: EnrichmentModule[] = [
+  {
+    id: 'empathy',
+    subjectLabel: 'Educazione Emotiva & Empatia',
+    titlePrefix: 'Cuore & Empatia',
+    emoji: '💛',
+    category: 'letters',
+    chcPrimary: 'Gc',
+    chcSecondary: 'Gf',
+    minBandIdx: 0,
+    entries: EMOTIONAL_EMPATHY_CATALOG,
+  },
+  {
+    id: 'memory',
+    subjectLabel: 'Memoria Visiva & Attenzione',
+    titlePrefix: 'Memoria Lampo',
+    emoji: '🎯',
+    category: 'logic',
+    chcPrimary: 'Gwm',
+    chcSecondary: 'Gs',
+    minBandIdx: 1,
+    entries: MEMORY_ATTENTION_CATALOG,
+  },
+  {
+    id: 'ecology',
+    subjectLabel: 'Ecologia & Alimentazione',
+    titlePrefix: 'Pianeta & Salute',
+    emoji: '♻️',
+    category: 'logic',
+    chcPrimary: 'Gc',
+    chcSecondary: 'Gf',
+    minBandIdx: 1,
+    entries: NATURE_ECOLOGY_CATALOG,
+  },
+  {
+    id: 'financial_time',
+    subjectLabel: 'Orologio & Educazione Finanziaria',
+    titlePrefix: 'Tempo & Risparmio',
+    emoji: '⏰',
+    category: 'numbers',
+    chcPrimary: 'Gf',
+    chcSecondary: 'Gwm',
+    minBandIdx: 2,
+    entries: FINANCIAL_TIME_CATALOG,
+  },
+  {
+    id: 'astronomy',
+    subjectLabel: 'Astronomia & Universo',
+    titlePrefix: 'Viaggio tra le Stelle',
+    emoji: '🪐',
+    category: 'shapes',
+    chcPrimary: 'Gc',
+    chcSecondary: 'Gv',
+    minBandIdx: 2,
+    entries: ASTRONOMY_SPACE_CATALOG,
+  },
+  {
+    id: 'geography',
+    subjectLabel: 'Geografia del Mondo',
+    titlePrefix: 'Esploratori del Mondo',
+    emoji: '🧭',
+    category: 'shapes',
+    chcPrimary: 'Gv',
+    chcSecondary: 'Gc',
+    minBandIdx: 3,
+    entries: GEOGRAPHY_WORLD_CATALOG,
+  },
+  {
+    id: 'inventions',
+    subjectLabel: 'Invenzioni & Tecnologia',
+    titlePrefix: 'Scienza & Invenzioni',
+    emoji: '💻',
+    category: 'logic',
+    chcPrimary: 'Gf',
+    chcSecondary: 'Gc',
+    minBandIdx: 3,
+    entries: INVENTIONS_TECH_CATALOG,
+  },
+  {
+    id: 'philosophy',
+    subjectLabel: 'Pensiero Critico & Filosofia',
+    titlePrefix: 'Mente Critica',
+    emoji: '🦉',
+    category: 'logic',
+    chcPrimary: 'Gf',
+    chcSecondary: 'Gc',
+    minBandIdx: 4,
+    entries: PHILOSOPHY_CRITICAL_CATALOG,
+  },
+];
+
+function buildDistinctNumericValues(correct: number, deltas: number[], total = 3): number[] {
+  const minAllowed = correct >= 1 ? 1 : 0;
+  const result: number[] = [correct];
+  for (const d of deltas) {
+    if (result.length >= total) break;
+    const candidate = correct + d;
+    if (candidate >= minAllowed && !result.includes(candidate)) {
+      result.push(candidate);
+    }
+  }
+  let fallbackOffset = 1;
+  while (result.length < total) {
+    const up = correct + fallbackOffset;
+    if (!result.includes(up)) {
+      result.push(up);
+      if (result.length >= total) break;
+    }
+    const down = correct - fallbackOffset;
+    if (down >= minAllowed && !result.includes(down)) {
+      result.push(down);
+    }
+    fallbackOffset++;
+  }
+  return result;
+}
+
 // =========================================================================
-// PROCEDURAL LEVEL GENERATOR (NON-REPEATING & AGE-ADAPTIVE ACROSS 4 BANDS)
-// Adapts levels, difficulty, numerical range & subjects immediately from birthDate!
+// PROCEDURAL LEVEL GENERATOR (NON-REPEATING & PROGRESSIVE ACROSS 6 AGE BANDS: 2 -> 14 YEARS)
+// Adapts difficulty tiers, numerical complexity, enrichment subjects & proportional early
+// mastery unlocking immediately from birthDate and real learning statistics!
 // =========================================================================
-export function generateProceduralPuzzle(level: number, childProfile?: ChildProfile): Puzzle {
+export function generateProceduralPuzzle(
+  level: number,
+  childProfile?: ChildProfile,
+  progress?: UserProgress
+): Puzzle {
   const guide = ANIMAL_GUIDES[(level * 5 + 1) % ANIMAL_GUIDES.length];
   const ageInfo = calculateChildAge(childProfile?.birthDate);
-  const ageBand = ageInfo.ageBand;
+  const chronologicalBand = ageInfo.ageBand;
+  const baseBandIdx = AGE_BAND_ORDER.indexOf(chronologicalBand);
+  const mastery = computeAdaptiveMasteryProfile(progress);
+  const effectiveBandIdx = AGE_BAND_ORDER.indexOf(mastery.effectiveBand);
   const childName = getDisplayChildName(childProfile);
 
-  // Tier increases every 10 levels (1..10 = Tier 1, 11..20 = Tier 2, etc.)
+  // Tier increases every 10 levels (1..10 = Tier 1, 11..20 = Tier 2, 21..30 = Tier 3, 31+ = Tier 4+)
   const tier = Math.floor((level - 1) / 10) + 1;
   const cycleIdx = tier - 1;
   const rawStep = ((level - 1) % 10) + 1; // 1..9 (10 is Svago)
 
-  // Age-tailored subject rotation so right from Level 1 the child sees subjects calibrated to their age
-  const stepPermutationsByBand: Record<typeof ageBand, number[][]> = {
+  // Proportional mastery-based early unlocking schedule:
+  // boostLevel 1 -> 2 out of 9 levels; boostLevel 2 -> 3 out of 9; boostLevel 3 -> 4 out of 9
+  const isMasterySlot =
+    (mastery.boostLevel === 1 && (rawStep === 4 || rawStep === 8)) ||
+    (mastery.boostLevel === 2 && (rawStep === 3 || rawStep === 6 || rawStep === 9)) ||
+    (mastery.boostLevel === 3 && rawStep % 2 === 0);
+
+  const useEarlyBandPromotion = isMasterySlot && (level % 2 === 0 || effectiveBandIdx > baseBandIdx && level % 3 === 0);
+  const useMasteryEnrichment = isMasterySlot && !useEarlyBandPromotion;
+
+  const ageBand: AgeBandId =
+    useEarlyBandPromotion && effectiveBandIdx > baseBandIdx
+      ? mastery.effectiveBand
+      : chronologicalBand;
+
+  const isMasteryUnlocked = isMasterySlot && (effectiveBandIdx > baseBandIdx || useMasteryEnrichment);
+
+  const tierStageLabel =
+    tier === 1
+      ? 'Base'
+      : tier === 2
+      ? 'Intermedio'
+      : tier === 3
+      ? 'Avanzato'
+      : `Maestro Lv.${tier}`;
+
+  const bandShiftDelta = Math.max(1, effectiveBandIdx - baseBandIdx);
+  const difficultyLabel = isMasteryUnlocked
+    ? useEarlyBandPromotion && effectiveBandIdx > baseBandIdx
+      ? `Sbloccata per Merito · Fascia +${bandShiftDelta}`
+      : 'Sbloccata per Merito · Materia Extra'
+    : `${tierStageLabel} · ${ageInfo.shortAgeLabel}`;
+
+  // Age-tailored & tier-progressive subject rotation (subjects unlock progressively with age & level!)
+  const stepPermutationsByBand: Record<AgeBandId, number[][]> = {
     toddler_2_3: [
-      [1, 4, 2, 3, 6, 5, 7, 2, 4],
-      [4, 1, 2, 6, 3, 7, 5, 4, 2],
-      [1, 2, 4, 5, 3, 6, 7, 1, 4],
+      // Tier 1 (Liv. 1-10): Animali, Artistica Colori/Forme, Conteggio 1-4, Ritmo Base, Logica Base
+      [1, 4, 2, 3, 7, 1, 4, 2, 3],
+      // Tier 2 (Liv. 11-20): Sblocca Prime Vocali (5) & Prime Somme 1-4 (9)
+      [4, 1, 5, 2, 3, 7, 9, 4, 5],
+      // Tier 3+ (Liv. 21+): Aggiunge Prime Parole Inglesi (6) & Sottrazioni Visive (8)
+      [1, 5, 4, 3, 6, 7, 9, 8, 2],
     ],
     preschool_4_5: [
-      [1, 2, 3, 4, 5, 6, 7, 8, 9],
+      [1, 4, 2, 3, 5, 7, 6, 8, 9],
       [7, 4, 6, 2, 5, 3, 8, 1, 9],
       [5, 8, 1, 7, 3, 9, 4, 6, 2],
       [6, 3, 8, 5, 9, 1, 2, 7, 4],
     ],
     early_primary_6_7: [
-      [9, 5, 7, 4, 8, 6, 1, 3, 9],
-      [5, 8, 4, 7, 9, 1, 6, 3, 8],
-      [7, 9, 6, 5, 4, 8, 3, 1, 7],
+      [9, 5, 4, 7, 3, 8, 6, 1, 4],
+      [5, 8, 4, 7, 2, 3, 1, 6, 9],
+      [7, 9, 6, 5, 4, 3, 8, 1, 2],
     ],
-    primary_8_plus: [
-      [7, 9, 1, 5, 4, 8, 6, 3, 7],
-      [9, 4, 7, 6, 8, 5, 1, 3, 9],
-      [8, 7, 5, 1, 9, 4, 6, 3, 8],
+    upper_primary_8_9: [
+      [7, 9, 4, 1, 3, 5, 2, 8, 6],
+      [2, 4, 7, 6, 3, 8, 5, 1, 9],
+      [8, 7, 5, 4, 1, 2, 9, 3, 6],
+    ],
+    preteen_10_12: [
+      [7, 2, 4, 1, 3, 5, 8, 6, 9],
+      [2, 4, 7, 1, 3, 8, 5, 9, 6],
+      [8, 7, 4, 5, 1, 2, 3, 6, 9],
+    ],
+    teen_13_14: [
+      [7, 2, 1, 4, 5, 3, 8, 6, 9],
+      [2, 7, 4, 1, 8, 5, 3, 9, 6],
+      [8, 1, 7, 2, 4, 5, 6, 3, 9],
     ],
   };
 
   const bandPerms = stepPermutationsByBand[ageBand];
-  const perm = bandPerms[cycleIdx % bandPerms.length];
+  const perm = bandPerms[Math.min(cycleIdx, bandPerms.length - 1)];
   const step = perm[(rawStep - 1) % 9];
 
   const uniqueIdx = cycleIdx * 3 + Math.floor((rawStep - 1) / 3);
   const mathTheme = MATH_ITEM_CATALOG[(level * 3 + cycleIdx) % MATH_ITEM_CATALOG.length];
 
-  const finalize = (puzzle: Puzzle): Puzzle => ({
-    ...puzzle,
-    prompt: adaptGenderText(puzzle.prompt, childProfile),
-    speechText: adaptGenderText(puzzle.speechText, childProfile),
-    funExplanation: adaptGenderText(puzzle.funExplanation, childProfile),
-  });
+  const finalize = (puzzle: Puzzle): Puzzle => {
+    const genderedSpeech = adaptGenderText(puzzle.speechText, childProfile);
+    return {
+      ...puzzle,
+      difficultyLabel: puzzle.difficultyLabel || difficultyLabel,
+      isMasteryUnlocked: puzzle.isMasteryUnlocked ?? isMasteryUnlocked,
+      title: adaptGenderText(puzzle.title, childProfile),
+      prompt: adaptGenderText(puzzle.prompt, childProfile),
+      speechText: personalizeSpeechWithName(genderedSpeech, childProfile, level),
+      funExplanation: adaptGenderText(puzzle.funExplanation, childProfile),
+      options: puzzle.options?.map((o) => ({
+        ...o,
+        label: adaptGenderText(o.label, childProfile),
+        sublabel: o.sublabel ? adaptGenderText(o.sublabel, childProfile) : o.sublabel,
+      })),
+    };
+  };
 
   // -------------------------------------------------------------
-  // STEP 1: NATURA, ANIMALETTI & SCIENZE (ADAPTED BY AGE BAND)
+  // ENRICHMENT SUBJECTS (AGE-NATIVE & PROPORTIONAL MASTERY EARLY-UNLOCK)
+  // Opens Empathy, Visual Memory, Ecology, Time/Finance, Astronomy,
+  // World Geography, Inventions/Tech, and Critical Thinking/Philosophy!
+  // -------------------------------------------------------------
+  const isRegularEnrichmentSlot = !isMasterySlot && rawStep === 7 && level >= 7;
+  if (useMasteryEnrichment || isRegularEnrichmentSlot) {
+    const maxUnlockedIdx = useMasteryEnrichment
+      ? Math.min(AGE_BAND_ORDER.length - 1, baseBandIdx + Math.max(1, effectiveBandIdx - baseBandIdx))
+      : baseBandIdx;
+
+    // Prefer stretch modules above chronological age when unlocked by mastery
+    const stretchModules = ENRICHMENT_MODULES.filter(
+      (m) => m.minBandIdx > baseBandIdx && m.minBandIdx <= maxUnlockedIdx
+    );
+    const eligibleModules =
+      useMasteryEnrichment && stretchModules.length > 0
+        ? stretchModules
+        : ENRICHMENT_MODULES.filter((m) => m.minBandIdx <= maxUnlockedIdx);
+
+    if (eligibleModules.length > 0) {
+      const mod = eligibleModules[(cycleIdx + level) % eligibleModules.length];
+      const entry = mod.entries[(cycleIdx + rawStep + Math.floor(level / 3)) % mod.entries.length];
+      const options: PuzzleOption[] = deterministicShuffle(
+        [
+          {
+            id: `opt_enr_corr_${level}`,
+            label: entry.correct.label,
+            emoji: entry.correct.emoji,
+            sublabel: entry.correct.sublabel,
+            isCorrect: true,
+          },
+          ...entry.distractors.map((d, i) => ({
+            id: `opt_enr_dist_${level}_${i}`,
+            label: d.label,
+            emoji: d.emoji,
+            sublabel: d.sublabel,
+            isCorrect: false,
+          })),
+        ],
+        level * 83 + tier
+      );
+
+      return finalize({
+        id: `lvl_${level}_enrich_${mod.id}`,
+        levelNumber: level,
+        difficultyTier: tier,
+        category: mod.category,
+        subjectLabel: mod.subjectLabel,
+        isMasteryUnlocked: useMasteryEnrichment,
+        type: 'iq_matrix',
+        title: `Livello ${level}: ${mod.titlePrefix} ${mod.emoji}`,
+        prompt: entry.prompt,
+        speechText: entry.speech,
+        animalGuide: guide,
+        patternItems: entry.patternItems,
+        iqParameterTag: entry.iqParameterTag || `${mod.subjectLabel} (${mod.chcPrimary} · ${mod.chcSecondary})`,
+        chcPrimary: mod.chcPrimary,
+        chcSecondary: mod.chcSecondary,
+        diagnosticTarget: `${mod.subjectLabel} · ${useMasteryEnrichment ? 'Sbloccata per rendimento elevato' : ageInfo.shortAgeLabel}`,
+        options,
+        rewardStars: 3,
+        rewardGems: useMasteryEnrichment ? 4 : 3,
+        funExplanation: entry.explanation,
+      });
+    }
+  }
+
+  // -------------------------------------------------------------
+  // STEP 1: NATURA, SCIENZE, GEOGRAFIA, STORIA, CHIMICA & FISICA (6 BANDS: 2->14 ANNI)
   // -------------------------------------------------------------
   if (step === 1) {
     const pool =
@@ -1272,8 +1699,12 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
         ? TODDLER_ANIMALS
         : ageBand === 'early_primary_6_7'
         ? EARLY_PRIMARY_SCIENCE
-        : ageBand === 'primary_8_plus'
+        : ageBand === 'upper_primary_8_9'
         ? PRIMARY_ADV_SCIENCE
+        : ageBand === 'preteen_10_12'
+        ? PRETEEN_SCIENCE_HISTORY
+        : ageBand === 'teen_13_14'
+        ? TEEN_SCIENCE_CHEMISTRY_PHYSICS
         : NATURE_AND_ANIMALS_5YO;
 
     const item = pool[(cycleIdx * 2 + rawStep) % pool.length];
@@ -1297,29 +1728,51 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
       level * 17 + tier
     );
 
-    const titleByBand =
-      ageBand === 'toddler_2_3'
-        ? `Livello ${level}: Versi & Animali Amici 🐾`
-        : ageBand === 'early_primary_6_7'
-        ? `Livello ${level}: Scienze & Scoperte (${ageInfo.shortAgeLabel}) 🔬`
-        : ageBand === 'primary_8_plus'
-        ? `Livello ${level}: Scienze della Terra & Spazio 🌍`
-        : `Livello ${level}: Esploriamo la Natura & gli Animali 🌍`;
+    const subjectByBand: Record<AgeBandId, { subject: string; title: string }> = {
+      toddler_2_3: {
+        subject: 'Animali & Versi',
+        title: `Livello ${level}: Versi & Animali Amici 🐾`,
+      },
+      preschool_4_5: {
+        subject: 'Natura & Animali',
+        title: `Livello ${level}: Esploriamo la Natura & gli Animali 🌍`,
+      },
+      early_primary_6_7: {
+        subject: 'Scienze Naturali',
+        title: `Livello ${level}: Scienze & Scoperte (${ageInfo.shortAgeLabel}) 🔬`,
+      },
+      upper_primary_8_9: {
+        subject: 'Scienze & Geografia',
+        title: `Livello ${level}: Scienze della Terra & Geografia 🌍`,
+      },
+      preteen_10_12: {
+        subject: 'Storia, Civica & Fisica',
+        title: `Livello ${level}: Storia, Fisica & Astronomia 🔭`,
+      },
+      teen_13_14: {
+        subject: 'Chimica, Biologia & Fisica',
+        title: `Livello ${level}: Chimica, Fisica & Storia Moderna 🧪`,
+      },
+    };
 
     return finalize({
       id: `lvl_${level}_nature_${ageBand}`,
       levelNumber: level,
       difficultyTier: tier,
       category: 'logic',
+      subjectLabel: subjectByBand[ageBand].subject,
       type: 'animal_sounds',
-      title: titleByBand,
+      title: subjectByBand[ageBand].title,
       prompt: item.prompt,
       speechText: item.speech,
       animalGuide: guide,
-      iqParameterTag: 'Conoscenza Scientifica & Ragionamento (Gc · Gf)',
+      iqParameterTag:
+        'iqParameterTag' in item && typeof item.iqParameterTag === 'string'
+          ? item.iqParameterTag
+          : 'Conoscenza Scientifica & Ragionamento (Gc · Gf)',
       chcPrimary: 'Gc',
       chcSecondary: 'Gf',
-      diagnosticTarget: `Conoscenze sul mondo naturale calibrato ${ageInfo.ageBandTitle} (Gc · Gf)`,
+      diagnosticTarget: `${subjectByBand[ageBand].subject} · ${ageInfo.ageBandTitle} (Gc · Gf)`,
       options,
       rewardStars: 3,
       rewardGems: 2,
@@ -1328,15 +1781,418 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
   }
 
   // -------------------------------------------------------------
-  // STEP 2: CONTEGGIO INTERATTIVO (CALIBRATO PER ETÀ)
+  // STEP 2: CONTEGGIO (2–5), TABELLINE (6–7), DIVISIONI/FRAZIONI (8–9), PRE-ALGEBRA (10–12), ALGEBRA & RADICI (13–14)
   // -------------------------------------------------------------
   if (step === 2) {
+    // Band F (13-14 Anni): Radici Quadrate -> Proporzioni -> Equazioni Algebriche con Parentesi
+    if (ageBand === 'teen_13_14') {
+      if (tier === 1) {
+        const roots: { sym: string; rad: number; ans: number; tip: string }[] = [
+          { sym: '√144', rad: 144, ans: 12, tip: '12 × 12 = 144, quindi √144 = 12!' },
+          { sym: '√169', rad: 169, ans: 13, tip: '13 × 13 = 169, quindi √169 = 13!' },
+          { sym: '√225', rad: 225, ans: 15, tip: '15 × 15 = 225, quindi √225 = 15!' },
+          { sym: '√81 + √16', rad: 97, ans: 13, tip: '√81 = 9 e √16 = 4; sommati danno 13!' },
+          { sym: '√100 + √25', rad: 125, ans: 15, tip: '√100 = 10 e √25 = 5; 10 + 5 = 15!' },
+          { sym: '√196', rad: 196, ans: 14, tip: '14 × 14 = 196, quindi √196 = 14!' },
+        ];
+        const r = roots[(cycleIdx + rawStep + level) % roots.length];
+        const vals = buildDistinctNumericValues(r.ans, [-2, 2, -1, 3]);
+        const options: PuzzleOption[] = deterministicShuffle(
+          vals.map((val, idx) => ({
+            id: `opt_sqrt_${level}_${idx}`,
+            label: `${val}`,
+            emoji: '√',
+            sublabel: `Valore esatto: ${val}`,
+            isCorrect: val === r.ans,
+          })),
+          level * 89 + tier
+        );
+        return finalize({
+          id: `lvl_${level}_sqrt_teen`,
+          levelNumber: level,
+          difficultyTier: tier,
+          category: 'numbers',
+          subjectLabel: 'Algebra & Radici Quadrate',
+          type: 'visual_addition',
+          title: `Livello ${level}: Radici Quadrate (${r.sym}) 📐`,
+          prompt: `Calcola il valore esatto di ${r.sym} = ?`,
+          speechText: `Sfida di algebra, ${childName}: quanto vale ${r.sym}?`,
+          animalGuide: guide,
+          iqParameterTag: 'Radici Quadrate & Algebra (Gf · Gwm)',
+          chcPrimary: 'Gf',
+          chcSecondary: 'Gwm',
+          diagnosticTarget: 'Estrazione di radice quadrata e calcolo algebrico (13–14 anni)',
+          patternItems: [r.sym, '=', '❓'],
+          options,
+          rewardStars: 3,
+          rewardGems: 3,
+          funExplanation: `Perfetto! ${r.tip} Da vero matematico!`,
+        });
+      }
+
+      // Tier 2+: Equazioni di 1° grado con termini a entrambi i membri o parentesi
+      const teenEquations: { eq: string; speechEq: string; x: number; tip: string }[] = [
+        { eq: '2(x + 3) = 16', speechEq: 'due per aperta parentesi x più 3 chiusa uguale 16', x: 5, tip: 'Dividendo per 2: x + 3 = 8, quindi x = 5!' },
+        { eq: '5x − 7 = 2x + 8', speechEq: 'cinque x meno 7 uguale due x più 8', x: 5, tip: '3x = 15, quindi x = 5!' },
+        { eq: '3(x − 2) = 21', speechEq: 'tre per aperta parentesi x meno 2 chiusa uguale 21', x: 9, tip: 'x − 2 = 7, quindi x = 9!' },
+        { eq: '4x + 5 = x + 26', speechEq: 'quattro x più 5 uguale x più 26', x: 7, tip: '3x = 21, quindi x = 7!' },
+        { eq: '6x − 12 = 2x + 12', speechEq: 'sei x meno 12 uguale due x più 12', x: 6, tip: '4x = 24, quindi x = 6!' },
+      ];
+      const teq = teenEquations[(cycleIdx + rawStep + level) % teenEquations.length];
+      const vals = buildDistinctNumericValues(teq.x, [-2, 2, -1, 3]);
+      const options: PuzzleOption[] = deterministicShuffle(
+        vals.map((val, idx) => ({
+          id: `opt_teq_${level}_${idx}`,
+          label: `x = ${val}`,
+          emoji: '🧮',
+          sublabel: 'Soluzione equazione',
+          isCorrect: val === teq.x,
+        })),
+        level * 97 + tier
+      );
+      return finalize({
+        id: `lvl_${level}_teen_eq`,
+        levelNumber: level,
+        difficultyTier: tier,
+        category: 'numbers',
+        subjectLabel: 'Algebra & Equazioni 1° Grado',
+        type: 'visual_addition',
+        title: `Livello ${level}: Equazione Algebrica (${teq.eq}) 🧮`,
+        prompt: `Risolvi l'equazione lineare: qual è il valore di x in ${teq.eq}?`,
+        speechText: `Sfida di algebra, ${childName}: risolvi l'equazione ${teq.speechEq}. Quanto vale x?`,
+        animalGuide: guide,
+        iqParameterTag: 'Equazioni Lineari & Pensiero Algebrico (Gf · Gwm)',
+        chcPrimary: 'Gf',
+        chcSecondary: 'Gwm',
+        diagnosticTarget: 'Risoluzione di equazioni algebriche di primo grado (13–14 anni)',
+        patternItems: [teq.eq, '➔', 'x = ?'],
+        options,
+        rewardStars: 3,
+        rewardGems: 4,
+        funExplanation: `Eccezionale! ${teq.tip} Da vero matematico!`,
+      });
+    }
+
+    // Band E (10-12 Anni): Progressive Pre-Algebra across Tiers (Potenze -> Percentuali -> Equazioni)
+    if (ageBand === 'preteen_10_12') {
+      if (tier === 1) {
+        const powers: { base: number; exp: number; sym: string; ans: number }[] = [
+          { base: 2, exp: 3, sym: '2³', ans: 8 },
+          { base: 5, exp: 2, sym: '5²', ans: 25 },
+          { base: 3, exp: 3, sym: '3³', ans: 27 },
+          { base: 7, exp: 2, sym: '7²', ans: 49 },
+          { base: 4, exp: 2, sym: '4²', ans: 16 },
+          { base: 6, exp: 2, sym: '6²', ans: 36 },
+          { base: 2, exp: 4, sym: '2⁴', ans: 16 },
+          { base: 9, exp: 2, sym: '9²', ans: 81 },
+        ];
+        const p = powers[(cycleIdx * 3 + rawStep + level) % powers.length];
+        const vals = buildDistinctNumericValues(p.ans, [-p.base, p.base, -2, 4]);
+        const options: PuzzleOption[] = deterministicShuffle(
+          vals.map((val, idx) => ({
+            id: `opt_pow_${level}_${idx}`,
+            label: `${val}`,
+            emoji: '⚡',
+            sublabel: `Risultato: ${val}`,
+            isCorrect: val === p.ans,
+          })),
+          level * 61 + tier
+        );
+        return finalize({
+          id: `lvl_${level}_powers`,
+          levelNumber: level,
+          difficultyTier: tier,
+          category: 'numbers',
+          subjectLabel: 'Pre-Algebra & Potenze',
+          type: 'visual_addition',
+          title: `Livello ${level}: Potenze (${p.sym}) ⚡`,
+          prompt: `Quanto vale la potenza ${p.sym}?`,
+          speechText: `Sfida sulle potenze, ${childName}: quanto vale ${p.sym}?`,
+          animalGuide: guide,
+          iqParameterTag: 'Potenze & Pensiero Algebrico (Gf · Gwm)',
+          chcPrimary: 'Gf',
+          chcSecondary: 'Gwm',
+          diagnosticTarget: 'Calcolo esponenziale e comprensione delle potenze (10–12 anni)',
+          patternItems: [p.sym, '=', '❓'],
+          options,
+          rewardStars: 3,
+          rewardGems: 3,
+          funExplanation: `Esatto! ${p.sym} significa moltiplicare ${p.base} per sé stesso ${p.exp} volte, cioè ${p.ans}! Da vero matematico!`,
+        });
+      }
+
+      if (tier === 2) {
+        const percents: { pct: number; total: number; ans: number }[] = [
+          { pct: 25, total: 80, ans: 20 },
+          { pct: 10, total: 150, ans: 15 },
+          { pct: 20, total: 50, ans: 10 },
+          { pct: 50, total: 64, ans: 32 },
+          { pct: 25, total: 120, ans: 30 },
+          { pct: 10, total: 240, ans: 24 },
+          { pct: 50, total: 96, ans: 48 },
+          { pct: 20, total: 75, ans: 15 },
+        ];
+        const q = percents[(cycleIdx * 2 + rawStep + level) % percents.length];
+        const vals = buildDistinctNumericValues(q.ans, [-5, 5, -10, 10]);
+        const options: PuzzleOption[] = deterministicShuffle(
+          vals.map((val, idx) => ({
+            id: `opt_pct_${level}_${idx}`,
+            label: `${val}`,
+            emoji: '📊',
+            sublabel: `${q.pct}% di ${q.total}`,
+            isCorrect: val === q.ans,
+          })),
+          level * 67 + tier
+        );
+        return finalize({
+          id: `lvl_${level}_percent`,
+          levelNumber: level,
+          difficultyTier: tier,
+          category: 'numbers',
+          subjectLabel: 'Pre-Algebra & Percentuali',
+          type: 'visual_addition',
+          title: `Livello ${level}: Calcolo Percentuale (${q.pct}%) 📊`,
+          prompt: `Quanto è il ${q.pct}% di ${q.total}?`,
+          speechText: `Ragionamento proporzionale, ${childName}: quanto è il ${q.pct}% di ${q.total}?`,
+          animalGuide: guide,
+          iqParameterTag: 'Proporzioni & Percentuali (Gf · Gwm)',
+          chcPrimary: 'Gf',
+          chcSecondary: 'Gwm',
+          diagnosticTarget: 'Calcolo mentale percentuale e ragionamento proporzionale (10–12 anni)',
+          patternItems: [`${q.pct}%`, 'di', `${q.total}`, '=', '❓'],
+          options,
+          rewardStars: 3,
+          rewardGems: 3,
+          funExplanation: `Perfetto! Il ${q.pct}% di ${q.total} è esattamente ${q.ans}! Da vero matematico!`,
+        });
+      }
+
+      // Tier 3+: Equazioni intuitive di 1° grado
+      const equations: { eq: string; speechEq: string; x: number; explanation: string }[] = [
+        {
+          eq: '2x + 4 = 14',
+          speechEq: 'due x più 4 uguale 14',
+          x: 5,
+          explanation: 'Sottraendo 4 otteniamo 2x = 10, quindi x = 5!',
+        },
+        {
+          eq: '3x − 3 = 12',
+          speechEq: 'tre x meno 3 uguale 12',
+          x: 5,
+          explanation: 'Aggiungendo 3 otteniamo 3x = 15, quindi x = 5!',
+        },
+        {
+          eq: '5x = 35',
+          speechEq: 'cinque x uguale 35',
+          x: 7,
+          explanation: 'Dividendo 35 per 5 troviamo subito x = 7!',
+        },
+        {
+          eq: '4x + 2 = 22',
+          speechEq: 'quattro x più 2 uguale 22',
+          x: 5,
+          explanation: 'Togliendo 2 otteniamo 4x = 20, quindi x = 5!',
+        },
+        {
+          eq: '2x − 6 = 10',
+          speechEq: 'due x meno 6 uguale 10',
+          x: 8,
+          explanation: 'Aggiungendo 6 otteniamo 2x = 16, quindi x = 8!',
+        },
+        {
+          eq: '3x + 6 = 27',
+          speechEq: 'tre x più 6 uguale 27',
+          x: 7,
+          explanation: 'Sottraendo 6 otteniamo 3x = 21, quindi x = 7!',
+        },
+      ];
+      const eq = equations[(cycleIdx + rawStep + level) % equations.length];
+      const vals = buildDistinctNumericValues(eq.x, [-2, 2, -1, 3]);
+      const options: PuzzleOption[] = deterministicShuffle(
+        vals.map((val, idx) => ({
+          id: `opt_eq_${level}_${idx}`,
+          label: `x = ${val}`,
+          emoji: '🧮',
+          sublabel: `Incognita x`,
+          isCorrect: val === eq.x,
+        })),
+        level * 71 + tier
+      );
+      return finalize({
+        id: `lvl_${level}_equation`,
+        levelNumber: level,
+        difficultyTier: tier,
+        category: 'numbers',
+        subjectLabel: 'Pre-Algebra & Equazioni',
+        type: 'visual_addition',
+        title: `Livello ${level}: Trova l'Incognita (${eq.eq}) 🧮`,
+        prompt: `Risolvi l'equazione: quanto vale x in ${eq.eq}?`,
+        speechText: `Sfida di algebra, ${childName}: se ${eq.speechEq}, quanto vale la incognita x?`,
+        animalGuide: guide,
+        iqParameterTag: 'Risoluzione Equazioni & Logica Algebrica (Gf · Gwm)',
+        chcPrimary: 'Gf',
+        chcSecondary: 'Gwm',
+        diagnosticTarget: 'Pensiero algebrico inverso ed equazioni di primo grado (10–12 anni)',
+        patternItems: [eq.eq, '➔', 'x = ?'],
+        options,
+        rewardStars: 3,
+        rewardGems: 3,
+        funExplanation: `Eccezionale! ${eq.explanation} Da vero matematico!`,
+      });
+    }
+
+    // Band D (8-9 Anni): Tier 1 Divisioni esatte -> Tier 2+ Frazioni di quantità
+    if (ageBand === 'upper_primary_8_9') {
+      if (tier === 1) {
+        const divisions: [number, number][] = [
+          [18, 3],
+          [24, 4],
+          [35, 5],
+          [27, 3],
+          [32, 4],
+          [42, 6],
+          [48, 8],
+          [54, 9],
+        ];
+        const [dividend, divisor] = divisions[(cycleIdx + rawStep + level) % divisions.length];
+        const answer = dividend / divisor;
+        const vals = buildDistinctNumericValues(answer, [-2, 2, -1, 1]);
+        const options: PuzzleOption[] = deterministicShuffle(
+          vals.map((val, idx) => ({
+            id: `opt_div_${level}_${idx}`,
+            label: `${val}`,
+            emoji: '➗',
+            sublabel: `Quoziente: ${val}`,
+            isCorrect: val === answer,
+          })),
+          level * 63 + tier
+        );
+        return finalize({
+          id: `lvl_${level}_div_8_9`,
+          levelNumber: level,
+          difficultyTier: tier,
+          category: 'numbers',
+          subjectLabel: 'Divisioni & Calcolo',
+          type: 'visual_subtraction',
+          title: `Livello ${level}: Divisione Esatta (${dividend} ÷ ${divisor}) ➗`,
+          prompt: `Calcolo mentale: quanto fa ${dividend} ÷ ${divisor} = ?`,
+          speechText: `Sfida sulle divisioni, ${childName}: quanto fa ${dividend} diviso ${divisor}?`,
+          animalGuide: guide,
+          iqParameterTag: 'Divisione Esatta & Operazioni Inverse (Gf · Gwm)',
+          chcPrimary: 'Gf',
+          chcSecondary: 'Gwm',
+          diagnosticTarget: 'Calcolo mentale inverso e divisioni esatte (8–9 anni)',
+          patternItems: [`${dividend}`, '÷', `${divisor}`, '=', '❓'],
+          options,
+          rewardStars: 3,
+          rewardGems: 3,
+          funExplanation: `Perfetto! ${dividend} diviso ${divisor} fa ${answer}, perché ${answer} × ${divisor} = ${dividend}!`,
+        });
+      }
+
+      // Tier 2+: Frazioni di quantità
+      const fractions: { frac: string; num: number; den: number; total: number; ans: number }[] = [
+        { frac: '½', num: 1, den: 2, total: 24, ans: 12 },
+        { frac: '¼', num: 1, den: 4, total: 20, ans: 5 },
+        { frac: '⅓', num: 1, den: 3, total: 18, ans: 6 },
+        { frac: '⅕', num: 1, den: 5, total: 35, ans: 7 },
+        { frac: '½', num: 1, den: 2, total: 36, ans: 18 },
+        { frac: '¼', num: 1, den: 4, total: 32, ans: 8 },
+      ];
+      const f = fractions[(cycleIdx + rawStep + level) % fractions.length];
+      const vals = buildDistinctNumericValues(f.ans, [-2, 3, -1, 2]);
+      const options: PuzzleOption[] = deterministicShuffle(
+        vals.map((val, idx) => ({
+          id: `opt_frac_${level}_${idx}`,
+          label: `${val}`,
+          emoji: '🍕',
+          sublabel: `${f.frac} di ${f.total}`,
+          isCorrect: val === f.ans,
+        })),
+        level * 67 + tier
+      );
+      return finalize({
+        id: `lvl_${level}_frac_8_9`,
+        levelNumber: level,
+        difficultyTier: tier,
+        category: 'numbers',
+        subjectLabel: 'Frazioni & Ragionamento',
+        type: 'visual_subtraction',
+        title: `Livello ${level}: Frazioni (${f.frac} di ${f.total}) 🍕`,
+        prompt: `Quanto vale ${f.frac} di ${f.total}?`,
+        speechText: `Ragioniamo con le frazioni, ${childName}: quanto vale ${f.frac} di ${f.total}?`,
+        animalGuide: guide,
+        iqParameterTag: 'Frazioni & Pensiero Proporzionale (Gf · Gwm)',
+        chcPrimary: 'Gf',
+        chcSecondary: 'Gwm',
+        diagnosticTarget: 'Comprensione delle frazioni unitarie di quantità (8–9 anni)',
+        patternItems: [f.frac, 'di', `${f.total}`, '=', '❓'],
+        options,
+        rewardStars: 3,
+        rewardGems: 3,
+        funExplanation: `Esatto! Per trovare ${f.frac} di ${f.total} basta dividere ${f.total} per ${f.den}, cioè ${f.ans}!`,
+      });
+    }
+
+    // Band C (6-7 Anni): Tier 2+ introduces prime tabelline ×2 e ×5!
+    if (ageBand === 'early_primary_6_7' && tier >= 2) {
+      const earlyMult: [number, number][] = [
+        [2, 4],
+        [2, 6],
+        [5, 3],
+        [5, 4],
+        [2, 7],
+        [5, 5],
+        [2, 8],
+        [3, 4],
+      ];
+      const [a, b] = earlyMult[(cycleIdx + rawStep + level) % earlyMult.length];
+      const answer = a * b;
+      const vals = buildDistinctNumericValues(answer, [-a, a, 2, -2]);
+      const options: PuzzleOption[] = deterministicShuffle(
+        vals.map((val, idx) => ({
+          id: `opt_emul_${level}_${idx}`,
+          label: `${val}`,
+          emoji: '✖️',
+          sublabel: `Risultato: ${val}`,
+          isCorrect: val === answer,
+        })),
+        level * 59 + tier
+      );
+      return finalize({
+        id: `lvl_${level}_early_mult`,
+        levelNumber: level,
+        difficultyTier: tier,
+        category: 'numbers',
+        subjectLabel: 'Prime Tabelline',
+        type: 'visual_addition',
+        title: `Livello ${level}: Prime Tabelline (${a} × ${b}) ✖️`,
+        prompt: `Quante volte fa ${a} × ${b} = ?`,
+        speechText: `Sfida delle prime tabelline, ${childName}: quanto fa ${a} per ${b}?`,
+        animalGuide: guide,
+        iqParameterTag: 'Moltiplicazione Introduttiva (Gf · Gwm)',
+        chcPrimary: 'Gf',
+        chcSecondary: 'Gwm',
+        diagnosticTarget: 'Addizione ripetuta e prime tabelline ×2, ×3, ×5 (6–7 anni)',
+        patternItems: [`${a}`, '×', `${b}`, '=', '❓'],
+        options,
+        rewardStars: 3,
+        rewardGems: 2,
+        funExplanation: `Fantastico! ${a} ripetuto ${b} volte fa esattamente ${answer}!`,
+      });
+    }
+
+    // Bands A (2-3), B (4-5), C Tier 1 (6-7): Interactive tactile counting
     const countPool =
       ageBand === 'toddler_2_3'
-        ? [2, 3, 2, 4, 3, 4]
+        ? tier === 1
+          ? [2, 3, 2, 4, 3]
+          : [3, 4, 5, 4, 5]
         : ageBand === 'preschool_4_5'
-        ? [4, 5, 6, 7, 8, 9, 5, 7, 6, 8]
-        : [7, 8, 9, 10, 8, 9];
+        ? tier === 1
+          ? [4, 5, 6, 7, 5, 6]
+          : [6, 7, 8, 9, 8, 10]
+        : [8, 9, 10, 9, 10];
     const targetCount = countPool[(cycleIdx + rawStep) % countPool.length];
 
     const formatted = formatQuantityItalian(targetCount, mathTheme);
@@ -1348,6 +2204,7 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
       levelNumber: level,
       difficultyTier: tier,
       category: 'numbers',
+      subjectLabel: ageBand === 'toddler_2_3' ? 'Primi Numeri (1–5)' : 'Numeri & Conteggio',
       type: 'count_interactive',
       title: `Livello ${level}: Conteggio fino a ${targetCount}!`,
       prompt: `Tocca ${formattedAll.text}, ${mathTheme.eachPhrase}!`,
@@ -1368,10 +2225,23 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
   }
 
   // -------------------------------------------------------------
-  // STEP 3: MUSICA, NOTE & STRUMENTI DELL'ORCHESTRA (Gwm + Gf)
+  // STEP 3: MUSICA, SENSO DEL RITMO, ORCHESTRA, COMPOSITORI & TEORIA (6 BANDS: 2->14 ANNI)
   // -------------------------------------------------------------
   if (step === 3) {
-    const musicItem = MUSIC_RHYTHM_CATALOG[(cycleIdx + rawStep) % MUSIC_RHYTHM_CATALOG.length];
+    const musicPool =
+      ageBand === 'toddler_2_3'
+        ? TODDLER_MUSIC_RHYTHM
+        : ageBand === 'early_primary_6_7'
+        ? EARLY_PRIMARY_MUSIC
+        : ageBand === 'upper_primary_8_9'
+        ? UPPER_PRIMARY_MUSIC
+        : ageBand === 'preteen_10_12'
+        ? PRETEEN_MUSIC_CULTURE
+        : ageBand === 'teen_13_14'
+        ? TEEN_MUSIC_THEORY
+        : MUSIC_RHYTHM_CATALOG;
+
+    const musicItem = musicPool[(cycleIdx + rawStep) % musicPool.length];
     const options: PuzzleOption[] = deterministicShuffle(
       [
         {
@@ -1394,20 +2264,34 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
       level * 23 + tier
     );
 
+    const musicSubjectLabel =
+      ageBand === 'toddler_2_3'
+        ? 'Musica & Senso del Ritmo'
+        : ageBand === 'preschool_4_5'
+        ? 'Musica, Ritmo & Strumenti'
+        : ageBand === 'early_primary_6_7'
+        ? 'Scala Musicale & Ritmo'
+        : ageBand === 'upper_primary_8_9'
+        ? 'Musica, Note & Orchestra'
+        : ageBand === 'preteen_10_12'
+        ? 'Musica Classica & Armonia'
+        : 'Teoria Musicale & Acustica';
+
     return finalize({
       id: `lvl_${level}_music_${ageBand}`,
       levelNumber: level,
       difficultyTier: tier,
       category: 'music',
+      subjectLabel: musicSubjectLabel,
       type: 'music_rhythm',
       title: `Livello ${level}: ${musicItem.title} 🎵`,
       prompt: musicItem.prompt,
       speechText: musicItem.speech,
       animalGuide: guide,
-      iqParameterTag: 'Memoria Sequenziale Uditiva (Gwm · Gf)',
+      iqParameterTag: 'Senso del Ritmo & Memoria Uditiva (Gwm · Gf)',
       chcPrimary: 'Gwm',
       chcSecondary: 'Gf',
-      diagnosticTarget: 'Codifica ritmico-melodica e memoria uditiva a breve termine (Gwm · IR)',
+      diagnosticTarget: `${musicSubjectLabel} · Codifica ritmico-melodica (${ageInfo.shortAgeLabel})`,
       rhythmNotes: musicItem.rhythmNotes,
       options,
       rewardStars: 3,
@@ -1417,7 +2301,7 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
   }
 
   // -------------------------------------------------------------
-  // STEP 4: GEOMETRIA, ORIENTAMENTO SPAZIALE & COLORI (ADAPTED BY AGE)
+  // STEP 4: ARTISTICA, COLORI, PITTURA, PROSPETTIVA & GEOMETRIA (5 BANDS)
   // -------------------------------------------------------------
   if (step === 4) {
     if (ageBand === 'toddler_2_3') {
@@ -1448,8 +2332,9 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
         levelNumber: level,
         difficultyTier: tier,
         category: 'shapes',
+        subjectLabel: 'Artistica: Colori & Forme',
         type: 'find_color',
-        title: `Livello ${level}: Colori & Forme Magiche 🎨`,
+        title: `Livello ${level}: Artistica · Colori & Forme 🎨`,
         prompt: item.prompt,
         speechText: item.speech,
         animalGuide: guide,
@@ -1464,10 +2349,28 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
       });
     }
 
-    if (ageBand === 'early_primary_6_7' || ageBand === 'primary_8_plus') {
-      const geoPool =
-        ageBand === 'primary_8_plus' ? PRIMARY_ADV_GEOMETRY : EARLY_PRIMARY_GEOMETRY;
-      const geoItem = geoPool[(cycleIdx + rawStep) % geoPool.length];
+    if (
+      ageBand === 'early_primary_6_7' ||
+      ageBand === 'upper_primary_8_9' ||
+      ageBand === 'preteen_10_12' ||
+      ageBand === 'teen_13_14'
+    ) {
+      const useArtCatalog =
+        ageBand !== 'preteen_10_12' && ageBand !== 'teen_13_14' && (cycleIdx + rawStep) % 2 === 0;
+      const geoArtPool =
+        ageBand === 'teen_13_14'
+          ? TEEN_ART_ARCHITECTURE
+          : ageBand === 'preteen_10_12'
+          ? PRETEEN_ART_GEOMETRY
+          : ageBand === 'upper_primary_8_9'
+          ? useArtCatalog
+            ? UPPER_PRIMARY_ART
+            : PRIMARY_ADV_GEOMETRY
+          : useArtCatalog
+          ? EARLY_PRIMARY_ART
+          : EARLY_PRIMARY_GEOMETRY;
+
+      const geoItem = geoArtPool[(cycleIdx + rawStep) % geoArtPool.length];
       const options: PuzzleOption[] = deterministicShuffle(
         [
           {
@@ -1475,6 +2378,7 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
             label: geoItem.correct.label,
             emoji: geoItem.correct.emoji,
             sublabel: geoItem.correct.sublabel,
+            color: geoItem.correct.color,
             isCorrect: true,
           },
           ...geoItem.distractors.map((d, i) => ({
@@ -1482,25 +2386,39 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
             label: d.label,
             emoji: d.emoji,
             sublabel: d.sublabel,
+            color: d.color,
             isCorrect: false,
           })),
         ],
         level * 29 + tier
       );
+
+      const subjectLabel =
+        ageBand === 'teen_13_14'
+          ? 'Arte Moderna, Solidi & Pitagora'
+          : ageBand === 'preteen_10_12'
+          ? 'Arte, Prospettiva & Geometria'
+          : useArtCatalog
+          ? ageBand === 'upper_primary_8_9'
+            ? 'Artistica & Grandi Pittori'
+            : 'Artistica, Colori & Simmetria'
+          : 'Geometria & Poligoni';
+
       return finalize({
-        id: `lvl_${level}_geo_${ageBand}`,
+        id: `lvl_${level}_geo_art_${ageBand}`,
         levelNumber: level,
         difficultyTier: tier,
         category: 'shapes',
+        subjectLabel,
         type: 'match_shape',
-        title: `Livello ${level}: Geometria & Poligoni (${ageInfo.shortAgeLabel}) 📐`,
+        title: `Livello ${level}: ${subjectLabel} (${ageInfo.shortAgeLabel}) ${useArtCatalog || ageBand === 'preteen_10_12' ? '🎨' : '📐'}`,
         prompt: geoItem.prompt,
         speechText: geoItem.speech,
         animalGuide: guide,
-        iqParameterTag: 'Geometria, Simmetria & Spazio (Gv · Gf)',
+        iqParameterTag: geoItem.iqParameterTag || 'Percezione Artistica & Geometria Spaziale (Gv · Gf)',
         chcPrimary: 'Gv',
         chcSecondary: 'Gf',
-        diagnosticTarget: `Analisi poligoni, perimetri e geometria spaziale (${ageInfo.shortAgeLabel})`,
+        diagnosticTarget: `${subjectLabel} (${ageInfo.shortAgeLabel})`,
         options,
         rewardStars: 3,
         rewardGems: 2,
@@ -1508,7 +2426,7 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
       });
     }
 
-    // Preschool 4-5yo: alternates Color Mix & 5yo Geometry
+    // Preschool 4-5yo: alternates Artistica Color Mix & 5yo Geometry
     const useColorMix = (cycleIdx + rawStep) % 2 === 0;
     if (useColorMix) {
       const mix = COLOR_MIXES[(cycleIdx + Math.floor(rawStep / 2)) % COLOR_MIXES.length];
@@ -1537,8 +2455,9 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
         levelNumber: level,
         difficultyTier: tier,
         category: 'shapes',
+        subjectLabel: 'Artistica: Mescolanza Colori',
         type: 'color_mix',
-        title: `Livello ${level}: Laboratorio dei Colori 🎨`,
+        title: `Livello ${level}: Artistica · Laboratorio Colori 🎨`,
         prompt: mix.prompt,
         speechText: mix.speech,
         animalGuide: guide,
@@ -1578,15 +2497,16 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
         levelNumber: level,
         difficultyTier: tier,
         category: 'shapes',
+        subjectLabel: 'Geometria & Spazio',
         type: 'match_shape',
-        title: `Livello ${level}: Geometria & Spazio 3D 🔷`,
+        title: `Livello ${level}: Geometria & Spazio 🔷`,
         prompt: geoItem.prompt,
         speechText: geoItem.speech,
         animalGuide: guide,
         iqParameterTag: 'Relazioni Visuo-Spaziali & Geometria (Gv · Gs)',
         chcPrimary: 'Gv',
         chcSecondary: 'Gs',
-        diagnosticTarget: 'Analisi geometrica dei lati, forme 3D e orientamento spaziale (Gv · Gs)',
+        diagnosticTarget: 'Analisi geometrica dei lati, forme e orientamento spaziale (Gv · Gs)',
         options,
         rewardStars: 3,
         rewardGems: 2,
@@ -1596,10 +2516,10 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
   }
 
   // -------------------------------------------------------------
-  // STEP 5: LINGUAGGIO, LETTERE, SILLABE, GRAMMATICA & INDOVINELLI
+  // STEP 5: LINGUAGGIO, LETTERE, ORTOGRAFIA, GRAMMATICA & ANALISI LOGICA (5 BANDS)
   // -------------------------------------------------------------
   if (step === 5) {
-    // Give the child a personalized puzzle using their OWN initial letter once per 10 levels (for <= 6yo)
+    // Personalized puzzle using the child's OWN initial letter for ages 2-5
     if (
       childProfile?.name?.trim() &&
       (ageBand === 'toddler_2_3' || ageBand === 'preschool_4_5') &&
@@ -1607,7 +2527,10 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
       rawStep <= 6
     ) {
       const personalPuzzle = buildPersonalizedInitialLetterPuzzle(level, tier, guide, childProfile);
-      if (personalPuzzle) return finalize(personalPuzzle);
+      if (personalPuzzle) {
+        personalPuzzle.subjectLabel = 'Lettere & Nome Personale';
+        return finalize(personalPuzzle);
+      }
     }
 
     if (ageBand === 'toddler_2_3') {
@@ -1636,6 +2559,7 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
         levelNumber: level,
         difficultyTier: tier,
         category: 'letters',
+        subjectLabel: 'Prime Vocali & Suoni',
         type: 'initial_letter',
         title: `Livello ${level}: Prime Letterine & Suoni 🔤`,
         prompt: item.prompt,
@@ -1652,9 +2576,20 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
       });
     }
 
-    if (ageBand === 'early_primary_6_7' || ageBand === 'primary_8_plus') {
+    if (
+      ageBand === 'early_primary_6_7' ||
+      ageBand === 'upper_primary_8_9' ||
+      ageBand === 'preteen_10_12' ||
+      ageBand === 'teen_13_14'
+    ) {
       const langPool =
-        ageBand === 'primary_8_plus' ? PRIMARY_ADV_LANGUAGE : EARLY_PRIMARY_LANGUAGE;
+        ageBand === 'teen_13_14'
+          ? TEEN_LANGUAGE_LITERATURE
+          : ageBand === 'preteen_10_12'
+          ? PRETEEN_LANGUAGE_LOGIC
+          : ageBand === 'upper_primary_8_9'
+          ? PRIMARY_ADV_LANGUAGE
+          : EARLY_PRIMARY_LANGUAGE;
       const langItem = langPool[(cycleIdx + rawStep) % langPool.length];
       const options: PuzzleOption[] = deterministicShuffle(
         [
@@ -1675,23 +2610,31 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
         ],
         level * 37 + tier
       );
+
+      const subjectLabel =
+        ageBand === 'teen_13_14'
+          ? 'Letteratura & Analisi del Periodo'
+          : ageBand === 'preteen_10_12'
+          ? 'Analisi Logica & Retorica'
+          : ageBand === 'upper_primary_8_9'
+          ? 'Grammatica & Sinonimi'
+          : 'Ortografia & Contrari';
+
       return finalize({
         id: `lvl_${level}_lang_${ageBand}`,
         levelNumber: level,
         difficultyTier: tier,
         category: 'letters',
+        subjectLabel,
         type: 'spell_word',
-        title:
-          ageBand === 'primary_8_plus'
-            ? `Livello ${level}: Grammatica, Sinonimi & Lessico 📘`
-            : `Livello ${level}: Ortografia, Sillabe & Parole 🔤`,
+        title: `Livello ${level}: ${subjectLabel} 📘`,
         prompt: langItem.prompt,
         speechText: langItem.speech,
         animalGuide: guide,
-        iqParameterTag: 'Competenza Linguistica & Ortografica (Gc · Gwm)',
+        iqParameterTag: langItem.iqParameterTag || 'Competenza Linguistica & Ortografica (Gc · Gwm)',
         chcPrimary: 'Gc',
         chcSecondary: 'Gwm',
-        diagnosticTarget: `Ortografia, lessico e grammatica (${ageInfo.shortAgeLabel})`,
+        diagnosticTarget: `${subjectLabel} (${ageInfo.shortAgeLabel})`,
         options,
         rewardStars: 3,
         rewardGems: 2,
@@ -1728,6 +2671,7 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
         levelNumber: level,
         difficultyTier: tier,
         category: 'letters',
+        subjectLabel: 'Indovinelli & Deduzione',
         type: 'riddle',
         title: `Livello ${level}: Indovinello di Logica & Rima 🧩`,
         prompt: riddle.riddleText,
@@ -1769,6 +2713,7 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
         levelNumber: level,
         difficultyTier: tier,
         category: 'letters',
+        subjectLabel: 'Fonetica, Sillabe & Rime',
         type: 'initial_letter',
         title: `Livello ${level}: Sillabe, Rime & Parole 🔤`,
         prompt: langItem.prompt,
@@ -1787,7 +2732,7 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
   }
 
   // -------------------------------------------------------------
-  // STEP 6: INGLESE CALIBRATO PER ETÀ (Gc + Gwm)
+  // STEP 6: INGLESE CALIBRATO PER ETÀ (6 BANDS: BASE -> A1 -> A1+ -> A2 -> B1)
   // -------------------------------------------------------------
   if (step === 6) {
     const engPool =
@@ -1795,8 +2740,12 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
         ? TODDLER_ENGLISH
         : ageBand === 'early_primary_6_7'
         ? EARLY_PRIMARY_ENGLISH
-        : ageBand === 'primary_8_plus'
+        : ageBand === 'upper_primary_8_9'
         ? PRIMARY_ADV_ENGLISH
+        : ageBand === 'preteen_10_12'
+        ? PRETEEN_ENGLISH_A2
+        : ageBand === 'teen_13_14'
+        ? TEEN_ENGLISH_B1
         : ENGLISH_WORDS_CATALOG;
     const engItem = engPool[(cycleIdx * 2 + rawStep) % engPool.length];
     const options: PuzzleOption[] = deterministicShuffle(
@@ -1819,20 +2768,32 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
       level * 41 + tier
     );
 
+    const engSubjectLabel =
+      ageBand === 'teen_13_14'
+        ? 'Inglese Avanzato (B1)'
+        : ageBand === 'preteen_10_12'
+        ? 'Inglese Ragazzi (A2)'
+        : ageBand === 'upper_primary_8_9'
+        ? 'Inglese Primaria (A1+)'
+        : ageBand === 'early_primary_6_7'
+        ? 'Inglese Primaria (A1)'
+        : 'Inglese Prescolare';
+
     return finalize({
       id: `lvl_${level}_english_${ageBand}`,
       levelNumber: level,
       difficultyTier: tier,
       category: 'english',
+      subjectLabel: engSubjectLabel,
       type: 'english_words',
-      title: `Livello ${level}: English Discovery · "${engItem.wordInfo.en}" 🇬🇧`,
+      title: `Livello ${level}: ${engSubjectLabel} · "${engItem.wordInfo.en}" 🇬🇧`,
       prompt: engItem.prompt,
       speechText: engItem.speech,
       animalGuide: guide,
       iqParameterTag: 'Plasticità Lessicale Bilingue (Gc · Gwm)',
       chcPrimary: 'Gc',
       chcSecondary: 'Gwm',
-      diagnosticTarget: `Acquisizione lessicale L2 calibrata ${ageInfo.shortAgeLabel} (Gc · IT)`,
+      diagnosticTarget: `${engSubjectLabel} · Acquisizione L2 (${ageInfo.shortAgeLabel})`,
       englishWord: engItem.wordInfo,
       options,
       rewardStars: 3,
@@ -1842,7 +2803,7 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
   }
 
   // -------------------------------------------------------------
-  // STEP 7: PROVA LOGICA MULTIPARAMETRICA CHC (CALIBRATA PER ETÀ)
+  // STEP 7: PROVA LOGICA, RAGIONAMENTO, CODING, ALGORITMI & PROBABILITÀ (6 BANDS)
   // -------------------------------------------------------------
   if (step === 7) {
     const logicPool =
@@ -1850,8 +2811,12 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
         ? TODDLER_LOGIC
         : ageBand === 'early_primary_6_7'
         ? EARLY_PRIMARY_LOGIC
-        : ageBand === 'primary_8_plus'
+        : ageBand === 'upper_primary_8_9'
         ? PRIMARY_ADV_LOGIC
+        : ageBand === 'preteen_10_12'
+        ? PRETEEN_LOGIC_CODING
+        : ageBand === 'teen_13_14'
+        ? TEEN_LOGIC_ALGORITHMS
         : IQ_PSYCHOMETRIC_CATALOG;
 
     const iqItem = logicPool[(cycleIdx * 2 + rawStep) % logicPool.length];
@@ -1875,13 +2840,23 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
       level * 43 + tier
     );
 
+    const logicSubjectLabel =
+      ageBand === 'teen_13_14'
+        ? 'Algoritmi & Logica Booleana'
+        : ageBand === 'preteen_10_12'
+        ? 'Logica, Coding & Probabilità'
+        : ageBand === 'upper_primary_8_9'
+        ? 'Logica & Pensiero Laterale'
+        : 'Logica & Ragionamento';
+
     return finalize({
       id: `lvl_${level}_iq_matrix_${ageBand}`,
       levelNumber: level,
       difficultyTier: tier,
       category: 'logic',
+      subjectLabel: logicSubjectLabel,
       type: 'iq_matrix',
-      title: `Livello ${level}: Sfida di Logica & Ingegno 🧠`,
+      title: `Livello ${level}: ${logicSubjectLabel} 🧠`,
       prompt: iqItem.prompt,
       speechText: iqItem.speech,
       animalGuide: guide,
@@ -1889,7 +2864,7 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
       iqParameterTag: iqItem.iqParameterTag || 'Ragionamento Fluido (Gf · Gv)',
       chcPrimary: 'Gf',
       chcSecondary: 'Gv',
-      diagnosticTarget: `Ragionamento fluido e deduzione logica (${ageInfo.shortAgeLabel}) (Gf · IT · IC)`,
+      diagnosticTarget: `${logicSubjectLabel} (${ageInfo.shortAgeLabel}) (Gf · IT · IC)`,
       options,
       rewardStars: 3,
       rewardGems: 3,
@@ -1898,50 +2873,127 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
   }
 
   // -------------------------------------------------------------
-  // STEP 8: SOTTRAZIONE / CALCOLO MENTALE (CALIBRATO PER ETÀ)
+  // STEP 8: SOTTRAZIONE PROGRESSIVA / ESPRESSIONI CON PRIORITÀ (10–14)
   // -------------------------------------------------------------
   if (step === 8) {
-    const subtractionPairsByBand: Record<typeof ageBand, [number, number][]> = {
+    if (ageBand === 'preteen_10_12' || ageBand === 'teen_13_14') {
+      const expressionsByTier: { expr: string; speechExpr: string; ans: number; tip: string }[][] = [
+        [
+          { expr: '4 + 3 × 5', speechExpr: '4 più 3 per 5', ans: 19, tip: 'Prima si esegue 3 × 5 = 15, poi 4 + 15 = 19!' },
+          { expr: '20 − 2 × 6', speechExpr: '20 meno 2 per 6', ans: 8, tip: 'Prima 2 × 6 = 12, poi 20 − 12 = 8!' },
+          { expr: '18 ÷ 3 + 7', speechExpr: '18 diviso 3 più 7', ans: 13, tip: 'Prima 18 ÷ 3 = 6, poi 6 + 7 = 13!' },
+          { expr: '5 × 4 − 9', speechExpr: '5 per 4 meno 9', ans: 11, tip: 'Prima 5 × 4 = 20, poi 20 − 9 = 11!' },
+        ],
+        [
+          { expr: '(8 + 4) ÷ 3', speechExpr: 'aperta parentesi 8 più 4 chiusa diviso 3', ans: 4, tip: 'Prima la parentesi (8 + 4) = 12, poi 12 ÷ 3 = 4!' },
+          { expr: '3 × (7 − 2)', speechExpr: '3 per aperta parentesi 7 meno 2', ans: 15, tip: 'Prima la parentesi (7 − 2) = 5, poi 3 × 5 = 15!' },
+          { expr: '6 × 4 + 8 ÷ 2', speechExpr: '6 per 4 più 8 diviso 2', ans: 28, tip: '6 × 4 = 24 e 8 ÷ 2 = 4; sommati danno 28!' },
+          { expr: '(15 − 3) × 2', speechExpr: 'aperta parentesi 15 meno 3 chiusa per 2', ans: 24, tip: 'Prima (15 − 3) = 12, poi 12 × 2 = 24!' },
+        ],
+        [
+          { expr: '5² − 10', speechExpr: '5 alla seconda meno 10', ans: 15, tip: 'Prima la potenza 5² = 25, poi 25 − 10 = 15!' },
+          { expr: '2³ × 4 − 2', speechExpr: '2 alla terza per 4 meno 2', ans: 30, tip: '2³ = 8; 8 × 4 = 32; 32 − 2 = 30!' },
+          { expr: '3² + 4²', speechExpr: '3 alla seconda più 4 alla seconda', ans: 25, tip: '9 + 16 = 25 (la terna di Pitagora 3-4-5)!' },
+          { expr: '(6² − 6) ÷ 5', speechExpr: 'aperta parentesi 6 alla seconda meno 6 chiusa diviso 5', ans: 6, tip: '36 − 6 = 30; poi 30 ÷ 5 = 6!' },
+        ],
+      ];
+      const exprPool = expressionsByTier[Math.min(tier - 1, expressionsByTier.length - 1)];
+      const ex = exprPool[(cycleIdx + rawStep + level) % exprPool.length];
+      const vals = buildDistinctNumericValues(ex.ans, [-4, 4, -2, 6]);
+      const options: PuzzleOption[] = deterministicShuffle(
+        vals.map((val, idx) => ({
+          id: `opt_expr_${level}_${idx}`,
+          label: `${val}`,
+          emoji: '🧮',
+          sublabel: `Risultato: ${val}`,
+          isCorrect: val === ex.ans,
+        })),
+        level * 73 + tier
+      );
+      return finalize({
+        id: `lvl_${level}_expr_preteen`,
+        levelNumber: level,
+        difficultyTier: tier,
+        category: 'numbers',
+        subjectLabel: 'Espressioni & Priorità',
+        type: 'visual_subtraction',
+        title: `Livello ${level}: Espressioni (${ex.expr}) 🧮`,
+        prompt: `Rispetta l'ordine delle operazioni: quanto fa ${ex.expr} = ?`,
+        speechText: `Attenzione alla priorità delle operazioni, ${childName}: quanto fa ${ex.speechExpr}?`,
+        animalGuide: guide,
+        iqParameterTag: 'Ordine Operazioni & Memoria di Lavoro (Gwm · Gf)',
+        chcPrimary: 'Gwm',
+        chcSecondary: 'Gf',
+        diagnosticTarget: 'Calcolo di espressioni aritmetiche con priorità e parentesi (10–12 anni)',
+        patternItems: [ex.expr, '=', '❓'],
+        options,
+        rewardStars: 3,
+        rewardGems: 3,
+        funExplanation: `Perfetto! ${ex.tip} Da vero matematico!`,
+      });
+    }
+
+    const subtractionPairsByBand: Record<'toddler_2_3' | 'preschool_4_5' | 'early_primary_6_7' | 'upper_primary_8_9', [number, number][]> = {
       toddler_2_3: [
         [3, 1],
         [4, 1],
         [4, 2],
         [5, 1],
       ],
-      preschool_4_5: [
-        [4, 1],
-        [5, 2],
-        [6, 2],
-        [5, 3],
-        [7, 2],
-        [6, 3],
-        [8, 3],
-        [7, 4],
-        [6, 4],
-        [8, 2],
-        [9, 3],
-        [9, 4],
-      ],
-      early_primary_6_7: [
-        [12, 4],
-        [15, 6],
-        [14, 5],
-        [16, 7],
-        [18, 5],
-        [17, 8],
-        [20, 6],
-        [19, 7],
-      ],
-      primary_8_plus: [
-        [32, 14],
-        [45, 18],
-        [38, 19],
-        [50, 23],
-        [42, 15],
-        [48, 19],
-        [36, 17],
-        [54, 26],
-      ],
+      preschool_4_5:
+        tier === 1
+          ? [
+              [4, 1],
+              [5, 2],
+              [6, 2],
+              [5, 3],
+              [7, 2],
+              [6, 3],
+            ]
+          : [
+              [8, 3],
+              [7, 4],
+              [9, 3],
+              [9, 4],
+              [10, 3],
+              [10, 4],
+            ],
+      early_primary_6_7:
+        tier === 1
+          ? [
+              [12, 4],
+              [15, 6],
+              [14, 5],
+              [16, 7],
+              [18, 5],
+              [20, 6],
+            ]
+          : [
+              [24, 8],
+              [27, 9],
+              [30, 12],
+              [25, 7],
+              [28, 11],
+              [32, 9],
+            ],
+      upper_primary_8_9:
+        tier === 1
+          ? [
+              [32, 14],
+              [45, 18],
+              [38, 19],
+              [50, 23],
+              [42, 15],
+              [54, 26],
+            ]
+          : [
+              [82, 37],
+              [95, 48],
+              [100, 36],
+              [74, 29],
+              [120, 45],
+              [86, 39],
+            ],
     };
 
     const pairs = subtractionPairsByBand[ageBand];
@@ -1953,24 +3005,21 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
     const formattedMinus = formatQuantityItalian(minus, theme);
     const formattedAnswer = formatQuantityItalian(answer, theme);
 
-    const deltaDistractor = ageBand === 'primary_8_plus' ? 3 : 1;
-    const candidateValues =
-      answer <= 1
-        ? [1, 2, 3]
-        : [Math.max(1, answer - deltaDistractor), answer, answer + deltaDistractor];
+    const deltaDistractor = ageBand === 'upper_primary_8_9' ? 3 : 1;
+    const candidateValues = buildDistinctNumericValues(answer, [-deltaDistractor, deltaDistractor, 2, -2]);
     const options: PuzzleOption[] = deterministicShuffle(
       candidateValues.map((val, idx) => ({
         id: `opt_sub_${level}_${idx}`,
         label: `${val}`,
         emoji: theme.emoji,
-        sublabel: ageBand === 'primary_8_plus' ? `Risultato: ${val}` : formatQuantityItalian(val, theme).text,
+        sublabel: total > 12 ? `Risultato: ${val}` : formatQuantityItalian(val, theme).text,
         isCorrect: val === answer,
       })),
       level * 47 + tier
     );
 
     const speechAction =
-      ageBand === 'primary_8_plus' || ageBand === 'early_primary_6_7'
+      total > 12
         ? `Calcolo mentale: quanto fa ${total} meno ${minus}?`
         : theme.gender === 'f'
         ? `Calcolo visivo: abbiamo ${formattedTotal.speech} e ne togliamo ${formattedMinus.speech}. Quante ${theme.plural} restano?`
@@ -1983,12 +3032,13 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
       levelNumber: level,
       difficultyTier: tier,
       category: 'numbers',
+      subjectLabel: total > 12 ? 'Calcolo Mentale (−)' : 'Sottrazione Visiva',
       type: 'visual_subtraction',
-      title: `Livello ${level}: Sottrazione (${total} - ${minus})`,
+      title: `Livello ${level}: Sottrazione (${total} − ${minus})`,
       prompt:
-        ageBand === 'primary_8_plus' || ageBand === 'early_primary_6_7'
+        total > 12
           ? `Calcolo mentale: quanto fa ${total} − ${minus} = ?`
-          : `Quanto fa ${formattedTotal.text} - ${formattedMinus.text} = ?`,
+          : `Quanto fa ${formattedTotal.text} − ${formattedMinus.text} = ?`,
       speechText: speechAction,
       animalGuide: guide,
       iqParameterTag: 'Calcolo Mentale & Sottrazione (Gwm · Gf)',
@@ -2018,8 +3068,123 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
   }
 
   // -------------------------------------------------------------
-  // STEP 9: ADDIZIONE / TABELLINE / SEQUENZA LOGICA (CALIBRATA PER ETÀ)
+  // STEP 9: SEQUENZE (4–5), ADDIZIONI/TABELLINE (6–9), FRAZIONI AVANZATE (10–12), PROPORZIONI & SCONTI (13–14)
   // -------------------------------------------------------------
+  if (ageBand === 'teen_13_14') {
+    const proportions: { prompt: string; speech: string; strip: string[]; ans: number; unit: string; tip: string }[] = [
+      {
+        prompt: 'Proporzioni: Trova il termine incognito x in 4 : 6 = 10 : x',
+        speech: 'Sfida sulle proporzioni: se 4 sta a 6 come 10 sta a x, quanto vale x?',
+        strip: ['4 : 6', '=', '10 : x'],
+        ans: 15,
+        unit: '',
+        tip: 'Il prodotto dei medi (6 × 10 = 60) diviso 4 fa esattamente 15!',
+      },
+      {
+        prompt: 'Sconto Percentuale: Una giacca costa 80 € ed è scontata del 25%. Quanto la paghi? 💶',
+        speech: 'Calcolo dello sconto: se una giacca da ottanta euro ha lo sconto del venticinque percento, quanto costa scontata?',
+        strip: ['80 €', '− 25%', '=', '❓ €'],
+        ans: 60,
+        unit: ' €',
+        tip: 'Il 25% di 80 € è 20 € di sconto: 80 − 20 = 60 €!',
+      },
+      {
+        prompt: 'Proporzioni: Trova x nella proporzione 3 : x = 9 : 24',
+        speech: 'Proporzione algebrica: 3 sta a x come 9 sta a 24. Quanto vale x?',
+        strip: ['3 : x', '=', '9 : 24'],
+        ans: 8,
+        unit: '',
+        tip: 'x = (3 × 24) ÷ 9 = 72 ÷ 9 = 8!',
+      },
+      {
+        prompt: 'Statistica & Media: Qual è la media aritmetica dei voti 6, 8, 9 e 9? 📊',
+        speech: 'Statistica: qual è la media aritmetica esatta dei quattro voti 6, 8, 9 e 9?',
+        strip: ['Media(6, 8, 9, 9)', '=', '❓'],
+        ans: 8,
+        unit: '',
+        tip: '(6 + 8 + 9 + 9) = 32; dividendo per 4 otteniamo media 8!',
+      },
+    ];
+
+    const pr = proportions[(cycleIdx + rawStep + level) % proportions.length];
+    const vals = buildDistinctNumericValues(pr.ans, [-2, 2, -4, 4]);
+    const options: PuzzleOption[] = deterministicShuffle(
+      vals.map((val, idx) => ({
+        id: `opt_prop_${level}_${idx}`,
+        label: `${val}${pr.unit}`,
+        emoji: '📊',
+        sublabel: `Risultato: ${val}${pr.unit}`,
+        isCorrect: val === pr.ans,
+      })),
+      level * 101 + tier
+    );
+    return finalize({
+      id: `lvl_${level}_prop_teen`,
+      levelNumber: level,
+      difficultyTier: tier,
+      category: 'numbers',
+      subjectLabel: 'Proporzioni, Sconti & Statistica',
+      type: 'visual_addition',
+      title: `Livello ${level}: Proporzioni & Statistica 📊`,
+      prompt: pr.prompt,
+      speechText: pr.speech,
+      animalGuide: guide,
+      iqParameterTag: 'Proporzioni, Percentuali & Statistica (Gf · Gwm)',
+      chcPrimary: 'Gf',
+      chcSecondary: 'Gwm',
+      diagnosticTarget: 'Calcolo proporzionale, sconti percentuali e media statistica (13–14 anni)',
+      patternItems: pr.strip,
+      options,
+      rewardStars: 3,
+      rewardGems: 4,
+      funExplanation: `Eccellente! ${pr.tip} Da vero matematico!`,
+    });
+  }
+
+  if (ageBand === 'preteen_10_12') {
+    const advancedFractions: { frac: string; num: number; den: number; total: number; ans: number }[] = [
+      { frac: '¾', num: 3, den: 4, total: 20, ans: 15 },
+      { frac: '⅖', num: 2, den: 5, total: 25, ans: 10 },
+      { frac: '⅔', num: 2, den: 3, total: 27, ans: 18 },
+      { frac: '⅜', num: 3, den: 8, total: 32, ans: 12 },
+      { frac: '⅚', num: 5, den: 6, total: 30, ans: 25 },
+      { frac: '⅗', num: 3, den: 5, total: 40, ans: 24 },
+    ];
+    const af = advancedFractions[(cycleIdx + rawStep + level) % advancedFractions.length];
+    const vals = buildDistinctNumericValues(af.ans, [-3, 3, -5, 5]);
+    const options: PuzzleOption[] = deterministicShuffle(
+      vals.map((val, idx) => ({
+        id: `opt_afrac_${level}_${idx}`,
+        label: `${val}`,
+        emoji: '📐',
+        sublabel: `${af.frac} di ${af.total}`,
+        isCorrect: val === af.ans,
+      })),
+      level * 79 + tier
+    );
+    return finalize({
+      id: `lvl_${level}_adv_frac`,
+      levelNumber: level,
+      difficultyTier: tier,
+      category: 'numbers',
+      subjectLabel: 'Frazioni & Proporzioni',
+      type: 'visual_addition',
+      title: `Livello ${level}: Frazioni Avanzate (${af.frac} di ${af.total}) 📐`,
+      prompt: `Calcola la frazione di quantità: quanto vale ${af.frac} di ${af.total}?`,
+      speechText: `Sfida sulle frazioni, ${childName}: quanto vale ${af.frac} di ${af.total}?`,
+      animalGuide: guide,
+      iqParameterTag: 'Frazioni Complesse & Calcolo Proporzionale (Gf · Gwm)',
+      chcPrimary: 'Gf',
+      chcSecondary: 'Gwm',
+      diagnosticTarget: 'Calcolo frazionario a due passaggi (divisione e moltiplicazione, 10–12 anni)',
+      patternItems: [af.frac, 'di', `${af.total}`, '=', '❓'],
+      options,
+      rewardStars: 3,
+      rewardGems: 3,
+      funExplanation: `Eccellente! Dividendo ${af.total} per ${af.den} si ottiene ${af.total / af.den}, poi moltiplicando per ${af.num} fa ${af.ans}! Da vero matematico!`,
+    });
+  }
+
   const usePattern = ageBand === 'preschool_4_5' && (cycleIdx + rawStep) % 3 === 0;
   if (usePattern) {
     const patItem = PATTERN_SEQUENCES_5YO[(cycleIdx + rawStep) % PATTERN_SEQUENCES_5YO.length];
@@ -2048,6 +3213,7 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
       levelNumber: level,
       difficultyTier: tier,
       category: 'logic',
+      subjectLabel: 'Logica & Sequenze',
       type: 'pattern_sequence',
       title: `Livello ${level}: Completa la Sequenza Logica!`,
       prompt: patItem.prompt,
@@ -2065,24 +3231,31 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
     });
   }
 
-  // For 8+ years, alternate multiplication tables & mental additions up to 50
-  if (ageBand === 'primary_8_plus' && (cycleIdx + rawStep) % 2 === 0) {
-    const multPairs: [number, number][] = [
-      [3, 4],
-      [4, 6],
-      [5, 7],
-      [6, 6],
-      [7, 4],
-      [8, 3],
-      [6, 7],
-      [9, 4],
-      [5, 9],
-      [8, 6],
-    ];
+  // For 8–9 years, alternate progressive multiplication tables & mental additions up to 100
+  if (ageBand === 'upper_primary_8_9' && (cycleIdx + rawStep) % 2 === 0) {
+    const multPairs: [number, number][] =
+      tier === 1
+        ? [
+            [3, 4],
+            [4, 6],
+            [5, 7],
+            [6, 6],
+            [7, 4],
+            [8, 3],
+          ]
+        : [
+            [6, 7],
+            [9, 4],
+            [7, 8],
+            [8, 6],
+            [9, 7],
+            [12, 4],
+          ];
     const [a, b] = multPairs[(uniqueIdx + level) % multPairs.length];
     const answer = a * b;
+    const vals = buildDistinctNumericValues(answer, [-a, b, -b, a]);
     const options: PuzzleOption[] = deterministicShuffle(
-      [answer - a, answer, answer + b].map((val, idx) => ({
+      vals.map((val, idx) => ({
         id: `opt_mul_${level}_${idx}`,
         label: `${val}`,
         emoji: '✖️',
@@ -2097,6 +3270,7 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
       levelNumber: level,
       difficultyTier: tier,
       category: 'numbers',
+      subjectLabel: 'Tabelline & Moltiplicazione',
       type: 'visual_addition',
       title: `Livello ${level}: Tabelline & Moltiplicazione (${a} × ${b})`,
       prompt: `Calcolo rapido: quanto fa ${a} × ${b} = ?`,
@@ -2114,7 +3288,7 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
     });
   }
 
-  const additionPairsByBand: Record<typeof ageBand, [number, number][]> = {
+  const additionPairsByBand: Record<'toddler_2_3' | 'preschool_4_5' | 'early_primary_6_7' | 'upper_primary_8_9', [number, number][]> = {
     toddler_2_3: [
       [1, 1],
       [2, 1],
@@ -2122,44 +3296,60 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
       [2, 2],
       [3, 1],
     ],
-    preschool_4_5: [
-      [2, 2],
-      [3, 2],
-      [4, 2],
-      [3, 3],
-      [4, 3],
-      [5, 2],
-      [5, 3],
-      [4, 4],
-      [6, 2],
-      [5, 4],
-      [6, 3],
-      [7, 2],
-      [5, 5],
-      [6, 4],
-    ],
-    early_primary_6_7: [
-      [7, 5],
-      [8, 6],
-      [9, 4],
-      [8, 7],
-      [11, 5],
-      [9, 8],
-      [12, 6],
-      [13, 5],
-      [7, 9],
-      [14, 6],
-    ],
-    primary_8_plus: [
-      [18, 14],
-      [23, 19],
-      [27, 15],
-      [16, 28],
-      [34, 15],
-      [29, 17],
-      [19, 25],
-      [24, 22],
-    ],
+    preschool_4_5:
+      tier === 1
+        ? [
+            [2, 2],
+            [3, 2],
+            [4, 2],
+            [3, 3],
+            [4, 3],
+            [5, 2],
+          ]
+        : [
+            [5, 3],
+            [4, 4],
+            [6, 2],
+            [5, 4],
+            [6, 3],
+            [5, 5],
+          ],
+    early_primary_6_7:
+      tier === 1
+        ? [
+            [7, 5],
+            [8, 6],
+            [9, 4],
+            [8, 7],
+            [11, 5],
+            [9, 8],
+          ]
+        : [
+            [12, 9],
+            [14, 8],
+            [15, 7],
+            [16, 9],
+            [13, 11],
+            [17, 8],
+          ],
+    upper_primary_8_9:
+      tier === 1
+        ? [
+            [18, 14],
+            [23, 19],
+            [27, 15],
+            [16, 28],
+            [34, 15],
+            [29, 17],
+          ]
+        : [
+            [46, 28],
+            [53, 39],
+            [64, 27],
+            [38, 47],
+            [59, 34],
+            [48, 36],
+          ],
   };
 
   const additionPairs = additionPairsByBand[ageBand];
@@ -2171,8 +3361,8 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
   const formattedB = formatQuantityItalian(b, theme);
   const formattedAnswer = formatQuantityItalian(answer, theme);
 
-  const distractorStep = ageBand === 'primary_8_plus' ? 2 : 1;
-  const candidateValues = [Math.max(1, answer - distractorStep), answer, answer + distractorStep];
+  const distractorStep = ageBand === 'upper_primary_8_9' ? 2 : 1;
+  const candidateValues = buildDistinctNumericValues(answer, [-distractorStep, distractorStep, 2, -2]);
   const options: PuzzleOption[] = deterministicShuffle(
     candidateValues.map((val, idx) => ({
       id: `opt_add_${level}_${idx}`,
@@ -2195,6 +3385,7 @@ export function generateProceduralPuzzle(level: number, childProfile?: ChildProf
     levelNumber: level,
     difficultyTier: tier,
     category: 'numbers',
+    subjectLabel: answer > 10 ? 'Calcolo Mentale (+)' : 'Addizione Visiva',
     type: 'visual_addition',
     title: `Livello ${level}: Addizione (${a} + ${b})`,
     prompt:
