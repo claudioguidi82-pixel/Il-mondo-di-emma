@@ -2895,7 +2895,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
         </div>
 
         {/* CLEAN 4-TAB NAVIGATION BAR (2x2 ON MOBILE, 4-COL ON DESKTOP — NEVER CLIPS OR OVERFLOWS) */}
-        <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1.5 rounded-2xl bg-slate-950/75 border border-white/10">
+        <div className="mt-4 ui-aligned-tabs grid-cols-2 sm:grid-cols-4 bg-slate-950/75 border border-white/10">
           {(
             [
               { id: 'overview', label: 'Panoramica & Audio' },
@@ -2911,13 +2911,14 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                 soundManager.playPop();
                 setActiveTab(tab.id);
               }}
-              className={`min-w-0 px-2.5 sm:px-3.5 py-2.5 rounded-xl text-xs sm:text-[13px] font-fun font-bold transition-colors text-center leading-tight cursor-pointer ${
+              className={`min-w-0 min-h-[42px] px-2.5 sm:px-3.5 py-2 rounded-xl text-xs sm:text-[13px] font-fun font-bold transition-colors text-center leading-tight cursor-pointer flex items-center justify-center ${
                 activeTab === tab.id
-                  ? 'bg-indigo-500 text-white shadow-sm'
+                  ? 'text-white shadow-sm'
                   : 'text-slate-300 hover:text-white hover:bg-white/6'
               }`}
+              style={activeTab === tab.id ? { backgroundColor: 'var(--sys-accent, #6366f1)' } : undefined}
             >
-              {tab.label}
+              <span className="truncate">{tab.label}</span>
             </button>
           ))}
         </div>

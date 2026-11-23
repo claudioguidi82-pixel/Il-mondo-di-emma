@@ -1,17 +1,25 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { SavedDrawing, UserProgress } from '../types/game';
 import { soundManager } from '../utils/audio';
 import { confetti } from '../utils/confetti';
-import { getDisplayChildName, getGenderedWord } from '../utils/childProfile';
-import { 
-  RotateCcw, 
-  Trash2, 
-  Download, 
-  Save, 
+import {
+  calculateChildAge,
+  getAgeVisualTheme,
+  getDisplayChildName,
+  getGenderedWord,
+} from '../utils/childProfile';
+import {
+  RotateCcw,
+  Trash2,
+  Download,
+  Save,
   Home,
   Eraser,
   Wand2,
-  Check
+  Check,
+  PenTool,
+  Sparkles,
+  Shapes,
 } from 'lucide-react';
 import arenaMeadowBackdrop from '../assets/images/arena_meadow_backdrop_1795268326885.jpg';
 
@@ -24,18 +32,19 @@ interface StudioDisegnoProps {
 type BrushMode = 'rainbow' | 'glitter' | 'neon' | 'color' | 'eraser' | 'sticker';
 
 const BRUSH_COLORS = [
-  { name: 'Rosa Magico', hex: '#ff4d94', bg: 'bg-[#ff4d94]' },
-  { name: 'Giallo Sole', hex: '#fbbf24', bg: 'bg-amber-400' },
+  { name: 'Nero Grafite', hex: '#0f172a', bg: 'bg-slate-900' },
+  { name: 'Blu Cobalto', hex: '#2563eb', bg: 'bg-blue-600' },
   { name: 'Celeste Cielo', hex: '#38bdf8', bg: 'bg-sky-400' },
-  { name: 'Verde Prato', hex: '#22c55e', bg: 'bg-green-500' },
-  { name: 'Arancione Carota', hex: '#fb923c', bg: 'bg-orange-400' },
-  { name: 'Viola Fata', hex: '#c084fc', bg: 'bg-purple-400' },
-  { name: 'Rosso Fragola', hex: '#f43f5e', bg: 'bg-rose-500' },
-  { name: 'Blu Notte', hex: '#3b82f6', bg: 'bg-blue-500' },
-  { name: 'Nero Carbone', hex: '#1e293b', bg: 'bg-slate-800' },
+  { name: 'Verde Smeraldo', hex: '#10b981', bg: 'bg-emerald-500' },
+  { name: 'Giallo Ocra', hex: '#f59e0b', bg: 'bg-amber-500' },
+  { name: 'Arancione Corallo', hex: '#f97316', bg: 'bg-orange-500' },
+  { name: 'Rosso Cremisi', hex: '#e11d48', bg: 'bg-rose-600' },
+  { name: 'Rosa Vivo', hex: '#ec4899', bg: 'bg-pink-500' },
+  { name: 'Viola Indaco', hex: '#7c3aed', bg: 'bg-violet-600' },
 ];
 
-const STICKERS_LIST = ['⭐', '💖', '🦄', '🌈', '🌸', '🦋', '👑', '🍓', '🐱', '🐬', '🎈', '🍭', '🐶', '🍦'];
+const KIDS_STICKERS = ['⭐', '💖', '🦄', '🌈', '🌸', '🦋', '👑', '🍓', '🐱', '🐬', '🎈', '🐶'];
+const MATURE_STICKERS = ['✦', '◈', '▲', '●', '⚡', '🧭', '🛰️', '🔬', '📐', '🎵', '🌍', '★'];
 
 export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
   onSaveDrawing,
@@ -45,39 +54,52 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Brush settings
-  const [brushMode, setBrushMode] = useState<BrushMode>('rainbow');
-  const [selectedColor, setSelectedColor] = useState<string>('#ff4d94');
-  const [brushSize, setBrushSize] = useState<number>(20); // 10 = small, 20 = medium, 36 = jumbo
-  const [selectedSticker, setSelectedSticker] = useState<string>('⭐');
+  const childProfile = progress?.childProfile;
+  const childName = getDisplayChildName(childProfile);
+  const childGender = childProfile?.gender || 'n';
+  const ageYears = calculateChildAge(childProfile?.birthDate).years;
+  const ageTheme = useMemo(
+    () => getAgeVisualTheme(ageYears, childProfile?.name, childGender),
+    [ageYears, childProfile?.name, childGender]
+  );
+  const isMature = ageTheme.isMatureTheme;
+  const isTeen = ageTheme.stageId === 'teen_nextgen';
+  const isExplorer = ageTheme.stageId === 'primary_explorer';
+  const gPalette = ageTheme.genderPalette;
+  const welcomeWord = getGenderedWord(childGender, 'Benvenuta', 'Benvenuto', 'Benvenuto');
+
+  const sizePresets = useMemo(
+    () => (isMature ? [4, 10, 20] : [10, 20, 36]),
+    [isMature]
+  );
+  const activeStickers = isMature ? MATURE_STICKERS : KIDS_STICKERS;
+
+  const [brushMode, setBrushMode] = useState<BrushMode>(() => (isMature ? 'color' : 'rainbow'));
+  const [selectedColor, setSelectedColor] = useState<string>(() => gPalette.accentHex || '#2563eb');
+  const [brushSize, setBrushSize] = useState<number>(() => (isMature ? 10 : 20));
+  const [selectedSticker, setSelectedSticker] = useState<string>(() =>
+    isMature ? '✦' : '⭐'
+  );
   const [isStickerDrawerOpen, setIsStickerDrawerOpen] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
 
-  // Drawing state
   const isDrawingRef = useRef<boolean>(false);
   const lastPosRef = useRef<{ x: number; y: number } | null>(null);
   const hueRef = useRef<number>(0);
   const sparkleSoundThrottleRef = useRef<number>(0);
-
-  // Undo stack
   const [undoStack, setUndoStack] = useState<ImageData[]>([]);
 
-  const childProfile = progress?.childProfile;
-  const childName = getDisplayChildName(childProfile);
-  const childGender = childProfile?.gender || 'n';
-  const welcomeWord = getGenderedWord(childGender, 'Benvenuta', 'Benvenuto', 'Benvenuto');
-
-  // Sound & Voice welcome
   useEffect(() => {
     soundManager.speakInstruction(
-      `${welcomeWord} nello Studio di Disegno, ${childName}! Prendi i pennelli magici e crea un capolavoro!`
+      isMature
+        ? `${ageTheme.labels.studioTitle} pronto. Usa penna, evidenziatore neon o timbri geometrici.`
+        : `${welcomeWord} nello Studio di Disegno, ${childName}! Prendi i pennelli e crea un capolavoro!`
     );
     return () => {
       soundManager.stopSpeech();
     };
-  }, [welcomeWord, childName]);
+  }, [welcomeWord, childName, isMature, ageTheme.labels.studioTitle]);
 
-  // Initialize and resize canvas
   const initCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -86,12 +108,10 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return;
 
-    // Match canvas internal resolution 1:1 with the rendered stage box (prevents pointer offset)
     const rect = canvas.getBoundingClientRect();
     const width = Math.max(240, Math.round(rect.width || container.clientWidth));
     const height = Math.max(160, Math.round(rect.height || container.clientHeight));
 
-    // Save previous drawing as offscreen canvas if canvas already has content
     let prevOffscreen: HTMLCanvasElement | null = null;
     if (canvas.width > 0 && canvas.height > 0) {
       try {
@@ -110,7 +130,6 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
     canvas.width = width;
     canvas.height = height;
 
-    // Fill pristine white canvas
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, width, height);
 
@@ -122,7 +141,6 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
       }
     }
 
-    // Save initial state to undo stack
     const initialSnap = ctx.getImageData(0, 0, width, height);
     setUndoStack([initialSnap]);
   }, []);
@@ -150,7 +168,7 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
     if (!ctx) return;
 
     const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    setUndoStack(prev => [...prev.slice(-12), data]);
+    setUndoStack((prev) => [...prev.slice(-12), data]);
   };
 
   const handleUndo = () => {
@@ -162,7 +180,7 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
     if (!ctx) return;
 
     const newStack = [...undoStack];
-    newStack.pop(); // Remove current
+    newStack.pop();
     const previous = newStack[newStack.length - 1];
     ctx.putImageData(previous, 0, 0);
     setUndoStack(newStack);
@@ -179,10 +197,11 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     saveCanvasState();
     const readyWord = getGenderedWord(childGender, 'Pronta', 'Pronto', 'Pronto');
-    soundManager.speak(`Tela pulita, ${childName}! ${readyWord} per un nuovo disegno!`);
+    soundManager.speak(
+      isMature ? 'Tavola ripulita.' : `Tela pulita, ${childName}! ${readyWord} per un nuovo disegno!`
+    );
   };
 
-  // Convert client coordinates to canvas internal coordinates
   const getCanvasCoords = (clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
@@ -196,7 +215,6 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
     };
   };
 
-  // Stamp sticker at coordinate
   const stampSticker = (x: number, y: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -204,10 +222,11 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
     if (!ctx) return;
 
     soundManager.playTwinkle();
-    confetti.burst(undefined, undefined, 8);
+    if (!isMature) confetti.burst(undefined, undefined, 8);
 
     ctx.save();
-    ctx.font = `${brushSize * 2.5}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+    ctx.fillStyle = selectedColor;
+    ctx.font = `${Math.max(24, brushSize * 2.5)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(selectedSticker, x, y);
@@ -216,7 +235,6 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
     saveCanvasState();
   };
 
-  // Stroke rendering
   const drawLine = (x: number, y: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -230,7 +248,6 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
     ctx.lineJoin = 'round';
 
     if (brushMode === 'eraser') {
-      // Clean white eraser
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = brushSize * 2;
       ctx.beginPath();
@@ -238,21 +255,18 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
       ctx.lineTo(x, y);
       ctx.stroke();
     } else if (brushMode === 'rainbow') {
-      // Dynamic rotating rainbow HSL
       hueRef.current = (hueRef.current + 5) % 360;
-      ctx.strokeStyle = `hsl(${hueRef.current}, 100%, 55%)`;
+      ctx.strokeStyle = `hsl(${hueRef.current}, 95%, 52%)`;
       ctx.lineWidth = brushSize;
       ctx.beginPath();
       ctx.moveTo(prev.x, prev.y);
       ctx.lineTo(x, y);
       ctx.stroke();
 
-      // Soft glow
-      ctx.strokeStyle = `hsla(${hueRef.current}, 100%, 65%, 0.4)`;
-      ctx.lineWidth = brushSize * 1.5;
+      ctx.strokeStyle = `hsla(${hueRef.current}, 95%, 62%, 0.35)`;
+      ctx.lineWidth = brushSize * 1.45;
       ctx.stroke();
     } else if (brushMode === 'glitter') {
-      // Golden / Sparkling trail with star particles
       ctx.strokeStyle = '#f59e0b';
       ctx.lineWidth = brushSize * 0.9;
       ctx.shadowBlur = 10;
@@ -262,27 +276,24 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
       ctx.lineTo(x, y);
       ctx.stroke();
 
-      // Sprinkle sparkling stars and glitter specks
-      const sparkles = ['✨', '⭐', '💖', '🌟', '•'];
+      const sparkles = ['✨', '⭐', '•'];
       const spark = sparkles[Math.floor(Math.random() * sparkles.length)];
       ctx.font = `${brushSize * 0.9}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      const offsetX = (Math.random() - 0.5) * brushSize * 2.2;
-      const offsetY = (Math.random() - 0.5) * brushSize * 2.2;
+      const offsetX = (Math.random() - 0.5) * brushSize * 2.1;
+      const offsetY = (Math.random() - 0.5) * brushSize * 2.1;
       ctx.fillText(spark, x + offsetX, y + offsetY);
 
-      // Throttled sound effect for sparkles
       const now = Date.now();
-      if (now - sparkleSoundThrottleRef.current > 180) {
+      if (now - sparkleSoundThrottleRef.current > 200) {
         sparkleSoundThrottleRef.current = now;
         soundManager.playTwinkle();
       }
     } else if (brushMode === 'neon') {
-      // Glowing fairy pastel line
       ctx.strokeStyle = selectedColor;
-      ctx.lineWidth = brushSize * 1.2;
-      ctx.shadowBlur = 18;
+      ctx.lineWidth = brushSize * 1.15;
+      ctx.shadowBlur = 16;
       ctx.shadowColor = selectedColor;
       ctx.globalAlpha = 0.85;
       ctx.beginPath();
@@ -290,7 +301,6 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
       ctx.lineTo(x, y);
       ctx.stroke();
     } else {
-      // Classic vibrant color brush
       ctx.strokeStyle = selectedColor;
       ctx.lineWidth = brushSize;
       ctx.beginPath();
@@ -303,13 +313,12 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
     lastPosRef.current = { x, y };
   };
 
-  // Pointer event handlers (touch + mouse seamless support)
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     e.preventDefault();
     try {
       e.currentTarget.setPointerCapture?.(e.pointerId);
     } catch {
-      // ignore if unsupported
+      // ignore
     }
     const coords = getCanvasCoords(e.clientX, e.clientY);
     if (!coords) return;
@@ -341,13 +350,12 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
     }
   };
 
-  // Save drawing into Emma's gallery (compressed JPEG to stay well within localStorage quota)
   const handleSaveDrawing = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     soundManager.playFanfare();
-    confetti.burst();
+    if (!isTeen) confetti.burst();
     setSaveSuccess(true);
 
     let dataUrl = '';
@@ -372,132 +380,181 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
 
     const newDrawing: SavedDrawing = {
       id: `drawing_${Date.now()}`,
-      title: `Disegno Magico #${(progress?.savedDrawings?.length || 0) + 1}`,
+      title: isMature
+        ? `Progetto #${(progress?.savedDrawings?.length || 0) + 1}`
+        : `Disegno #${(progress?.savedDrawings?.length || 0) + 1}`,
       date: new Date().toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }),
       dataUrl,
       starsEarned: 3,
       stickersCount: 1,
-      templateName: 'Tela Bianca Creativa',
+      templateName: isMature ? 'Digital Sketchpad' : 'Tela Bianca Creativa',
     };
 
     onSaveDrawing(newDrawing);
     soundManager.speakPraise(
-      `Che capolavoro splendido, ${childName}! L'ho salvato nella tua bacheca!`
+      isMature
+        ? 'Elaborato salvato nella galleria.'
+        : `Che capolavoro splendido, ${childName}! L'ho salvato nella tua bacheca!`
     );
 
     setTimeout(() => {
       setSaveSuccess(false);
-    }, 2500);
+    }, 2200);
   };
 
-  // Download image locally to device
   const handleDownload = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     soundManager.playSuccess();
-    const safeFileName = childName.replace(/[^a-zA-Z0-9_-]/g, '_') || 'Bimbo';
+    const safeFileName = childName.replace(/[^a-zA-Z0-9_-]/g, '_') || 'Sketch';
     const link = document.createElement('a');
-    link.download = `${safeFileName}_Capolavoro_${new Date().toISOString().slice(0, 10)}.png`;
+    link.download = `${safeFileName}_${new Date().toISOString().slice(0, 10)}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
-    soundManager.speakPraise(`Disegno scaricato sul tuo dispositivo, ${childName}!`);
+    soundManager.speakPraise(
+      isMature ? 'Immagine esportata sul dispositivo.' : `Disegno scaricato sul tuo dispositivo, ${childName}!`
+    );
   };
 
   return (
-    <div className="safe-viewport-pad fixed inset-0 z-50 flex flex-col select-none overflow-hidden h-[100dvh] max-h-[100dvh] text-slate-900">
-      {/* SUNNY PIXAR 3D MEADOW BACKDROP */}
+    <div
+      className={`safe-viewport-pad fixed inset-0 z-50 flex flex-col select-none overflow-hidden h-[100dvh] max-h-[100dvh] ${
+        isMature ? 'bg-[#0b0f17] text-slate-100' : 'text-slate-900'
+      }`}
+    >
+      {/* AGE-ADAPTIVE BACKDROP */}
       <div className="absolute inset-0 pointer-events-none z-0">
-        <img
-          src={arenaMeadowBackdrop}
-          alt=""
-          aria-hidden="true"
-          referrerPolicy="no-referrer"
-          className="w-full h-full object-cover object-center brightness-[1.03] saturate-[1.08]"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-sky-200/25 via-white/15 to-amber-100/45" />
+        {isMature ? (
+          <div className="w-full h-full bg-gradient-to-b from-[#0b0f17] via-[#0f172a] to-[#090d16]" />
+        ) : (
+          <>
+            <img
+              src={arenaMeadowBackdrop}
+              alt=""
+              aria-hidden="true"
+              referrerPolicy="no-referrer"
+              className={`w-full h-full object-cover object-center ${
+                isExplorer ? 'brightness-[0.95] saturate-[0.82]' : 'brightness-[1.02]'
+              }`}
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-sky-200/25 via-white/15 to-amber-100/40" />
+          </>
+        )}
       </div>
 
-      {/* ============================================================== */}
-      {/* 1. STORYBOOK 3D TOP BAR: HOME, WOODEN BADGE & ACTIONS          */}
-      {/* ============================================================== */}
-      <div className="relative z-20 flex flex-wrap items-center justify-between px-2 sm:px-5 pt-2 pb-1.5 shrink-0 gap-1.5 sm:gap-2">
-        {/* Back Home 3D Bubble */}
-        <button
-          onClick={() => {
-            soundManager.stopSpeech();
-            soundManager.playPop();
-            onClose();
-          }}
-          aria-label="Torna alla Home"
-          className="px-2.5 min-[370px]:px-3 py-1.5 sm:px-4 sm:py-2 bg-white hover:bg-amber-50 active:translate-y-0.5 text-amber-950 font-fun font-extrabold text-xs sm:text-sm rounded-full border-2 border-amber-200 shadow-[0_4px_0_#d97706,0_8px_16px_rgba(120,53,15,0.2)] flex items-center gap-1.5 cursor-pointer transition-all shrink-0 whitespace-nowrap"
-        >
-          <Home className="w-4 h-4 text-orange-500" />
-          <span className="hidden min-[370px]:inline">Home</span>
-        </button>
-
-        {/* Carved Wood Studio Title Plaque */}
-        <div className="home-wood-outer rounded-2xl p-[3px] shrink-0 hidden sm:inline-flex">
-          <div className="home-inner-purple rounded-[13px] px-3 sm:px-4 py-1 sm:py-1.5 flex items-center gap-1.5 text-white">
-            <span className="text-base sm:text-lg leading-none" aria-hidden="true">🎨</span>
-            <h2 className="relative z-10 font-kids font-bold text-xs sm:text-base text-white whitespace-nowrap drop-shadow-xs">
-              Studio Disegno
-            </h2>
-          </div>
-        </div>
-
-        {/* Top Action Buttons: Undo, Clear, Download, Save */}
-        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+      {/* 1. ALIGNED TOP BAR (ZERO OVERLAP) */}
+      <header className="relative z-20 px-3 sm:px-5 pt-2 pb-1.5 shrink-0">
+        <div className="ui-aligned-header max-w-5xl mx-auto">
           <button
-            onClick={handleUndo}
-            disabled={undoStack.length <= 1}
-            title="Annulla"
-            className="p-1.5 min-[370px]:p-2 sm:px-3 sm:py-1.5 bg-white hover:bg-amber-50 disabled:opacity-45 active:translate-y-0.5 text-amber-950 font-fun font-extrabold text-xs sm:text-sm rounded-2xl border-2 border-amber-200 shadow-[0_3px_0_#d97706] flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap"
+            type="button"
+            onClick={() => {
+              soundManager.stopSpeech();
+              soundManager.playPop();
+              onClose();
+            }}
+            aria-label="Torna alla Home"
+            className={`px-3 sm:px-4 h-10 flex items-center gap-1.5 cursor-pointer transition-colors shrink-0 ${
+              isMature
+                ? 'rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 border border-white/12'
+                : 'rounded-full bg-white hover:bg-slate-50 text-slate-900 border-2 border-white shadow-sm'
+            }`}
           >
-            <RotateCcw className="w-4 h-4 text-amber-600" />
-            <span className="hidden md:inline">Annulla</span>
-          </button>
-
-          <button
-            onClick={handleClear}
-            title="Pulisci Tela"
-            className="p-1.5 min-[370px]:p-2 sm:px-3 sm:py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 active:translate-y-0.5 font-fun font-extrabold text-xs sm:text-sm rounded-2xl border-2 border-rose-200 shadow-[0_3px_0_#fb7185] flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap"
-          >
-            <Trash2 className="w-4 h-4 text-rose-500" />
-            <span className="hidden md:inline">Pulisci</span>
-          </button>
-
-          <button
-            onClick={handleDownload}
-            title="Scarica Disegno"
-            className="p-1.5 min-[370px]:p-2 sm:px-3 sm:py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-800 active:translate-y-0.5 font-fun font-extrabold text-xs sm:text-sm rounded-2xl border-2 border-sky-200 shadow-[0_3px_0_#38bdf8] flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap"
-          >
-            <Download className="w-4 h-4 text-sky-600" />
-            <span className="hidden md:inline">Scarica</span>
-          </button>
-
-          <button
-            onClick={handleSaveDrawing}
-            className="home-wood-outer rounded-2xl p-[3px] cursor-pointer active:translate-y-0.5 transition-transform"
-          >
-            <span className="home-inner-green rounded-[12px] px-3 py-1.5 sm:px-4 sm:py-1.5 text-white font-kids font-bold text-xs sm:text-sm flex items-center gap-1.5 whitespace-nowrap">
-              <Save className="relative z-10 w-4 h-4" />
-              <span className="relative z-10">Salva</span>
+            <Home className={`w-4 h-4 shrink-0 ${isMature ? gPalette.accentTextClass : 'text-slate-700'}`} />
+            <span className="hidden min-[370px]:inline font-fun font-bold text-xs sm:text-sm whitespace-nowrap">
+              Home
             </span>
           </button>
-        </div>
-      </div>
 
-      {/* ============================================================== */}
-      {/* 2. CENTER STAGE: CARVED WOODEN EASEL & PURE WHITE CANVAS       */}
-      {/* ============================================================== */}
-      <div 
+          <div
+            className={`h-10 px-3 sm:px-4 hidden sm:inline-flex items-center justify-center gap-2 mx-auto min-w-0 ${
+              isMature
+                ? `rounded-xl bg-slate-900/95 border ${gPalette.accentBorderClass} text-slate-100`
+                : `rounded-full bg-gradient-to-r ${gPalette.headerGradientClass} border-2 border-white/85 text-white shadow-sm`
+            }`}
+          >
+            <PenTool className={`w-4 h-4 shrink-0 ${isMature ? gPalette.accentTextClass : 'text-white'}`} />
+            <h2 className="font-kids font-bold text-xs sm:text-sm whitespace-nowrap truncate">
+              {ageTheme.labels.studioTitle}
+            </h2>
+          </div>
+
+          <div className="flex items-center justify-end gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={handleUndo}
+              disabled={undoStack.length <= 1}
+              title="Annulla"
+              aria-label="Annulla"
+              className={`h-10 px-2.5 sm:px-3 font-fun font-bold text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-40 transition-colors ${
+                isMature
+                  ? 'rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-white/12'
+                  : 'rounded-xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 shadow-xs'
+              }`}
+            >
+              <RotateCcw className="w-4 h-4 shrink-0" />
+              <span className="hidden md:inline">Annulla</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleClear}
+              title="Pulisci Tela"
+              aria-label="Pulisci Tela"
+              className={`h-10 px-2.5 sm:px-3 font-fun font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-colors ${
+                isMature
+                  ? 'rounded-xl bg-slate-900 hover:bg-slate-800 text-rose-300 border border-white/12'
+                  : 'rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 shadow-xs'
+              }`}
+            >
+              <Trash2 className="w-4 h-4 shrink-0" />
+              <span className="hidden md:inline">Pulisci</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDownload}
+              title="Scarica"
+              aria-label="Scarica"
+              className={`h-10 px-2.5 sm:px-3 font-fun font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-colors ${
+                isMature
+                  ? 'rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-white/12'
+                  : 'rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 shadow-xs'
+              }`}
+            >
+              <Download className="w-4 h-4 shrink-0" />
+              <span className="hidden md:inline">Esporta</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSaveDrawing}
+              className={`h-10 px-3 sm:px-4 font-fun font-bold text-xs sm:text-sm flex items-center gap-1.5 cursor-pointer transition-colors ${
+                isMature
+                  ? `rounded-xl ${gPalette.accentBgClass} ${gPalette.accentBgHoverClass}`
+                  : `rounded-xl ${gPalette.tabActiveClass} border border-white/80 shadow-sm`
+              }`}
+            >
+              <Save className="w-4 h-4 shrink-0" />
+              <span>Salva</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* 2. CENTER CANVAS STAGE */}
+      <div
         ref={containerRef}
-        className="relative z-10 flex-1 min-h-0 w-full flex items-center justify-center px-2.5 sm:px-5 py-1.5 sm:py-2.5 overflow-hidden"
+        className="relative z-10 flex-1 min-h-0 w-full flex items-center justify-center px-3 sm:px-5 py-1.5 overflow-hidden"
       >
-        <div className="home-wood-outer relative w-full h-full max-w-5xl rounded-[26px] sm:rounded-[30px] p-[6px] sm:p-[8px] shadow-[0_20px_48px_rgba(92,40,6,0.38)] flex items-center justify-center">
-          <div className="relative w-full h-full rounded-[20px] sm:rounded-[22px] overflow-hidden bg-white border-2 border-amber-100">
-            {/* Framed White Canvas with 1:1 pointer-accurate sizing */}
+        <div
+          className={`relative w-full h-full max-w-5xl flex items-center justify-center overflow-hidden ${
+            isMature
+              ? 'rounded-2xl border border-white/15 bg-white shadow-2xl'
+              : 'home-wood-outer rounded-[24px] p-[5px]'
+          }`}
+        >
+          <div className="relative w-full h-full rounded-[18px] overflow-hidden bg-white">
             <canvas
               ref={canvasRef}
               onPointerDown={handlePointerDown}
@@ -508,34 +565,39 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
               className="w-full h-full bg-white cursor-crosshair select-none block"
             />
 
-            {/* Quick Brush Mode Indicator Floater in Corner */}
-            <div className="absolute top-3 left-3 px-3 py-1 bg-amber-50/95 backdrop-blur-xs rounded-full border-2 border-amber-200 text-xs font-fun font-bold text-amber-900 pointer-events-none flex items-center gap-1.5 shadow-sm">
-              <span className="text-amber-700/80">Pennello:</span>
-              <span className="text-amber-950 font-extrabold">
-                {brushMode === 'rainbow' && '🌈 Arcobaleno'}
-                {brushMode === 'glitter' && '✨ Glitter'}
-                {brushMode === 'neon' && '🌟 Bagliore'}
-                {brushMode === 'eraser' && '🧽 Gomma'}
-                {brushMode === 'sticker' && `${selectedSticker} Adesivo`}
-                {brushMode === 'color' && '🎨 Colore'}
+            {/* Subtle Active Tool Badge */}
+            <div className="absolute top-3 left-3 px-2.5 py-1 bg-slate-900/85 text-white rounded-lg text-[11px] font-fun font-semibold pointer-events-none flex items-center gap-1.5 shadow-xs">
+              <span>
+                {brushMode === 'color' && 'Penna'}
+                {brushMode === 'rainbow' && 'Arcobaleno'}
+                {brushMode === 'glitter' && 'Glitter'}
+                {brushMode === 'neon' && 'Neon'}
+                {brushMode === 'eraser' && 'Gomma'}
+                {brushMode === 'sticker' && `Timbro ${selectedSticker}`}
               </span>
+              <span className="opacity-60 tabular-nums">· {brushSize}px</span>
             </div>
 
-            {/* Save Success Banner */}
             {saveSuccess && (
-              <div className="absolute inset-0 bg-amber-950/60 backdrop-blur-sm flex flex-col items-center justify-center p-4 z-30 animate-pop-in">
-                <div className="home-wood-outer rounded-[28px] p-[5px] max-w-sm w-full">
-                  <div className="bg-gradient-to-b from-[#fffef8] to-[#fef3d8] rounded-[23px] p-5 text-center border border-amber-200">
-                    <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-emerald-400 to-green-600 text-white flex items-center justify-center text-3xl mb-3 shadow-[0_5px_0_#15803d]">
-                      🌟
-                    </div>
-                    <h3 className="text-2xl sm:text-3xl font-kids font-bold text-amber-950">
-                      Capolavoro Salvato!
-                    </h3>
-                    <p className="text-sm sm:text-base font-fun font-bold text-amber-700 mt-1">
-                      +3 Stelline per {childName} ⭐⭐⭐
-                    </p>
+              <div className="absolute inset-0 bg-slate-950/65 backdrop-blur-xs flex flex-col items-center justify-center p-4 z-30 animate-pop-in">
+                <div
+                  className={`rounded-2xl p-5 text-center max-w-xs w-full shadow-2xl ${
+                    isMature
+                      ? 'bg-slate-900 border border-white/15 text-white'
+                      : 'bg-white border-2 border-emerald-400 text-slate-900'
+                  }`}
+                >
+                  <div className="w-12 h-12 mx-auto rounded-xl bg-emerald-500 text-white flex items-center justify-center mb-2.5">
+                    <Check className="w-6 h-6 stroke-[3]" />
                   </div>
+                  <h3 className="text-lg sm:text-xl font-kids font-bold">
+                    {isMature ? 'Progetto Salvato' : 'Capolavoro Salvato!'}
+                  </h3>
+                  <p className={`text-xs sm:text-sm font-medium mt-1 ${isMature ? 'text-slate-300' : 'text-slate-600'}`}>
+                    {isMature
+                      ? 'Disponibile nella tua collezione.'
+                      : `+3 Stelline per ${childName}`}
+                  </p>
                 </div>
               </div>
             )}
@@ -543,210 +605,234 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
         </div>
       </div>
 
-      {/* ============================================================== */}
-      {/* 3. BOTTOM CARVED WOOD & PARCHMENT ARTIST PALETTE DOCK          */}
-      {/* ============================================================== */}
-      <div className="studio-toolbar-dock relative z-20 px-2.5 sm:px-5 pb-2.5 pt-1 shrink-0">
-        <div className="home-wood-outer max-w-5xl mx-auto rounded-[24px] p-[4px]">
-          <div className="bg-gradient-to-b from-[#fffef7] via-[#fff7e2] to-[#fdecc8] rounded-[20px] px-2.5 sm:px-4 py-2 sm:py-2.5 flex flex-col gap-2 border border-amber-200/80">
-            
-            {/* Row 1: Brush Modes & Sizes */}
-            <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar py-0.5">
-              {/* Magic Brushes Segment */}
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                {/* 1. Rainbow Brush */}
+      {/* 3. ALIGNED BOTTOM PALETTE & TOOL DOCK */}
+      <div className="studio-toolbar-dock relative z-20 px-3 sm:px-5 pb-2.5 pt-1 shrink-0">
+        <div
+          className={`max-w-5xl mx-auto px-3 py-2.5 flex flex-col gap-2 ${
+            isMature
+              ? 'rounded-2xl bg-slate-900/95 border border-white/12'
+              : 'rounded-[22px] bg-white/95 backdrop-blur-md border-2 border-white shadow-lg'
+          }`}
+        >
+          {/* Row 1: Tool Modes & Stroke Sizes */}
+          <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  soundManager.playPop();
+                  setBrushMode('color');
+                  setIsStickerDrawerOpen(false);
+                }}
+                className={`px-3 py-1.5 rounded-xl font-fun font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap ${
+                  brushMode === 'color'
+                    ? gPalette.tabActiveClass
+                    : isMature
+                    ? 'bg-slate-800 text-slate-300 hover:text-white'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <PenTool className="w-3.5 h-3.5 shrink-0" />
+                <span>Penna</span>
+              </button>
+
+              {!isTeen && (
                 <button
+                  type="button"
                   onClick={() => {
                     soundManager.playPop();
                     setBrushMode('rainbow');
                     setIsStickerDrawerOpen(false);
                   }}
-                  className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-2xl font-fun font-extrabold text-xs sm:text-sm flex items-center gap-1.5 cursor-pointer transition-all border-2 ${
+                  className={`px-3 py-1.5 rounded-xl font-fun font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap ${
                     brushMode === 'rainbow'
-                      ? 'bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 text-white border-white shadow-[0_3px_0_#7e22ce]'
-                      : 'bg-white text-amber-950 border-amber-200 hover:bg-amber-50 shadow-[0_2px_0_#e5c38b]'
+                      ? gPalette.tabActiveClass
+                      : isMature
+                      ? 'bg-slate-800 text-slate-300 hover:text-white'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
-                  <span className="text-base leading-none">🌈</span>
-                  <span className="whitespace-nowrap">Arcobaleno</span>
+                  <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                  <span>Arcobaleno</span>
                 </button>
+              )}
 
-                {/* 2. Glitter & Stars Brush */}
+              {!isMature && (
                 <button
+                  type="button"
                   onClick={() => {
                     soundManager.playTwinkle();
                     setBrushMode('glitter');
                     setIsStickerDrawerOpen(false);
                   }}
-                  className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-2xl font-fun font-extrabold text-xs sm:text-sm flex items-center gap-1.5 cursor-pointer transition-all border-2 ${
+                  className={`px-3 py-1.5 rounded-xl font-fun font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap ${
                     brushMode === 'glitter'
-                      ? 'bg-gradient-to-r from-amber-400 to-yellow-300 text-amber-950 border-white shadow-[0_3px_0_#d97706]'
-                      : 'bg-white text-amber-950 border-amber-200 hover:bg-amber-50 shadow-[0_2px_0_#e5c38b]'
+                      ? 'bg-amber-400 text-amber-950'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
-                  <span className="text-base leading-none">✨</span>
-                  <span className="whitespace-nowrap">Glitter</span>
+                  <span>✨</span>
+                  <span>Glitter</span>
                 </button>
+              )}
 
-                {/* 3. Neon Glow Brush */}
-                <button
-                  onClick={() => {
-                    soundManager.playPop();
-                    setBrushMode('neon');
-                    setIsStickerDrawerOpen(false);
-                  }}
-                  className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-2xl font-fun font-extrabold text-xs sm:text-sm flex items-center gap-1.5 cursor-pointer transition-all border-2 ${
-                    brushMode === 'neon'
-                      ? 'bg-gradient-to-r from-violet-500 to-indigo-600 text-white border-white shadow-[0_3px_0_#4338ca]'
-                      : 'bg-white text-amber-950 border-amber-200 hover:bg-amber-50 shadow-[0_2px_0_#e5c38b]'
-                  }`}
-                >
-                  <Wand2 className={`w-4 h-4 ${brushMode === 'neon' ? 'text-cyan-200' : 'text-violet-500'}`} />
-                  <span className="whitespace-nowrap">Bagliore</span>
-                </button>
+              <button
+                type="button"
+                onClick={() => {
+                  soundManager.playPop();
+                  setBrushMode('neon');
+                  setIsStickerDrawerOpen(false);
+                }}
+                className={`px-3 py-1.5 rounded-xl font-fun font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap ${
+                  brushMode === 'neon'
+                    ? gPalette.tabActiveClass
+                    : isMature
+                    ? 'bg-slate-800 text-slate-300 hover:text-white'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <Wand2 className="w-3.5 h-3.5 shrink-0" />
+                <span>Neon</span>
+              </button>
 
-                {/* 4. Eraser */}
-                <button
-                  onClick={() => {
-                    soundManager.playPop();
-                    setBrushMode('eraser');
-                    setIsStickerDrawerOpen(false);
-                  }}
-                  className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-2xl font-fun font-extrabold text-xs sm:text-sm flex items-center gap-1.5 cursor-pointer transition-all border-2 ${
-                    brushMode === 'eraser'
-                      ? 'bg-rose-500 text-white border-white shadow-[0_3px_0_#be123c]'
-                      : 'bg-white text-amber-950 border-amber-200 hover:bg-amber-50 shadow-[0_2px_0_#e5c38b]'
-                  }`}
-                >
-                  <Eraser className={`w-4 h-4 ${brushMode === 'eraser' ? 'text-white' : 'text-pink-500'}`} />
-                  <span className="whitespace-nowrap">Gomma</span>
-                </button>
+              <button
+                type="button"
+                onClick={() => {
+                  soundManager.playPop();
+                  setBrushMode('eraser');
+                  setIsStickerDrawerOpen(false);
+                }}
+                className={`px-3 py-1.5 rounded-xl font-fun font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap ${
+                  brushMode === 'eraser'
+                    ? 'bg-rose-600 text-white'
+                    : isMature
+                    ? 'bg-slate-800 text-slate-300 hover:text-white'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <Eraser className="w-3.5 h-3.5 shrink-0" />
+                <span>Gomma</span>
+              </button>
 
-                {/* 5. Stickers / Timbri */}
-                <button
-                  onClick={() => {
-                    soundManager.playPop();
-                    setBrushMode('sticker');
-                    setIsStickerDrawerOpen(prev => !prev);
-                  }}
-                  className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-2xl font-fun font-extrabold text-xs sm:text-sm flex items-center gap-1.5 cursor-pointer transition-all border-2 ${
-                    brushMode === 'sticker'
-                      ? 'bg-gradient-to-r from-pink-500 to-fuchsia-600 text-white border-white shadow-[0_3px_0_#a21caf]'
-                      : 'bg-white text-amber-950 border-amber-200 hover:bg-amber-50 shadow-[0_2px_0_#e5c38b]'
-                  }`}
-                >
-                  <span className="text-base leading-none">{selectedSticker}</span>
-                  <span className="whitespace-nowrap">Adesivi</span>
-                </button>
-              </div>
-
-              {/* Brush Size Controls */}
-              <div className="flex items-center gap-1 bg-amber-100/90 p-1 rounded-2xl border-2 border-amber-200 shrink-0">
-                <button
-                  onClick={() => {
-                    soundManager.playPop();
-                    setBrushSize(12);
-                  }}
-                  className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center cursor-pointer transition-all ${
-                    brushSize === 12
-                      ? 'bg-amber-400 text-amber-950 shadow-[0_2px_0_#b45309]'
-                      : 'text-amber-800/70 hover:bg-white/60'
-                  }`}
-                  title="Tratto Sottile"
-                >
-                  <div className="w-2 h-2 rounded-full bg-current"></div>
-                </button>
-                <button
-                  onClick={() => {
-                    soundManager.playPop();
-                    setBrushSize(22);
-                  }}
-                  className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center cursor-pointer transition-all ${
-                    brushSize === 22
-                      ? 'bg-amber-400 text-amber-950 shadow-[0_2px_0_#b45309]'
-                      : 'text-amber-800/70 hover:bg-white/60'
-                  }`}
-                  title="Tratto Medio"
-                >
-                  <div className="w-3.5 h-3.5 rounded-full bg-current"></div>
-                </button>
-                <button
-                  onClick={() => {
-                    soundManager.playPop();
-                    setBrushSize(38);
-                  }}
-                  className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center cursor-pointer transition-all ${
-                    brushSize === 38
-                      ? 'bg-amber-400 text-amber-950 shadow-[0_2px_0_#b45309]'
-                      : 'text-amber-800/70 hover:bg-white/60'
-                  }`}
-                  title="Tratto Grande"
-                >
-                  <div className="w-5 h-5 rounded-full bg-current"></div>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  soundManager.playPop();
+                  setBrushMode('sticker');
+                  setIsStickerDrawerOpen((prev) => !prev);
+                }}
+                className={`px-3 py-1.5 rounded-xl font-fun font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap ${
+                  brushMode === 'sticker'
+                    ? gPalette.tabActiveClass
+                    : isMature
+                    ? 'bg-slate-800 text-slate-300 hover:text-white'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <Shapes className="w-3.5 h-3.5 shrink-0" />
+                <span>{isMature ? 'Simboli' : 'Adesivi'}</span>
+              </button>
             </div>
 
-            {/* Row 2: Either Stickers Selector OR Palette Colors */}
-            {brushMode === 'sticker' || isStickerDrawerOpen ? (
-              /* Stickers Carousel */
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 px-1.5 bg-amber-100/70 rounded-2xl border border-amber-200/90">
-                <span className="text-xs font-kids font-bold text-amber-900 whitespace-nowrap pl-1.5 shrink-0">
-                  Tocca e timbra:
-                </span>
-                {STICKERS_LIST.map((stk, idx) => (
+            {/* Stroke Width Selector */}
+            <div
+              className={`flex items-center gap-1 p-1 rounded-xl shrink-0 ${
+                isMature ? 'bg-slate-950 border border-white/10' : 'bg-slate-100 border border-slate-200'
+              }`}
+            >
+              {sizePresets.map((sz, idx) => (
+                <button
+                  key={sz}
+                  type="button"
+                  onClick={() => {
+                    soundManager.playPop();
+                    setBrushSize(sz);
+                  }}
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
+                    brushSize === sz
+                      ? gPalette.tabActiveClass
+                      : isMature
+                      ? 'text-slate-400 hover:text-white'
+                      : 'text-slate-600 hover:bg-white'
+                  }`}
+                  title={`Tratto ${sz}px`}
+                >
+                  <span
+                    className="rounded-full bg-current"
+                    style={{ width: `${6 + idx * 5}px`, height: `${6 + idx * 5}px` }}
+                  />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Row 2: Stickers/Symbols OR Swatches */}
+          {brushMode === 'sticker' || isStickerDrawerOpen ? (
+            <div
+              className={`flex items-center gap-2 overflow-x-auto no-scrollbar py-1 px-1.5 rounded-xl ${
+                isMature ? 'bg-slate-950/70 border border-white/8' : 'bg-slate-50 border border-slate-200'
+              }`}
+            >
+              <span className={`text-xs font-fun font-bold whitespace-nowrap pl-1 shrink-0 ${isMature ? 'text-slate-400' : 'text-slate-600'}`}>
+                {isMature ? 'Simboli:' : 'Timbra:'}
+              </span>
+              {activeStickers.map((stk, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    soundManager.playPop();
+                    setSelectedSticker(stk);
+                    setBrushMode('sticker');
+                  }}
+                  className={`w-9 h-9 shrink-0 rounded-lg text-lg flex items-center justify-center cursor-pointer transition-all ${
+                    selectedSticker === stk && brushMode === 'sticker'
+                      ? `${gPalette.tabActiveClass} scale-105`
+                      : isMature
+                      ? 'bg-slate-800 text-slate-200 hover:bg-slate-700'
+                      : 'bg-white border border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  {stk}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 px-1">
+              <span className={`text-xs font-fun font-bold whitespace-nowrap hidden sm:inline shrink-0 ${isMature ? 'text-slate-400' : 'text-slate-600'}`}>
+                Colori:
+              </span>
+              {BRUSH_COLORS.map((c) => {
+                const isCurrent =
+                  (brushMode === 'color' || brushMode === 'neon') && selectedColor === c.hex;
+                return (
                   <button
-                    key={idx}
+                    key={c.hex}
+                    type="button"
                     onClick={() => {
                       soundManager.playPop();
-                      setSelectedSticker(stk);
-                      setBrushMode('sticker');
+                      setSelectedColor(c.hex);
+                      if (brushMode !== 'color' && brushMode !== 'neon') {
+                        setBrushMode('color');
+                      }
                     }}
-                    className={`w-10 h-10 shrink-0 rounded-xl text-xl sm:text-2xl flex items-center justify-center cursor-pointer transition-transform border-2 ${
-                      selectedSticker === stk && brushMode === 'sticker'
-                        ? 'bg-amber-300 border-white scale-110 shadow-[0_3px_0_#d97706]'
-                        : 'bg-white border-amber-200 hover:scale-105 active:scale-95'
+                    className={`w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-full ${c.bg} cursor-pointer transition-transform flex items-center justify-center border-2 ${
+                      isCurrent
+                        ? 'border-white scale-110 ring-2 ring-slate-400'
+                        : 'border-white/75 hover:scale-105'
                     }`}
+                    title={c.name}
                   >
-                    {stk}
+                    {isCurrent && (
+                      <Check className="w-4 h-4 text-white drop-shadow-xs" />
+                    )}
                   </button>
-                ))}
-              </div>
-            ) : (
-              /* Color Palette Buttons */
-              <div className="flex items-center gap-2 sm:gap-2.5 overflow-x-auto no-scrollbar py-1 px-1">
-                <span className="text-xs font-kids font-bold text-amber-900 whitespace-nowrap hidden sm:inline pl-1 shrink-0">
-                  Colori:
-                </span>
-                {BRUSH_COLORS.map(c => {
-                  const isCurrent = (brushMode === 'color' || brushMode === 'neon') && selectedColor === c.hex;
-                  return (
-                    <button
-                      key={c.hex}
-                      onClick={() => {
-                        soundManager.playPop();
-                        setSelectedColor(c.hex);
-                        if (brushMode !== 'color' && brushMode !== 'neon') {
-                          setBrushMode('color');
-                        }
-                      }}
-                      className={`w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-full ${c.bg} cursor-pointer transition-all duration-150 flex items-center justify-center border-2 shadow-[0_3px_0_rgba(120,53,15,0.28)] ${
-                        isCurrent
-                          ? 'border-white scale-115 ring-3 ring-amber-400 shadow-[0_4px_10px_rgba(217,119,6,0.45)]'
-                          : 'border-white/90 hover:scale-110 active:scale-95'
-                      }`}
-                      title={c.name}
-                    >
-                      {isCurrent && <Check className={`w-4 h-4 ${c.hex === '#1e293b' ? 'text-white' : 'text-slate-900'}`} />}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
-
     </div>
   );
 };

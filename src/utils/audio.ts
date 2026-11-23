@@ -603,6 +603,14 @@ class SoundManager {
   private currentAudioEl: HTMLAudioElement | null = null;
   private speechAudioEl: HTMLAudioElement | null = null;
   private speechAudioUnlocked: boolean = false;
+  private speechPendingOrPlaying: boolean = false;
+  private pendingGestureReplay: {
+    blob?: Blob;
+    url: string;
+    text: string;
+    seq: number;
+    onDone: () => void;
+  } | null = null;
   private currentBufferSource: AudioBufferSourceNode | null = null;
   private neuralAbortController: AbortController | null = null;
   private neuralAudioCache: Map<string, string> = new Map();
@@ -682,30 +690,6 @@ class SoundManager {
         passive: true,
         once: false,
       });
-
-      // Prime server connection gently without locking out neural TTS for long intervals
-      if (typeof fetch === 'function') {
-        void fetch('/api/health')
-          .then((r) => (r.ok ? r.json() : null))
-          .then(
-            (
-              health: {
-                ttsLiteAvailable?: boolean;
-                ttsRetryAfterSeconds?: number;
-              } | null
-            ) => {
-              if (health && health.ttsLiteAvailable === false) {
-                const retrySec =
-                  typeof health.ttsRetryAfterSeconds === 'number' &&
-                  health.ttsRetryAfterSeconds > 0
-                    ? Math.min(health.ttsRetryAfterSeconds, 60)
-                    : 30;
-                this.setNeuralQuotaCooldown(retrySec * 1000);
-              }
-            }
-          )
-          .catch(() => {});
-      }
     }
   }
 
@@ -714,7 +698,7 @@ class SoundManager {
   }
 
   private setNeuralQuotaCooldown(durationMs: number) {
-    const safeDuration = Math.max(15_000, Math.min(durationMs, 90_000));
+    const safeDuration = Math.max(4_000, Math.min(durationMs, 12_000));
     this.neuralCooldownUntil = Math.max(
       this.neuralCooldownUntil,
       Date.now() + safeDuration
@@ -834,11 +818,12 @@ class SoundManager {
   }
 
   /**
-   * STRICT male-only local voice selector:
-   * Only accepts confirmed natural Italian MALE voices (Microsoft Natural Diego/Giuseppe,
-   * Apple Enhanced/Premium Luca/Paolo, Android Google male itc/itd/kda/kdc, Siri Voice 2/4).
-   * Explicitly blocks "Google italiano" (female robotic), Alice, Elsa, Isabella, Federica,
-   * espeak, compact, and any unconfirmed/female browser voice so a robotic female voice NEVER speaks.
+   * Male-first local voice selector (used ONLY when Gemini neural Charon voice is temporarily unavailable):
+   * 1) Strongly prefers confirmed natural Italian MALE voices (Microsoft Natural Diego/Giuseppe,
+   *    Apple Enhanced/Premium Luca/Paolo, Android Google male itc/itd/kda/kdc, Siri Voice 2/4, Cosimo, Giorgio).
+   * 2) If none exist on the device, prefers any neutral/non-female Italian voice.
+   * 3) As a last resort so the app NEVER goes completely mute during a Gemini 429 quota cooldown,
+   *    falls back to the clearest non-compact Italian voice tuned to a calm lower male register.
    */
   private initVoices() {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
@@ -851,7 +836,7 @@ class SoundManager {
         v.lang.toLowerCase().startsWith('it')
       );
       if (itVoices.length > 0) {
-        const isRoboticOrFemale = (v: SpeechSynthesisVoice) => {
+        const isExplicitlyFemaleOrCompact = (v: SpeechSynthesisVoice) => {
           const id = `${v.name} ${v.voiceURI}`.toLowerCase();
           if (
             /(elsa|isabella|alice|federica|fabiola|chiara|silvia|giulia|paola|sofia|elena|carla|lucia|emma|bianca|fiamma|imelda|irma|lisabetta|palmira|pierina|rinalda|female|femminile|donna|it-it-x-ita|it-it-x-itb|it-it-x-kdb|siri\s*(?:voice|voce)\s*[13]|espeak|compact|flite|pico)/i.test(
@@ -860,7 +845,6 @@ class SoundManager {
           ) {
             return true;
           }
-          // Chrome/Android default "Google italiano" without an explicit male code (itc/itd/kda/kdc) is a robotic female voice
           if (
             id.includes('google italiano') &&
             !/(it-it-x-itc|it-it-x-itd|it-it-x-kda|it-it-x-kdc|male|maschile)/i.test(id)
@@ -871,21 +855,12 @@ class SoundManager {
         };
 
         const isConfirmedNaturalMaleVoice = (v: SpeechSynthesisVoice) => {
-          if (isRoboticOrFemale(v)) return false;
+          if (isExplicitlyFemaleOrCompact(v)) return false;
           const id = `${v.name} ${v.voiceURI}`.toLowerCase();
           return /(diego|giuseppe|benigno|calimero|cataldo|cosimo|luca|giorgio|nicola|paolo|matteo|marco|roberto|davide|alessandro|stefano|andrea|emanuele|vittorio|male|maschile|uomo|it-it-x-itc|it-it-x-itd|it-it-x-kda|it-it-x-kdc|siri\s*(?:voice|voce)\s*[24])/i.test(
             id
           );
         };
-
-        const maleVoices = itVoices.filter((v) => isConfirmedNaturalMaleVoice(v));
-
-        if (maleVoices.length === 0) {
-          // NEVER fall back to female or unconfirmed default browser voices
-          this.selectedVoice = null;
-          this.isConfirmedMaleVoice = false;
-          return;
-        }
 
         const scoreVoice = (v: SpeechSynthesisVoice): number => {
           const n = `${v.name} ${v.voiceURI}`.toLowerCase();
@@ -909,6 +884,9 @@ class SoundManager {
           if (!v.localService) {
             score += 30;
           }
+          if (/(espeak|compact|flite|pico)/i.test(n)) {
+            score -= 90;
+          }
           if (
             n.includes('diego') ||
             n.includes('giuseppe') ||
@@ -924,9 +902,28 @@ class SoundManager {
           return score;
         };
 
-        const sorted = [...maleVoices].sort((a, b) => scoreVoice(b) - scoreVoice(a));
-        this.selectedVoice = sorted[0];
-        this.isConfirmedMaleVoice = true;
+        const maleVoices = itVoices.filter((v) => isConfirmedNaturalMaleVoice(v));
+        if (maleVoices.length > 0) {
+          const sorted = [...maleVoices].sort((a, b) => scoreVoice(b) - scoreVoice(a));
+          this.selectedVoice = sorted[0];
+          this.isConfirmedMaleVoice = true;
+          return;
+        }
+
+        // Tier 2B: Neutral / non-female Italian voices (e.g., generic "Italian (Italy)" or Siri without gender tag)
+        const nonFemaleVoices = itVoices.filter((v) => !isExplicitlyFemaleOrCompact(v));
+        if (nonFemaleVoices.length > 0) {
+          const sorted = [...nonFemaleVoices].sort((a, b) => scoreVoice(b) - scoreVoice(a));
+          this.selectedVoice = sorted[0];
+          this.isConfirmedMaleVoice = false;
+          return;
+        }
+
+        // Tier 2C: Device only exposes default Italian voice — select highest quality and pitch-shift lower
+        // so the child ALWAYS hears the narration instead of total silence during Gemini quota cooldowns.
+        const sortedFallback = [...itVoices].sort((a, b) => scoreVoice(b) - scoreVoice(a));
+        this.selectedVoice = sortedFallback[0] ?? null;
+        this.isConfirmedMaleVoice = false;
       } else {
         this.selectedVoice = null;
         this.isConfirmedMaleVoice = false;
@@ -956,38 +953,54 @@ class SoundManager {
         }
       }
 
-      // Prime the dedicated speech HTMLAudioElement on user gesture so async Gemini WAV playback
-      // NEVER gets rejected by mobile iOS Safari / Android Chrome autoplay policies
-      if (typeof window !== 'undefined' && !this.speechAudioUnlocked) {
-        if (!this.speechAudioEl) {
-          this.speechAudioEl = new Audio();
-          this.speechAudioEl.preload = 'auto';
-        }
-        if (!this.isCurrentlySpeaking) {
-          this.speechAudioEl.src = SILENT_WAV;
-          const sp = this.speechAudioEl.play();
-          if (sp !== undefined) {
-            sp.then(() => {
-              this.speechAudioUnlocked = true;
-            }).catch(() => {});
-          }
+      // If an earlier auto-spoken Gemini clip was deferred waiting for the first user gesture, play it now!
+      if (this.pendingGestureReplay) {
+        const pending = this.pendingGestureReplay;
+        this.pendingGestureReplay = null;
+        if (this.speechSequenceId === pending.seq && this.voiceEnabled) {
+          void this.playNeuralClipNow(
+            pending.blob,
+            pending.url,
+            pending.text,
+            pending.seq,
+            pending.onDone
+          );
+          return;
         }
       }
 
-      // Prime the dedicated animal-sound HTMLAudioElement on user gesture so mobile iOS/Android never blocks playback
-      if (typeof window !== 'undefined' && !this.animalAudioUnlocked) {
+      // Prime the dedicated speech HTMLAudioElement ONLY once when first created so a later user tap can never clobber an active clip
+      if (
+        typeof window !== 'undefined' &&
+        !this.speechAudioUnlocked &&
+        !this.speechAudioEl
+      ) {
+        this.speechAudioEl = new Audio(SILENT_WAV);
+        this.speechAudioEl.preload = 'auto';
+        const sp = this.speechAudioEl.play();
+        if (sp !== undefined) {
+          sp.then(() => {
+            this.speechAudioUnlocked = true;
+          }).catch(() => {});
+        }
+      }
+
+      // Prime the dedicated animal-sound HTMLAudioElement on user gesture ONLY when idle
+      if (
+        typeof window !== 'undefined' &&
+        !this.animalAudioUnlocked &&
+        !this.isAnimalSoundPlaying
+      ) {
         if (!this.animalAudioEl) {
           this.animalAudioEl = new Audio();
           this.animalAudioEl.preload = 'auto';
         }
-        if (!this.isAnimalSoundPlaying) {
-          this.animalAudioEl.src = SILENT_WAV;
-          const p = this.animalAudioEl.play();
-          if (p !== undefined) {
-            p.then(() => {
-              this.animalAudioUnlocked = true;
-            }).catch(() => {});
-          }
+        this.animalAudioEl.src = SILENT_WAV;
+        const p = this.animalAudioEl.play();
+        if (p !== undefined) {
+          p.then(() => {
+            this.animalAudioUnlocked = true;
+          }).catch(() => {});
         }
       }
 
@@ -1238,7 +1251,6 @@ class SoundManager {
         el.pause();
         el.src = url;
         el.volume = 1.0;
-        el.currentTime = 0;
 
         let settled = false;
         const done = (ok: boolean) => {
@@ -1469,12 +1481,16 @@ class SoundManager {
         this.currentAudioEl.onended = null;
         this.currentAudioEl.onerror = null;
         this.currentAudioEl.pause();
-        this.currentAudioEl.currentTime = 0;
+        if (this.currentAudioEl.readyState > 0) {
+          this.currentAudioEl.currentTime = 0;
+        }
       } catch {
         // ignore
       }
       this.currentAudioEl = null;
     }
+    this.speechPendingOrPlaying = false;
+    this.pendingGestureReplay = null;
     if (this.currentBufferSource) {
       try {
         this.currentBufferSource.onended = null;
@@ -1562,6 +1578,7 @@ class SoundManager {
           const finish = () => {
             if (settled) return;
             settled = true;
+            this.speechPendingOrPlaying = false;
             if (this.failsafeTimer) {
               clearTimeout(this.failsafeTimer);
               this.failsafeTimer = null;
@@ -1628,141 +1645,19 @@ class SoundManager {
     return chunks.length > 0 ? chunks : [clean.slice(0, maxLen)];
   }
 
-  private async trySpeakNeural(
-    prosodyText: string,
-    context: 'praise' | 'riddle' | 'instruction' | 'general',
-    ageYears: number,
+  private async playNeuralClipNow(
+    audioBlob: Blob | undefined,
+    audioUrl: string,
+    normalizedText: string,
     currentSeq: number,
     onDone: () => void
   ): Promise<boolean> {
-    if (
-      !this.neuralTtsEnabled ||
-      typeof window === 'undefined' ||
-      typeof fetch !== 'function'
-    ) {
-      return false;
-    }
-
-    const normalizedText = prosodyText.trim().replace(/\s+/g, ' ');
-    const ageBucket = ageYears <= 5 ? 'young' : ageYears <= 9 ? 'mid' : 'teen';
-    const cacheKey = `v2_male_charon|${ageBucket}|${context}|${normalizedText.toLowerCase()}`;
-
-    let cachedClip = this.getCachedNeuralClip(cacheKey);
-    let audioUrl = cachedClip?.url;
-    let audioBlob = cachedClip?.blob;
-
-    // Step 1: Check persistent IndexedDB cache (plays exact Gemini male voice even across reloads or during rate limits)
-    if (!audioUrl) {
-      const persistedBlob = await getPersistedNeuralClip(cacheKey);
-      if (this.speechSequenceId !== currentSeq) {
-        return true;
-      }
-      if (persistedBlob) {
-        audioBlob = persistedBlob;
-        audioUrl = URL.createObjectURL(persistedBlob);
-        this.setCachedNeuralClip(cacheKey, audioUrl, persistedBlob);
-      }
-    }
-
-    // Step 2: If not cached locally and Gemini TTS is briefly cooling down, skip network call
-    if (!audioUrl && Date.now() < this.getEffectiveNeuralCooldownUntil()) {
-      return false;
-    }
-
-    // Step 3: Fetch realistic Gemini male voice WAV from /api/tts (with 1 automatic retry on transient 503/network hiccup)
-    if (!audioUrl) {
-      for (let attempt = 0; attempt < 2; attempt++) {
-        const controller = new AbortController();
-        this.neuralAbortController = controller;
-        const timeoutId = setTimeout(() => controller.abort(), 12_000);
-
-        try {
-          const res = await fetch('/api/tts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              text: normalizedText,
-              context,
-              ageYears,
-            }),
-            signal: controller.signal,
-          });
-          clearTimeout(timeoutId);
-
-          if (this.speechSequenceId !== currentSeq) {
-            return true; // superseded cleanly
-          }
-          if (res.status === 429) {
-            let retrySec = 60;
-            try {
-              const errBody = (await res.json()) as { retryAfterSeconds?: number };
-              if (
-                typeof errBody?.retryAfterSeconds === 'number' &&
-                errBody.retryAfterSeconds > 0
-              ) {
-                retrySec = Math.min(errBody.retryAfterSeconds, 90);
-              }
-            } catch {
-              // ignore
-            }
-            this.setNeuralQuotaCooldown(retrySec * 1000);
-            this.neuralFailuresCount = 0;
-            return false;
-          }
-          if (!res.ok) {
-            throw new Error(`TTS HTTP ${res.status}`);
-          }
-
-          const payload = (await res.json()) as {
-            audioData?: string;
-            mimeType?: string;
-          };
-          if (!payload?.audioData) {
-            throw new Error('Empty audio payload');
-          }
-
-          const mimeType = payload.mimeType || 'audio/wav';
-          const binaryStr = window.atob(payload.audioData);
-          const bytes = new Uint8Array(binaryStr.length);
-          for (let i = 0; i < binaryStr.length; i++) {
-            bytes[i] = binaryStr.charCodeAt(i);
-          }
-          const blob = new Blob([bytes], { type: mimeType });
-          audioBlob = blob;
-          audioUrl = URL.createObjectURL(blob);
-          this.setCachedNeuralClip(cacheKey, audioUrl, blob);
-          void savePersistedNeuralClip(cacheKey, blob, mimeType);
-          this.neuralFailuresCount = 0;
-          break;
-        } catch {
-          clearTimeout(timeoutId);
-          if (this.speechSequenceId !== currentSeq) {
-            return true; // aborted due to newer speech call
-          }
-          if (attempt === 0) {
-            await new Promise((r) => setTimeout(r, 350));
-            if (this.speechSequenceId !== currentSeq) return true;
-            continue;
-          }
-          this.neuralFailuresCount++;
-          if (this.neuralFailuresCount >= 3) {
-            this.setNeuralQuotaCooldown(30_000);
-            this.neuralFailuresCount = 0;
-          }
-          return false;
-        } finally {
-          if (this.neuralAbortController === controller) {
-            this.neuralAbortController = null;
-          }
-        }
-      }
-    }
-
-    if (this.speechSequenceId !== currentSeq || !audioUrl) {
+    if (this.speechSequenceId !== currentSeq) {
       return true;
     }
 
-    // Step 4: Play via pre-unlocked persistent speechAudioEl so mobile iOS/Android autoplay NEVER rejects after async fetch
+    // Strategy A (Primary — Media Channel): Play via dedicated HTMLAudioElement so speech plays
+    // out loud on all devices including iPhones/iPads with the physical silent switch enabled.
     const playedViaHtmlAudio = await new Promise<boolean>((resolve) => {
       try {
         if (!this.speechAudioEl) {
@@ -1773,15 +1668,15 @@ class SoundManager {
         audio.onended = null;
         audio.onerror = null;
         audio.pause();
-        audio.src = audioUrl!;
-        audio.volume = 0.98;
-        audio.currentTime = 0;
+        audio.src = audioUrl;
+        audio.volume = 1.0;
         this.currentAudioEl = audio;
 
         let settled = false;
         const finishPlayback = () => {
           if (settled) return;
           settled = true;
+          this.speechPendingOrPlaying = false;
           if (this.failsafeTimer) {
             clearTimeout(this.failsafeTimer);
             this.failsafeTimer = null;
@@ -1842,7 +1737,12 @@ class SoundManager {
       return true;
     }
 
-    // Step 5: If HTMLAudioElement was blocked by mobile autoplay policy, decode & play the EXACT Gemini male WAV via Web Audio API
+    if (this.speechSequenceId !== currentSeq) {
+      return true;
+    }
+
+    // Strategy B (Web Audio API Fallback): If HTMLAudioElement was blocked by async-fetch autoplay policy
+    // while AudioContext is already unlocked, decode & play the 24kHz Gemini WAV via AudioBufferSourceNode.
     if (audioBlob && this.speechSequenceId === currentSeq) {
       const playedViaWebAudio = await this.playBlobViaWebAudio(
         audioBlob,
@@ -1855,7 +1755,173 @@ class SoundManager {
       }
     }
 
+    // Strategy C: If browser blocked autoplay before the very first user tap on the page,
+    // queue this exact Gemini clip so the first tap plays it immediately.
+    if (this.speechSequenceId === currentSeq) {
+      this.pendingGestureReplay = {
+        blob: audioBlob,
+        url: audioUrl,
+        text: normalizedText,
+        seq: currentSeq,
+        onDone,
+      };
+      return true;
+    }
+
     return false;
+  }
+
+  private async trySpeakNeural(
+    prosodyText: string,
+    context: 'praise' | 'riddle' | 'instruction' | 'general',
+    ageYears: number,
+    currentSeq: number,
+    onDone: () => void
+  ): Promise<boolean> {
+    if (
+      !this.neuralTtsEnabled ||
+      typeof window === 'undefined' ||
+      typeof fetch !== 'function'
+    ) {
+      return false;
+    }
+
+    const normalizedText = prosodyText.trim().replace(/\s+/g, ' ');
+    const ageBucket = ageYears <= 5 ? 'young' : ageYears <= 9 ? 'mid' : 'teen';
+    const cacheKey = `v2_male_charon|${ageBucket}|${context}|${normalizedText.toLowerCase()}`;
+
+    this.speechPendingOrPlaying = true;
+
+    let cachedClip = this.getCachedNeuralClip(cacheKey);
+    let audioUrl = cachedClip?.url;
+    let audioBlob = cachedClip?.blob;
+
+    // Step 1: Check persistent IndexedDB cache (plays exact Gemini male voice even across reloads or during rate limits)
+    if (!audioUrl) {
+      const persistedBlob = await getPersistedNeuralClip(cacheKey);
+      if (this.speechSequenceId !== currentSeq) {
+        return true;
+      }
+      if (persistedBlob) {
+        audioBlob = persistedBlob;
+        audioUrl = URL.createObjectURL(persistedBlob);
+        this.setCachedNeuralClip(cacheKey, audioUrl, persistedBlob);
+      }
+    }
+
+    // Step 2: If not cached locally and Gemini TTS is briefly cooling down, skip network call
+    if (!audioUrl && Date.now() < this.getEffectiveNeuralCooldownUntil()) {
+      this.speechPendingOrPlaying = false;
+      return false;
+    }
+
+    // Step 3: Fetch realistic Gemini male voice WAV from /api/tts (with 1 automatic retry on transient 503/network hiccup)
+    if (!audioUrl) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const controller = new AbortController();
+        this.neuralAbortController = controller;
+        const timeoutId = setTimeout(() => controller.abort(), 16_000);
+
+        try {
+          const res = await fetch('/api/tts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text: normalizedText,
+              context,
+              ageYears,
+            }),
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+
+          if (this.speechSequenceId !== currentSeq) {
+            return true; // superseded cleanly
+          }
+          if (res.status === 429) {
+            let retrySec = 10;
+            try {
+              const errBody = (await res.json()) as { retryAfterSeconds?: number };
+              if (
+                typeof errBody?.retryAfterSeconds === 'number' &&
+                errBody.retryAfterSeconds > 0
+              ) {
+                retrySec = Math.min(errBody.retryAfterSeconds, 12);
+              }
+            } catch {
+              // ignore
+            }
+            this.setNeuralQuotaCooldown(retrySec * 1000);
+            this.neuralFailuresCount = 0;
+            this.speechPendingOrPlaying = false;
+            return false;
+          }
+          if (!res.ok) {
+            throw new Error(`TTS HTTP ${res.status}`);
+          }
+
+          const payload = (await res.json()) as {
+            audioData?: string;
+            mimeType?: string;
+          };
+          if (!payload?.audioData) {
+            throw new Error('Empty audio payload');
+          }
+
+          const mimeType = payload.mimeType || 'audio/wav';
+          const binaryStr = window.atob(payload.audioData);
+          const bytes = new Uint8Array(binaryStr.length);
+          for (let i = 0; i < binaryStr.length; i++) {
+            bytes[i] = binaryStr.charCodeAt(i);
+          }
+          const blob = new Blob([bytes], { type: mimeType });
+          audioBlob = blob;
+          audioUrl = URL.createObjectURL(blob);
+          this.setCachedNeuralClip(cacheKey, audioUrl, blob);
+          void savePersistedNeuralClip(cacheKey, blob, mimeType);
+          this.neuralFailuresCount = 0;
+          break;
+        } catch {
+          clearTimeout(timeoutId);
+          if (this.speechSequenceId !== currentSeq) {
+            return true; // aborted due to newer speech call
+          }
+          if (attempt === 0) {
+            await new Promise((r) => setTimeout(r, 350));
+            if (this.speechSequenceId !== currentSeq) return true;
+            continue;
+          }
+          this.neuralFailuresCount++;
+          if (this.neuralFailuresCount >= 3) {
+            this.setNeuralQuotaCooldown(20_000);
+            this.neuralFailuresCount = 0;
+          }
+          this.speechPendingOrPlaying = false;
+          return false;
+        } finally {
+          if (this.neuralAbortController === controller) {
+            this.neuralAbortController = null;
+          }
+        }
+      }
+    }
+
+    if (this.speechSequenceId !== currentSeq || !audioUrl) {
+      this.speechPendingOrPlaying = false;
+      return true;
+    }
+
+    const played = await this.playNeuralClipNow(
+      audioBlob,
+      audioUrl,
+      normalizedText,
+      currentSeq,
+      onDone
+    );
+    if (!played) {
+      this.speechPendingOrPlaying = false;
+    }
+    return played;
   }
 
   private speakWithWebSpeech(
@@ -1876,18 +1942,6 @@ class SoundManager {
 
     if (!this.selectedVoice || !this.isConfirmedMaleVoice) {
       this.initVoices();
-    }
-
-    // STRICT SAFETY RULE: NEVER allow a robotic or female browser voice to speak!
-    // If the device has no confirmed natural Italian male voice, complete cleanly without speaking in a robotic female voice.
-    if (!this.selectedVoice || !this.isConfirmedMaleVoice) {
-      this.pendingTimer = setTimeout(() => {
-        if (this.speechSequenceId === currentSeq) {
-          this.setSpeaking(false);
-          if (options.onEnd) options.onEnd();
-        }
-      }, 220);
-      return;
     }
 
     const clauses = prosody.clauses;
@@ -1942,8 +1996,9 @@ class SoundManager {
           utterance.voice = this.selectedVoice;
         }
 
-        // Enforce warm male vocal register (never allow high character voicePitch to shift into female register)
-        const baseMalePitch = this.isConfirmedMaleVoice ? 0.94 : 0.85;
+        // Enforce warm male vocal register: natural pitch for confirmed male voices,
+        // calm lowered register if the device only exposes a generic default Italian voice.
+        const baseMalePitch = this.isConfirmedMaleVoice ? 0.94 : 0.78;
         const clausePitchOffset = clauseText.endsWith('?')
           ? 0.02
           : clauseText.endsWith('!')
@@ -1951,11 +2006,11 @@ class SoundManager {
           : 0;
 
         utterance.pitch = Math.min(
-          this.isConfirmedMaleVoice ? 0.98 : 0.88,
-          Math.max(0.82, baseMalePitch + clausePitchOffset)
+          this.isConfirmedMaleVoice ? 0.98 : 0.82,
+          Math.max(0.75, baseMalePitch + clausePitchOffset)
         );
         utterance.rate = Math.min(
-          1.04,
+          1.03,
           Math.max(0.9, options.rate || prosody.defaultRate)
         );
         utterance.volume = 0.96;
@@ -2092,7 +2147,7 @@ class SoundManager {
           ? options.context
           : 'general';
 
-      const chunks = this.splitTextIntoNeuralChunks(prosody.prosodyText, 400);
+      const chunks = this.splitTextIntoNeuralChunks(prosody.prosodyText, 470);
 
       const playChunkAt = (chunkIdx: number) => {
         if (this.speechSequenceId !== currentSeq) return;

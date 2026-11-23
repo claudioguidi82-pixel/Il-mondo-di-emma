@@ -1399,115 +1399,412 @@ button:focus-visible,
 }
 
 /* ========================================================================= */
-/* AGE-ADAPTIVE VISUAL EVOLUTION SYSTEM (2 -> 14 ANNI)                       */
-/* Gradually matures graphics, surfaces, borders, and typography with age    */
+/* SYSTEM COLOR TOKENS BY GENDER (ACTIVE ACROSS ALL AGES 2 -> 14)            */
 /* ========================================================================= */
 
-/* STAGE 2 (6-8 Anni): Accademia Esploratori — Adventure Cobalt & Emerald */
-.age-theme-primary_explorer .home-wood-plaque {
-  background: linear-gradient(180deg, #0284c7 0%, #0369a1 52%, #1e3a8a 100%);
-  border: 3px solid #7dd3fc;
-  outline: 2px solid #0c4a6e;
+.gender-theme-n {
+  --sys-accent: #10b981;
+  --sys-accent-strong: #047857;
+  --sys-accent-light: #a7f3d0;
+  --sys-accent-soft: rgba(16, 185, 129, 0.14);
+  --sys-accent-border: rgba(52, 211, 153, 0.52);
+  --sys-accent-ring: rgba(16, 185, 129, 0.45);
+  --sys-plaque-start: #0f766e;
+  --sys-plaque-mid: #0d9488;
+  --sys-plaque-end: #115e59;
+  --sys-plaque-outline: #134e4a;
+  --sys-title-accent: #6ee7b7;
+}
+
+.gender-theme-f {
+  --sys-accent: #e11d48;
+  --sys-accent-strong: #be123c;
+  --sys-accent-light: #fecdd3;
+  --sys-accent-soft: rgba(244, 63, 94, 0.15);
+  --sys-accent-border: rgba(251, 113, 133, 0.55);
+  --sys-accent-ring: rgba(244, 63, 94, 0.45);
+  --sys-plaque-start: #f43f5e;
+  --sys-plaque-mid: #db2777;
+  --sys-plaque-end: #9d174d;
+  --sys-plaque-outline: #831843;
+  --sys-title-accent: #fda4af;
+}
+
+.gender-theme-m {
+  --sys-accent: #0284c7;
+  --sys-accent-strong: #1d4ed8;
+  --sys-accent-light: #bae6fd;
+  --sys-accent-soft: rgba(14, 165, 233, 0.15);
+  --sys-accent-border: rgba(56, 189, 248, 0.55);
+  --sys-accent-ring: rgba(56, 189, 248, 0.45);
+  --sys-plaque-start: #0ea5e9;
+  --sys-plaque-mid: #0284c7;
+  --sys-plaque-end: #1e40af;
+  --sys-plaque-outline: #1e3a8a;
+  --sys-title-accent: #7dd3fc;
+}
+
+/* Focus rings adopt the active gender system color */
+.gender-theme-f button:focus-visible,
+.gender-theme-f [role="button"]:focus-visible,
+.gender-theme-m button:focus-visible,
+.gender-theme-m [role="button"]:focus-visible,
+.gender-theme-n button:focus-visible,
+.gender-theme-n [role="button"]:focus-visible {
+  outline: 2.5px solid var(--sys-accent, #38bdf8);
+  outline-offset: 2px;
+}
+
+/* ========================================================================= */
+/* CLEAN ALIGNMENT SYSTEM: ZERO OVERLAP FOR HEADERS, TABS & ACTION DOCKS     */
+/* ========================================================================= */
+
+.ui-aligned-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.ui-aligned-tabs {
+  display: grid;
+  align-items: stretch;
+  width: 100%;
+  gap: 0.375rem;
+}
+
+.ui-aligned-tabs > button {
+  min-width: 0;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Ensure Home dock rows share identical width and never collide with centered icons */
+.home-dock-aligned {
+  width: 100%;
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+/* ========================================================================= */
+/* AGE-ADAPTIVE VISUAL EVOLUTION SYSTEM (2 -> 14 ANNI)                       */
+/* Gradually shifts from warm storybook -> clean academy -> sober minimal    */
+/* ========================================================================= */
+
+/* STAGE 1 (2-5 Anni): Warm Storybook + Gender System Color Tint */
+.age-theme-early_childhood.gender-theme-f .home-wood-plaque {
+  background: linear-gradient(180deg, #f472b6 0%, #db2777 52%, #9d174d 100%);
+  border: 3px solid #fbcfe8;
+  outline: 2px solid #831843;
   box-shadow:
-    0 6px 0 #0c4a6e,
-    0 16px 32px -4px rgba(12, 74, 110, 0.52),
-    inset 0 2px 4px rgba(224, 242, 254, 0.75);
+    0 5px 0 #831843,
+    0 14px 28px -6px rgba(131, 24, 67, 0.45),
+    inset 0 2px 4px rgba(255, 241, 242, 0.8);
+}
+
+.age-theme-early_childhood.gender-theme-f .home-wood-stat-inset {
+  background: rgba(131, 24, 67, 0.72);
+  border: 1px solid rgba(251, 207, 232, 0.45);
+}
+
+.age-theme-early_childhood.gender-theme-m .home-wood-plaque {
+  background: linear-gradient(180deg, #38bdf8 0%, #0284c7 52%, #1d4ed8 100%);
+  border: 3px solid #bae6fd;
+  outline: 2px solid #1e3a8a;
+  box-shadow:
+    0 5px 0 #1e3a8a,
+    0 14px 28px -6px rgba(30, 58, 138, 0.45),
+    inset 0 2px 4px rgba(224, 242, 254, 0.8);
+}
+
+.age-theme-early_childhood.gender-theme-m .home-wood-stat-inset {
+  background: rgba(30, 58, 138, 0.72);
+  border: 1px solid rgba(186, 230, 253, 0.45);
+}
+
+.age-theme-early_childhood.gender-theme-n .home-wood-plaque {
+  background: linear-gradient(180deg, #34d399 0%, #059669 52%, #0f766e 100%);
+  border: 3px solid #a7f3d0;
+  outline: 2px solid #115e59;
+  box-shadow:
+    0 5px 0 #115e59,
+    0 14px 28px -6px rgba(17, 94, 89, 0.42),
+    inset 0 2px 4px rgba(236, 253, 245, 0.8);
+}
+
+.age-theme-early_childhood.gender-theme-n .home-wood-stat-inset {
+  background: rgba(17, 94, 89, 0.72);
+  border: 1px solid rgba(167, 243, 208, 0.45);
+}
+
+/* STAGE 2 (6-8 Anni): Clean Structured Explorer Academy + Gender System Colors */
+.age-theme-primary_explorer .home-wood-plaque {
+  background: linear-gradient(160deg, var(--sys-plaque-start) 0%, var(--sys-plaque-mid) 52%, var(--sys-plaque-end) 100%);
+  border: 2px solid var(--sys-accent-light);
+  outline: none;
+  border-radius: 20px;
+  box-shadow:
+    0 4px 0 var(--sys-plaque-outline),
+    0 14px 28px -6px rgba(15, 23, 42, 0.38);
 }
 
 .age-theme-primary_explorer .home-wood-stat-inset {
-  background: linear-gradient(180deg, #0c4a6e 0%, #082f49 100%);
-  border: 1px solid rgba(125, 211, 252, 0.45);
+  background: rgba(15, 23, 42, 0.36);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: none;
+}
+
+.age-theme-primary_explorer .home-wood-outer,
+.age-theme-primary_explorer .home-lavender-outer {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1.5px solid var(--sys-accent-border);
+  box-shadow: 0 3px 0 rgba(15, 23, 42, 0.16), 0 10px 20px -6px rgba(15, 23, 42, 0.24);
 }
 
 .age-theme-primary_explorer .board-3d-tabletop,
 .age-theme-primary_explorer .storybook-parchment-board {
-  background: linear-gradient(180deg, #f8fafc 0%, #f0f9ff 62%, #e0f2fe 100%);
-  border: 3.5px solid #0284c7;
-  outline: 2px solid #0369a1;
-  box-shadow:
-    0 6px 0 #0369a1,
-    0 20px 40px -10px rgba(12, 74, 110, 0.35),
-    inset 0 2px 5px rgba(255, 255, 255, 0.95);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border: 2px solid var(--sys-accent-border);
+  outline: none;
+  border-radius: 20px;
+  box-shadow: 0 14px 32px -10px rgba(15, 23, 42, 0.22);
 }
 
-/* STAGE 3 (9-11 Anni): Campus Scienze & Logica — Modern Indigo/Cyan Glass */
+.age-theme-primary_explorer .storybook-wood-shelf {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1.5px solid var(--sys-accent-border);
+  box-shadow: 0 10px 24px -8px rgba(15, 23, 42, 0.18);
+}
+
+.age-theme-primary_explorer .storybook-wood-sign {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1.5px solid var(--sys-accent-border);
+  box-shadow: 0 6px 16px -6px rgba(15, 23, 42, 0.18);
+}
+
+/* STAGE 3 (9-11 Anni): Sober & Clean Campus Design (Minimal Surfaces + Gender Accent) */
+.age-theme-preteen_campus .font-kids {
+  font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  letter-spacing: -0.015em;
+}
+
 .age-theme-preteen_campus .home-wood-plaque {
-  background: linear-gradient(135deg, #1e1b4b 0%, #1e3a8a 52%, #0f172a 100%);
-  border: 2px solid rgba(56, 189, 248, 0.65);
-  outline: 1px solid rgba(14, 165, 233, 0.35);
-  border-radius: 20px;
-  box-shadow:
-    0 4px 0 #090d16,
-    0 18px 36px -6px rgba(14, 165, 233, 0.28),
-    inset 0 1px 2px rgba(186, 230, 253, 0.45);
+  background: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--sys-accent-border);
+  outline: none;
+  border-radius: 16px;
+  box-shadow: 0 12px 32px -8px rgba(2, 6, 23, 0.65);
 }
 
 .age-theme-preteen_campus .home-wood-stat-inset {
-  background: rgba(15, 23, 42, 0.85);
-  border: 1px solid rgba(56, 189, 248, 0.4);
+  background: rgba(2, 6, 23, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+}
+
+.age-theme-preteen_campus .home-title-white-3d {
+  color: #f8fafc;
+  text-shadow: none;
+}
+
+.age-theme-preteen_campus .home-title-gold-3d {
+  color: var(--sys-title-accent);
+  text-shadow: none;
+}
+
+.age-theme-preteen_campus .home-wood-outer,
+.age-theme-preteen_campus .home-lavender-outer {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 20px -8px rgba(2, 6, 23, 0.55);
+  border-radius: 14px;
+  padding: 0 !important;
+}
+
+.age-theme-preteen_campus .home-inner-green,
+.age-theme-preteen_campus .home-inner-purple,
+.age-theme-preteen_campus .home-inner-gold,
+.age-theme-preteen_campus .home-inner-teal,
+.age-theme-preteen_campus .home-inner-indigo,
+.age-theme-preteen_campus .home-inner-orange {
+  background: rgba(15, 23, 42, 0.92);
+  box-shadow: none;
+  border-radius: 13px;
+}
+
+.age-theme-preteen_campus .home-inner-green::before,
+.age-theme-preteen_campus .home-inner-purple::before,
+.age-theme-preteen_campus .home-inner-gold::before,
+.age-theme-preteen_campus .home-inner-teal::before,
+.age-theme-preteen_campus .home-inner-indigo::before,
+.age-theme-preteen_campus .home-inner-orange::before,
+.age-theme-preteen_campus .glossy-bubble-btn::before,
+.age-theme-preteen_campus .storybook-parchment-board::before,
+.age-theme-preteen_campus .board-3d-tabletop::before,
+.age-theme-preteen_campus .toy-card-3d::before {
+  display: none;
+}
+
+.age-theme-preteen_campus .glossy-bubble-btn {
+  box-shadow: 0 4px 12px -4px rgba(2, 6, 23, 0.45);
+  border-width: 1px;
 }
 
 .age-theme-preteen_campus .board-3d-tabletop,
 .age-theme-preteen_campus .storybook-parchment-board {
-  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
-  border: 2.5px solid #4f46e5;
-  outline: 1px solid #312e81;
-  border-radius: 20px;
-  box-shadow:
-    0 5px 0 #312e81,
-    0 22px 44px -10px rgba(30, 27, 75, 0.42);
+  background: #ffffff;
+  border: 1px solid var(--sys-accent-border);
+  outline: none;
+  border-radius: 16px;
+  box-shadow: 0 16px 36px -12px rgba(2, 6, 23, 0.45);
+}
+
+.age-theme-preteen_campus .storybook-wood-shelf {
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  box-shadow: 0 10px 24px -8px rgba(2, 6, 23, 0.5);
+}
+
+.age-theme-preteen_campus .storybook-wood-sign {
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid var(--sys-accent-border);
+  box-shadow: none;
 }
 
 .age-theme-preteen_campus .toy-card-3d {
-  border-radius: 18px;
+  border-radius: 14px;
+  border-width: 1.5px;
+  box-shadow: 0 6px 16px -6px rgba(2, 6, 23, 0.35);
 }
 
-/* STAGE 4 (12-14 Anni): NextGen Reasoning & STEM Lab — Sleek Carbon Slate & Neon Cyan */
+/* STAGE 4 (12-14 Anni): Ultra-Minimal & Sober Monochrome Studio + Gender Hairline Accent */
+.age-theme-teen_nextgen .font-kids,
+.age-theme-teen_nextgen .font-fun {
+  font-family: 'Plus Jakarta Sans', 'Outfit', sans-serif;
+  letter-spacing: -0.02em;
+}
+
 .age-theme-teen_nextgen .home-wood-plaque {
-  background: linear-gradient(135deg, #090d16 0%, #0f172a 55%, #1e1b4b 100%);
-  border: 1.5px solid rgba(34, 211, 238, 0.55);
+  background: rgba(11, 15, 25, 0.94);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--sys-accent-border);
   outline: none;
-  border-radius: 16px;
-  box-shadow:
-    0 12px 32px -6px rgba(6, 182, 212, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px -10px rgba(0, 0, 0, 0.75);
 }
 
 .age-theme-teen_nextgen .home-wood-stat-inset {
-  background: rgba(2, 6, 23, 0.88);
-  border: 1px solid rgba(34, 211, 238, 0.35);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: none;
 }
 
 .age-theme-teen_nextgen .home-title-white-3d {
   color: #f8fafc;
-  text-shadow: 0 2px 10px rgba(6, 182, 212, 0.25);
+  text-shadow: none;
 }
 
 .age-theme-teen_nextgen .home-title-gold-3d {
-  color: #22d3ee;
-  text-shadow: 0 0 14px rgba(34, 211, 238, 0.45);
+  color: var(--sys-title-accent);
+  text-shadow: none;
+}
+
+.age-theme-teen_nextgen .home-wood-outer,
+.age-theme-teen_nextgen .home-lavender-outer {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  box-shadow: none;
+  border-radius: 12px;
+  padding: 0 !important;
+}
+
+.age-theme-teen_nextgen .home-wood-outer:hover,
+.age-theme-teen_nextgen .home-lavender-outer:hover {
+  transform: translateY(-1px);
+  border-color: var(--sys-accent-border);
+}
+
+.age-theme-teen_nextgen .home-inner-green,
+.age-theme-teen_nextgen .home-inner-purple,
+.age-theme-teen_nextgen .home-inner-gold,
+.age-theme-teen_nextgen .home-inner-teal,
+.age-theme-teen_nextgen .home-inner-indigo,
+.age-theme-teen_nextgen .home-inner-orange {
+  background: rgba(15, 23, 42, 0.94);
+  box-shadow: none;
+  border-radius: 11px;
+}
+
+.age-theme-teen_nextgen .home-inner-green::before,
+.age-theme-teen_nextgen .home-inner-purple::before,
+.age-theme-teen_nextgen .home-inner-gold::before,
+.age-theme-teen_nextgen .home-inner-teal::before,
+.age-theme-teen_nextgen .home-inner-indigo::before,
+.age-theme-teen_nextgen .home-inner-orange::before,
+.age-theme-teen_nextgen .glossy-bubble-btn::before,
+.age-theme-teen_nextgen .storybook-parchment-board::before,
+.age-theme-teen_nextgen .board-3d-tabletop::before,
+.age-theme-teen_nextgen .toy-card-3d::before {
+  display: none;
+}
+
+.age-theme-teen_nextgen .glossy-bubble-btn {
+  box-shadow: none;
+  border-width: 1px;
+  border-radius: 10px;
 }
 
 .age-theme-teen_nextgen .board-3d-tabletop,
 .age-theme-teen_nextgen .storybook-parchment-board {
-  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
-  border: 2px solid #06b6d4;
-  outline: 1px solid #0f172a;
-  border-radius: 16px;
-  box-shadow:
-    0 4px 0 #0e7490,
-    0 24px 48px -12px rgba(2, 6, 23, 0.65);
+  background: #ffffff;
+  border: 1px solid var(--sys-accent-border);
+  outline: none;
+  border-radius: 14px;
+  box-shadow: 0 12px 32px -12px rgba(2, 6, 23, 0.55);
+}
+
+.age-theme-teen_nextgen .storybook-wood-shelf {
+  background: rgba(11, 15, 25, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.age-theme-teen_nextgen .storybook-wood-sign {
+  background: rgba(11, 15, 25, 0.92);
+  border: 1px solid var(--sys-accent-border);
+  box-shadow: none;
+  border-radius: 12px;
 }
 
 .age-theme-teen_nextgen .toy-card-3d {
-  border-radius: 14px;
+  border-radius: 12px;
+  border-width: 1px;
+  box-shadow: 0 4px 12px -4px rgba(2, 6, 23, 0.35);
 }
 
 .age-theme-teen_nextgen .storybook-footer-pill {
-  background: rgba(15, 23, 42, 0.92);
-  border: 1.5px solid rgba(56, 189, 248, 0.4);
+  background: rgba(11, 15, 25, 0.94);
+  border: 1px solid var(--sys-accent-border);
   color: #e2e8f0;
-  box-shadow: 0 10px 24px -6px rgba(2, 6, 23, 0.6);
+  box-shadow: none;
+  border-radius: 12px;
 }
 
 /* Additional iPad (Mini / Air / Pro 11" & 12.9") & Android Tablet Ergonomics */
@@ -1516,4 +1813,5 @@ button:focus-visible,
     padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
   }
 }
+
 

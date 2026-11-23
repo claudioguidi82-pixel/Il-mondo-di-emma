@@ -1,7 +1,7 @@
 // =============================================================================
-// GIOCHI DI SVAGO ENGINE: LABIRINTO & TROVA LE DIFFERENZE
-// 100% client-side, freshly randomized every round, age-adaptive (2-14 anni),
-// zero reading required (icon & visual first).
+// GIOCHI DI SVAGO ENGINE: LABIRINTO, TROVA LE DIFFERENZE & TRIS AI
+// 100% client-side, freshly randomized every round, age-adaptive (2-14 anni).
+// Scales themes, grid complexity, visual precision, and Minimax strategy by age.
 // =============================================================================
 
 export type SvagoGameMode = 'maze' | 'differences' | 'tris';
@@ -33,6 +33,9 @@ export interface MazeTheme {
   wallColor: string;
   wallHighlight: string;
   trailColor: string;
+  /** Minimum recommended age band ('early' = 2-8, 'explorer' = 6-10, 'mature' = 9-14) */
+  ageTier: 'early' | 'explorer' | 'mature';
+  isDarkTheme?: boolean;
 }
 
 export interface MazePuzzle {
@@ -42,9 +45,11 @@ export interface MazePuzzle {
   start: { row: number; col: number };
   goal: { row: number; col: number };
   theme: MazeTheme;
+  optimalSteps: number;
 }
 
 export const MAZE_THEMES: MazeTheme[] = [
+  // EARLY CHILDHOOD & PRIMARY (2-8 anni)
   {
     id: 'bunny',
     title: 'Il Prato del Coniglietto',
@@ -57,6 +62,7 @@ export const MAZE_THEMES: MazeTheme[] = [
     wallColor: '#15803d',
     wallHighlight: '#4ade80',
     trailColor: 'rgba(250, 204, 21, 0.55)',
+    ageTier: 'early',
   },
   {
     id: 'bee',
@@ -64,12 +70,13 @@ export const MAZE_THEMES: MazeTheme[] = [
     heroEmoji: '🐝',
     goalEmoji: '🍯',
     voicePrompt: 'Guida l’apina tra i fiori fino al vasetto di miele!',
-    voiceWin: 'Bravissimo lavoro! L’apina è arrivata al miele dolce!',
+    voiceWin: 'Ottimo lavoro! L’apina è arrivata al miele dolce!',
     floorBg: '#fef3c7',
     pathColor: '#fffbeb',
     wallColor: '#0f766e',
     wallHighlight: '#2dd4bf',
     trailColor: 'rgba(245, 158, 11, 0.45)',
+    ageTier: 'early',
   },
   {
     id: 'puppy',
@@ -83,32 +90,98 @@ export const MAZE_THEMES: MazeTheme[] = [
     wallColor: '#b45309',
     wallHighlight: '#f59e0b',
     trailColor: 'rgba(56, 189, 248, 0.45)',
+    ageTier: 'early',
   },
   {
     id: 'fox',
-    title: 'Il Bosco della Volpina',
+    title: 'Sentiero della Volpe',
     heroEmoji: '🦊',
-    goalEmoji: '🍓',
-    voicePrompt: 'Porta la volpina attraverso il bosco fino alla fragola gigante!',
-    voiceWin: 'Fantastico! La volpina ha raggiunto la fragola dolce!',
-    floorBg: '#fce7f3',
-    pathColor: '#fff1f2',
+    goalEmoji: '🧭',
+    voicePrompt: 'Guida la volpe lungo il sentiero fino alla bussola!',
+    voiceWin: 'Percorso completato! La volpe ha trovato la bussola!',
+    floorBg: '#f0fdf4',
+    pathColor: '#ffffff',
     wallColor: '#166534',
     wallHighlight: '#22c55e',
-    trailColor: 'rgba(244, 114, 182, 0.45)',
+    trailColor: 'rgba(16, 185, 129, 0.4)',
+    ageTier: 'explorer',
   },
   {
     id: 'rocket',
-    title: 'Il Viaggio del Razzo',
+    title: 'Rotta Orbitale',
     heroEmoji: '🚀',
     goalEmoji: '⭐',
-    voicePrompt: 'Pilota il razzo tra le stelle fino alla stella d’oro!',
-    voiceWin: 'Decollo riuscito! Il razzo ha raggiunto la stella d’oro!',
+    voicePrompt: 'Calcola la rotta nello spazio fino alla stella obiettivo!',
+    voiceWin: 'Rotta completata! Obiettivo stellare raggiunto!',
     floorBg: '#1e1b4b',
-    pathColor: '#312e81',
+    pathColor: '#1e293b',
     wallColor: '#6366f1',
     wallHighlight: '#a5b4fc',
     trailColor: 'rgba(253, 224, 71, 0.45)',
+    ageTier: 'explorer',
+    isDarkTheme: true,
+  },
+
+  // PRETEEN & TEEN MINIMAL / TACTICAL LABYRINTHS (9-14 anni)
+  {
+    id: 'orbital_station',
+    title: 'Stazione Orbitale · Modulo Alpha',
+    heroEmoji: '🛰️',
+    goalEmoji: '🎯',
+    voicePrompt: 'Trova il percorso più breve attraverso il modulo orbitale fino al target.',
+    voiceWin: 'Navigazione orbitale completata con successo.',
+    floorBg: '#0b1120',
+    pathColor: '#111827',
+    wallColor: '#38bdf8',
+    wallHighlight: '#7dd3fc',
+    trailColor: 'rgba(56, 189, 248, 0.45)',
+    ageTier: 'mature',
+    isDarkTheme: true,
+  },
+  {
+    id: 'cyber_grid',
+    title: 'Rete Logica · Nodo Centrale',
+    heroEmoji: '⚡',
+    goalEmoji: '🔷',
+    voicePrompt: 'Instrada il segnale lungo la rete logica minimizzando i passaggi.',
+    voiceWin: 'Connessione al nodo centrale stabilita.',
+    floorBg: '#090d16',
+    pathColor: '#131c2e',
+    wallColor: '#64748b',
+    wallHighlight: '#94a3b8',
+    trailColor: 'rgba(99, 102, 241, 0.5)',
+    ageTier: 'mature',
+    isDarkTheme: true,
+  },
+  {
+    id: 'archaeology_temple',
+    title: 'Labirinto Archeologico',
+    heroEmoji: '🧭',
+    goalEmoji: '🏛️',
+    voicePrompt: 'Esplora la pianta del tempio e raggiungi la camera centrale.',
+    voiceWin: 'Camera centrale raggiunta. Ottimo orientamento spaziale.',
+    floorBg: '#111827',
+    pathColor: '#1e293b',
+    wallColor: '#d97706',
+    wallHighlight: '#fbbf24',
+    trailColor: 'rgba(251, 191, 36, 0.42)',
+    ageTier: 'mature',
+    isDarkTheme: true,
+  },
+  {
+    id: 'deep_ocean_sub',
+    title: 'Rilevamento Abissale',
+    heroEmoji: '⚓',
+    goalEmoji: '💎',
+    voicePrompt: 'Guida la sonda sottomarina tra le dorsali fino al punto di rilevamento.',
+    voiceWin: 'Punto di rilevamento abissale raggiunto.',
+    floorBg: '#082f49',
+    pathColor: '#0f172a',
+    wallColor: '#14b8a6',
+    wallHighlight: '#5eead4',
+    trailColor: 'rgba(45, 212, 191, 0.45)',
+    ageTier: 'mature',
+    isDarkTheme: true,
   },
 ];
 
@@ -126,7 +199,18 @@ function shuffleArray<T>(items: T[]): T[] {
 export function getMazeDimensionsForAge(ageYears: number): { rows: number; cols: number } {
   if (ageYears <= 4) return { rows: 5, cols: 5 };
   if (ageYears <= 7) return { rows: 6, cols: 6 };
-  return { rows: 8, cols: 8 };
+  if (ageYears <= 10) return { rows: 8, cols: 8 };
+  return { rows: 10, cols: 10 };
+}
+
+export function getMazeThemesForAge(ageYears: number): MazeTheme[] {
+  if (ageYears >= 9) {
+    return MAZE_THEMES.filter((t) => t.ageTier === 'mature');
+  }
+  if (ageYears >= 6) {
+    return MAZE_THEMES.filter((t) => t.ageTier === 'explorer' || t.id === 'puppy' || t.id === 'bee');
+  }
+  return MAZE_THEMES.filter((t) => t.ageTier === 'early' || t.id === 'fox');
 }
 
 /**
@@ -189,17 +273,25 @@ export function generateMazePuzzle(ageYears: number, previousThemeId?: string): 
     }
   }
 
-  const candidateThemes = MAZE_THEMES.filter((t) => t.id !== previousThemeId);
+  const agePool = getMazeThemesForAge(ageYears);
+  const candidateThemes = agePool.filter((t) => t.id !== previousThemeId);
   const theme =
-    candidateThemes[Math.floor(Math.random() * candidateThemes.length)] || MAZE_THEMES[0];
+    candidateThemes[Math.floor(Math.random() * candidateThemes.length)] ||
+    agePool[0] ||
+    MAZE_THEMES[0];
+
+  const start = { row: 0, col: 0 };
+  const goal = { row: rows - 1, col: cols - 1 };
+  const optimalSteps = Math.max(1, findMazeShortestPath(grid, start, goal).length - 1);
 
   return {
     rows,
     cols,
     grid,
-    start: { row: 0, col: 0 },
-    goal: { row: rows - 1, col: cols - 1 },
+    start,
+    goal,
     theme,
+    optimalSteps,
   };
 }
 
@@ -228,7 +320,7 @@ export function canStepInMaze(
 }
 
 /**
- * BFS shortest path from current position to goal (used for the optional golden hint).
+ * BFS shortest path from current position to goal (used for optimal par & optional hint).
  */
 export function findMazeShortestPath(
   grid: MazeCell[][],
@@ -274,7 +366,7 @@ export function findMazeShortestPath(
 }
 
 // -----------------------------------------------------------------------------
-// 2. TROVA LE DIFFERENZE (RICH ILLUSTRATED STORYBOOK SCENES, RANDOMIZED SLOTS)
+// 2. TROVA LE DIFFERENZE (ILLUSTRATED SCENES WITH AGE-ADAPTIVE PRECISION)
 // -----------------------------------------------------------------------------
 
 export type DiffSceneId = 'meadow' | 'sea' | 'farm' | 'space';
@@ -286,7 +378,7 @@ export interface DiffSpotSpec {
   cx: number;
   /** Center Y in 320x210 SVG coordinate system */
   cy: number;
-  /** Generous child-friendly hit radius in SVG units */
+  /** Base hit radius in SVG units */
   r: number;
 }
 
@@ -300,7 +392,7 @@ export interface DiffSceneDefinition {
 
 export interface DiffPuzzle {
   scene: DiffSceneDefinition;
-  /** Randomly chosen active difference IDs for this round (3 for 2-4y, 4 for 5-7y, 5 for 8+y) */
+  /** Randomly chosen active difference IDs (3 for 2-4y, 4 for 5-7y, 5 for 8-10y, 6 for 11-14y) */
   activeSpotIds: string[];
 }
 
@@ -370,16 +462,42 @@ export const DIFF_SCENES: DiffSceneDefinition[] = [
 export function getDiffCountForAge(ageYears: number): number {
   if (ageYears <= 4) return 3;
   if (ageYears <= 7) return 4;
-  return 5;
+  if (ageYears <= 10) return 5;
+  return 6;
+}
+
+export function getAgeAdaptedDiffMeta(
+  scene: DiffSceneDefinition,
+  ageYears: number
+): { title: string; voicePrompt: string } {
+  if (ageYears < 9) {
+    return { title: scene.title, voicePrompt: scene.voicePrompt };
+  }
+  const matureTitles: Record<DiffSceneId, string> = {
+    space: 'Analisi Visiva · Osservatorio Orbitale',
+    sea: 'Confronto Scena · Costa & Faro',
+    meadow: 'Analisi Dettagli · Paesaggio Rurale',
+    farm: 'Confronto Visivo · Mulino & Campagna',
+  };
+  return {
+    title: matureTitles[scene.id] || scene.title,
+    voicePrompt: `Individua con precisione tutte le ${getDiffCountForAge(ageYears)} differenze tra i due fotogrammi.`,
+  };
 }
 
 /**
  * Generates a fresh Spot-the-Differences puzzle with randomized scene and randomized active spots.
  */
 export function generateDiffPuzzle(ageYears: number, previousSceneId?: DiffSceneId): DiffPuzzle {
+  // For older ages (9+), prioritize Space & Sea first when starting fresh
   const candidates = DIFF_SCENES.filter((s) => s.id !== previousSceneId);
-  const scene =
-    candidates[Math.floor(Math.random() * candidates.length)] || DIFF_SCENES[0];
+  let scene: DiffSceneDefinition;
+  if (!previousSceneId && ageYears >= 9) {
+    const preferred = candidates.filter((s) => s.id === 'space' || s.id === 'sea');
+    scene = preferred[Math.floor(Math.random() * preferred.length)] || candidates[0];
+  } else {
+    scene = candidates[Math.floor(Math.random() * candidates.length)] || DIFF_SCENES[0];
+  }
   const targetCount = Math.min(scene.spots.length, getDiffCountForAge(ageYears));
   const activeSpotIds = shuffleArray(scene.spots)
     .slice(0, targetCount)
@@ -389,4 +507,131 @@ export function generateDiffPuzzle(ageYears: number, previousSceneId?: DiffScene
     scene,
     activeSpotIds,
   };
+}
+
+// -----------------------------------------------------------------------------
+// 3. TRIS TACTICAL AI ENGINE (AGE-ADAPTIVE FROM PLAYFUL TO MINIMAX)
+// -----------------------------------------------------------------------------
+
+export type TrisCellValue = 'PLAYER' | 'BOT' | null;
+
+export const TRIS_WINNING_LINES: number[][] = [
+  [0, 1, 2],
+  [3, 4, 5],
+  [6, 7, 8],
+  [0, 3, 6],
+  [1, 4, 7],
+  [2, 5, 8],
+  [0, 4, 8],
+  [2, 4, 6],
+];
+
+export function evaluateTrisBoard(board: TrisCellValue[]): {
+  winner: 'PLAYER' | 'BOT' | 'DRAW';
+  line: number[] | null;
+} | null {
+  for (const line of TRIS_WINNING_LINES) {
+    const [a, b, c] = line;
+    if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+      return { winner: board[a], line };
+    }
+  }
+  if (board.every((cell) => cell !== null)) {
+    return { winner: 'DRAW', line: null };
+  }
+  return null;
+}
+
+function minimaxScore(board: TrisCellValue[], isBotTurn: boolean, depth: number): number {
+  const res = evaluateTrisBoard(board);
+  if (res) {
+    if (res.winner === 'BOT') return 10 - depth;
+    if (res.winner === 'PLAYER') return depth - 10;
+    return 0;
+  }
+
+  let best = isBotTurn ? -Infinity : Infinity;
+  for (let i = 0; i < 9; i++) {
+    if (board[i] !== null) continue;
+    board[i] = isBotTurn ? 'BOT' : 'PLAYER';
+    const score = minimaxScore(board, !isBotTurn, depth + 1);
+    board[i] = null;
+    best = isBotTurn ? Math.max(best, score) : Math.min(best, score);
+  }
+  return best;
+}
+
+/**
+ * Selects the AI move for Tris calibrated by age:
+ * - 2-5y: playful & welcoming (mostly random, 15% tactical)
+ * - 6-8y: balanced explorer (65% immediate win/block)
+ * - 9-11y: smart campus bot (85% tactical + center/corner priority)
+ * - 12-14y: strategic Minimax AI (92% optimal, challenging yet fair)
+ */
+export function chooseBestTrisMove(board: TrisCellValue[], ageYears: number): number | null {
+  const emptyIndices = board
+    .map((val, idx) => (val === null ? idx : null))
+    .filter((val): val is number => val !== null);
+
+  if (emptyIndices.length === 0) return null;
+
+  const findImmediateMove = (who: 'BOT' | 'PLAYER'): number | null => {
+    for (const [a, b, c] of TRIS_WINNING_LINES) {
+      const vals = [board[a], board[b], board[c]];
+      if (vals.filter((v) => v === who).length === 2 && vals.includes(null)) {
+        return [a, b, c][vals.indexOf(null)];
+      }
+    }
+    return null;
+  };
+
+  // Always check immediate winning move for 9+
+  if (ageYears >= 12) {
+    // 92% Minimax optimal, 8% slightly suboptimal so a sharp teen can still trap it occasionally
+    if (Math.random() < 0.92) {
+      const scratch = [...board];
+      let bestScore = -Infinity;
+      let bestMoves: number[] = [];
+      for (const idx of emptyIndices) {
+        scratch[idx] = 'BOT';
+        const score = minimaxScore(scratch, false, 0);
+        scratch[idx] = null;
+        if (score > bestScore) {
+          bestScore = score;
+          bestMoves = [idx];
+        } else if (score === bestScore) {
+          bestMoves.push(idx);
+        }
+      }
+      if (bestMoves.length > 0) {
+        return bestMoves[Math.floor(Math.random() * bestMoves.length)];
+      }
+    }
+  }
+
+  if (ageYears >= 9) {
+    const winMove = findImmediateMove('BOT');
+    if (winMove !== null) return winMove;
+    if (Math.random() < 0.85) {
+      const blockMove = findImmediateMove('PLAYER');
+      if (blockMove !== null) return blockMove;
+      if (board[4] === null) return 4;
+      const openCorners = [0, 2, 6, 8].filter((i) => board[i] === null);
+      if (openCorners.length > 0) {
+        return openCorners[Math.floor(Math.random() * openCorners.length)];
+      }
+    }
+  }
+
+  if (ageYears >= 6 && Math.random() < 0.65) {
+    const smartMove = findImmediateMove('BOT') ?? findImmediateMove('PLAYER');
+    if (smartMove !== null) return smartMove;
+  }
+
+  if (ageYears <= 5 && Math.random() < 0.15) {
+    const gentleMove = findImmediateMove('BOT');
+    if (gentleMove !== null) return gentleMove;
+  }
+
+  return emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
 }

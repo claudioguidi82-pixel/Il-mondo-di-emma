@@ -10,12 +10,16 @@ import {
   HelpCircle,
   Check,
   RotateCcw,
+  BookOpen,
+  Compass,
+  AudioLines,
 } from 'lucide-react';
 import { ChildProfile } from '../types/game';
 import { soundManager } from '../utils/audio';
 import { confetti } from '../utils/confetti';
 import {
   calculateChildAge,
+  getAgeVisualTheme,
   getDisplayChildName,
   getGenderedWord,
 } from '../utils/childProfile';
@@ -54,6 +58,11 @@ interface TalkingAnimal {
   tab: HabitatTab;
   name: string;
   shortName: string;
+  speciesName: string;
+  scientificName: string;
+  biome: string;
+  diet: string;
+  acousticProfile: string;
   emoji: string;
   soundLabel: string;
   habitat: string;
@@ -66,17 +75,23 @@ interface TalkingAnimal {
   greetings: string[];
   curiosities: string[];
   cuddlePhrase: string;
+  scienceFacts: string[];
+  ethologyNote: string;
+  quizClue: string;
 }
 
 const TALKING_ANIMALS: TalkingAnimal[] = [
-  // =========================================================================
-  // TAB 1: FATTORIA & BOSCO (8 animali amatissimi dai 2 anni in su)
-  // =========================================================================
+  // TAB 1: FAUNA DOMESTICA & ZONE UMIDE (8 specie)
   {
     id: 'dog',
     tab: 'farm',
     name: 'Cane Fido',
     shortName: 'Cane Fido',
+    speciesName: 'Cane Domestico',
+    scientificName: 'Canis lupus familiaris',
+    biome: 'Ambiente antropico & Praterie',
+    diet: 'Onnivoro (carnivoro facoltativo)',
+    acousticProfile: 'Abbaio impulsivo · 400–2500 Hz',
     emoji: '🐶',
     soundLabel: 'BAU BAU!',
     habitat: 'Prato della fattoria',
@@ -93,15 +108,26 @@ const TALKING_ANIMALS: TalkingAnimal[] = [
     curiosities: [
       'Lo sapevi? I cani riconoscono tantissimi profumi diversi con il loro tartufo umido!',
       'Quando un cane scodinzola tutto contento, sta dicendo che è felice di vederti!',
-      'I cuccioli adorano giocare a nascondino e imparano subito a riconoscere la tua voce!',
+      'I cuccioli adorano giocare e imparano subito a riconoscere la tua voce!',
     ],
     cuddlePhrase: 'Bau bau! Che belle carezze dietro le orecchie, scodinzolo fortissimo!',
+    scienceFacts: [
+      'L’olfatto canino dispone fino a 300 milioni di recettori olfattivi, contro circa 6 milioni nell’uomo.',
+      'L’udito del cane percepisce frequenze fino a 45.000 Hz, molto oltre il limite umano di 20.000 Hz.',
+    ],
+    ethologyNote: 'Specie sociale a gerarchia cooperativa: comunica tramite vocalizzazioni modulate, postura della coda e segnali chimici.',
+    quizClue: 'Possiede fino a 300 milioni di recettori olfattivi e percepisce ultrasuoni fino a 45 kHz.',
   },
   {
     id: 'cat',
     tab: 'farm',
     name: 'Gatto Micio',
     shortName: 'Gatto Micio',
+    speciesName: 'Gatto Domestico',
+    scientificName: 'Felis catus',
+    biome: 'Ambiente domestico & Urbano',
+    diet: 'Carnivoro stretto',
+    acousticProfile: 'Miagolio & Fusa · 25–150 Hz',
     emoji: '🐱',
     soundLabel: 'MIAO!',
     habitat: 'Cuscino al sole',
@@ -121,12 +147,23 @@ const TALKING_ANIMALS: TalkingAnimal[] = [
       'I gatti vedono molto bene anche quando la luce è bassa, come al tramonto!',
     ],
     cuddlePhrase: 'Prrr... miao! Queste coccole sul musetto sono dolcissime!',
+    scienceFacts: [
+      'Le fusa vibrano tra 25 e 150 Hz, una banda di frequenza associata al recupero tissutale e osseo.',
+      'Il tapetum lucidum dietro la retina amplifica la visione crepuscolare fino a sei volte rispetto all’uomo.',
+    ],
+    ethologyNote: 'Predatore crepuscolare dotato di vibrisse tattili altamente innervate per misurare gli spazi al buio.',
+    quizClue: 'Emette vibrazioni tra 25 e 150 Hz e sfrutta il tapetum lucidum per la visione notturna.',
   },
   {
     id: 'cow',
     tab: 'farm',
     name: 'Mucca Bella',
     shortName: 'Mucca Bella',
+    speciesName: 'Bovino Domestico',
+    scientificName: 'Bos taurus',
+    biome: 'Praterie temperate & Pascoli',
+    diet: 'Erbivoro ruminante',
+    acousticProfile: 'Muggito grave · 80–300 Hz',
     emoji: '🐄',
     soundLabel: 'MUUU!',
     habitat: 'Pascolo verde',
@@ -146,12 +183,23 @@ const TALKING_ANIMALS: TalkingAnimal[] = [
       'Una mucca ha una vista quasi a trecentosessanta gradi per controllare tutto il prato!',
     ],
     cuddlePhrase: 'Muuu! Grazie per la carezza e per questo bel mazzolino di margherite!',
+    scienceFacts: [
+      'L’apparato digerente dei bovini possiede quattro compartimenti gastrici (rumine, reticolo, omaso, abomaso) per digerire la cellulosa.',
+      'Gli occhi laterali garantiscono un campo visivo panoramico di circa 330 gradi.',
+    ],
+    ethologyNote: 'Gregario e dotato di forte memoria sociale: modula l’intonazione del muggito per identificare il vitello o segnalare stress.',
+    quizClue: 'Ruminante con quattro compartimenti gastrici e un campo visivo panoramico di 330 gradi.',
   },
   {
     id: 'sheep',
     tab: 'farm',
     name: 'Pecora Nuvola',
     shortName: 'Pecora Nuvola',
+    speciesName: 'Pecora Domestica',
+    scientificName: 'Ovis aries',
+    biome: 'Colline & Pascoli montani',
+    diet: 'Erbivoro ruminante',
+    acousticProfile: 'Belato armonico · 300–1200 Hz',
     emoji: '🐑',
     soundLabel: 'BEEE!',
     habitat: 'Colline fiorite',
@@ -171,12 +219,23 @@ const TALKING_ANIMALS: TalkingAnimal[] = [
       'Gli agnellini riconoscono la voce della loro mamma fin dal primissimo giorno!',
     ],
     cuddlePhrase: 'Beee! Che bello farsi accarezzare i riccioli morbidi!',
+    scienceFacts: [
+      'Studi neuroscientifici hanno dimostrato che le pecore ricordano fino a 50 volti ovini e umani per oltre due anni.',
+      'Le pupille rettangolari orizzontali ampliano la visione periferica mentre brucano a testa bassa.',
+    ],
+    ethologyNote: 'Comportamento di gregge sincronizzato guidato da riconoscimento vocale madre-agnello e visione grandangolare.',
+    quizClue: 'Ha pupille rettangolari orizzontali e ricorda fino a 50 volti diversi per oltre due anni.',
   },
   {
     id: 'rooster',
     tab: 'farm',
     name: 'Gallo Chicco',
     shortName: 'Gallo Chicco',
+    speciesName: 'Gallo Domestico',
+    scientificName: 'Gallus gallus domesticus',
+    biome: 'Aree rurali & Boscaglia',
+    diet: 'Onnivoro granivoro',
+    acousticProfile: 'Canto territoriale · 1000–4000 Hz',
     emoji: '🐓',
     soundLabel: 'CHICCHIRICHÌ!',
     habitat: 'Aia del mattino',
@@ -196,12 +255,23 @@ const TALKING_ANIMALS: TalkingAnimal[] = [
       'I galli usano tanti suoni diversi per avvisare le galline quando trovano semini gustosi!',
     ],
     cuddlePhrase: 'Chicchirichì! Grazie per questi semini croccanti di mais!',
+    scienceFacts: [
+      'Il canto all’alba è regolato da un ritmo circadiano endogeno: avviene anche al buio costante.',
+      'Durante il canto (oltre 100 dB), un tessuto molle chiude parzialmente il condotto uditivo proteggendo i propri timpani.',
+    ],
+    ethologyNote: 'Usa un repertorio di oltre 20 richiami referenziali distinti, differenziando predatori aerei da predatori terrestri.',
+    quizClue: 'Regola il proprio canto con un orologio circadiano interno e protegge i timpani da picchi di 100 dB.',
   },
   {
     id: 'duck',
     tab: 'farm',
     name: 'Anatra Pina',
     shortName: 'Anatra Pina',
+    speciesName: 'Germano Reale',
+    scientificName: 'Anas platyrhynchos',
+    biome: 'Zone umide, laghi e fiumi',
+    diet: 'Onnivoro acquatico',
+    acousticProfile: 'Richiamo nasale · 600–2800 Hz',
     emoji: '🦆',
     soundLabel: 'QUA QUA!',
     habitat: 'Laghetto azzurro',
@@ -221,12 +291,23 @@ const TALKING_ANIMALS: TalkingAnimal[] = [
       'Le anatre possono sia nuotare benissimo sia volare alte nel cielo!',
     ],
     cuddlePhrase: 'Qua qua! Splash! Che divertimento giocare vicino al laghetto!',
+    scienceFacts: [
+      'La ghiandola dell’uropigio secerne oli idrorepellenti che mantengono asciutto il piumaggio e favoriscono il galleggiamento.',
+      'Nuotando in fila indiana, gli anatroccoli sfruttano l’interferenza costruttiva delle onde riducendo la resistenza idrodinamica.',
+    ],
+    ethologyNote: 'Uccello migratore capace di sonno uni-emisferico: un emisfero cerebrale riposa mentre l’altro vigila.',
+    quizClue: 'Impermeabilizza le piume grazie alla ghiandola dell’uropigio e sfrutta la scia idrodinamica in fila.',
   },
   {
     id: 'pig',
     tab: 'farm',
     name: 'Maialino Poldo',
     shortName: 'Maialino Poldo',
+    speciesName: 'Suino Domestico',
+    scientificName: 'Sus scrofa domesticus',
+    biome: 'Boschi decidui & Aree rurali',
+    diet: 'Onnivoro',
+    acousticProfile: 'Grugnito ritmico · 150–900 Hz',
     emoji: '🐷',
     soundLabel: 'OINK OINK!',
     habitat: 'Orto soleggiato',
@@ -246,12 +327,23 @@ const TALKING_ANIMALS: TalkingAnimal[] = [
       'I maialini comunicano tra loro con più di venti versi diversi!',
     ],
     cuddlePhrase: 'Oink oink! Mmm che mela croccante, mi fai ridere il nasino!',
+    scienceFacts: [
+      'Dotati di elevate capacità cognitive, i suini superano test di memoria spaziale e problem solving al pari di primati giovani.',
+      'Avendo pochissime ghiandole sudoripare funzionali, usano il fango per la termoregolazione evaporativa.',
+    ],
+    ethologyNote: 'Possiede oltre 20 vocalizzazioni catalogate che riflettono stati emotivi precisi, dalla ricerca di cibo al gioco sociale.',
+    quizClue: 'Ha pochissime ghiandole sudoripare e utilizza il fango per termoregolare la temperatura corporea.',
   },
   {
     id: 'frog',
     tab: 'farm',
     name: 'Rana Rina',
     shortName: 'Rana Rina',
+    speciesName: 'Rana Verde',
+    scientificName: 'Pelophylax esculentus',
+    biome: 'Stagni, paludi e corsi d’acqua',
+    diet: 'Insettivoro',
+    acousticProfile: 'Gracidio risonante · 500–3200 Hz',
     emoji: '🐸',
     soundLabel: 'CRA CRA!',
     habitat: 'Ninfee dello stagno',
@@ -271,16 +363,25 @@ const TALKING_ANIMALS: TalkingAnimal[] = [
       'Prima di diventare rane, i piccoli si chiamano girini e nuotano con la coda!',
     ],
     cuddlePhrase: 'Cra cra! Boing! Un salto di gioia tutto per te!',
+    scienceFacts: [
+      'Gli anfibi anuri respirano e si idratano in parte per osmosi cutanea: questo li rende ottimi bioindicatori ambientali.',
+      'I sacchi vocali gonfiabili fungono da casse di risonanza amplificando il richiamo fino a centinaia di metri.',
+    ],
+    ethologyNote: 'La metamorfosi trasforma un girino acquatico con branchie in un anfibio terrestre a respirazione polmonare e cutanea.',
+    quizClue: 'Anfibio bioindicatore che assorbe acqua per osmosi cutanea e amplifica il verso con sacchi vocali.',
   },
 
-  // =========================================================================
-  // TAB 2: SAVANA & NATURA (6 animali iconici con ritratti 3D)
-  // =========================================================================
+  // TAB 2: FAUNA SELVATICA & ECOSISTEMI (6 specie)
   {
     id: 'lion',
     tab: 'savanna',
     name: 'Leone Leo',
     shortName: 'Leone Leo',
+    speciesName: 'Leone Africano',
+    scientificName: 'Panthera leo',
+    biome: 'Savana & Praterie sub-sahariane',
+    diet: 'Carnivoro predatore apicale',
+    acousticProfile: 'Ruggito a bassa freq. · 40–200 Hz',
     emoji: '🦁',
     soundLabel: 'ROAAAR!',
     habitat: 'Savana dorata',
@@ -301,12 +402,23 @@ const TALKING_ANIMALS: TalkingAnimal[] = [
       'I cuccioli di leone nascono con delle piccole macchie sul pelo che poi scompaiono crescendo.',
     ],
     cuddlePhrase: 'Prrr... Le tue carezze sulla criniera mi fanno fare le fusa come un micione!',
+    scienceFacts: [
+      'Le corde vocali quadrate e piatte del genere Panthera producono ruggiti fino a 114 dB udibili a 8 km di distanza.',
+      'È l’unico grande felino stabilmente sociale: vive in branchi coordinati guidati da femmine imparentate.',
+    ],
+    ethologyNote: 'Il ruggito collettivo al tramonto delimita i confini territoriali evitando scontri fisici ad alto costo energetico.',
+    quizClue: 'Grande felino sociale il cui ruggito a bassa frequenza raggiunge 114 dB e si ode fino a 8 km.',
   },
   {
     id: 'elephant',
     tab: 'savanna',
     name: 'Elefante Elio',
     shortName: 'Elefante Elio',
+    speciesName: 'Elefante Africano',
+    scientificName: 'Loxodonta africana',
+    biome: 'Savana & Foreste tropicali',
+    diet: 'Erbivoro megafauna',
+    acousticProfile: 'Barrito & Infrasuoni · 14–800 Hz',
     emoji: '🐘',
     soundLabel: 'PA-UUUH!',
     habitat: 'Oasi d’acqua fresca',
@@ -327,12 +439,23 @@ const TALKING_ANIMALS: TalkingAnimal[] = [
       'Gli elefanti sentono le vibrazioni lontane persino attraverso le zampe!',
     ],
     cuddlePhrase: 'Pa-uuuh! Che bello giocare con gli spruzzi d’acqua fresca!',
+    scienceFacts: [
+      'Oltre al barrito udibile, gli elefanti comunicano via infrasuoni sotto i 20 Hz che viaggiano nel suolo per chilometri.',
+      'La proboscide è un idrostato muscolare composto da circa 40.000 fasci muscolari privi di ossa.',
+    ],
+    ethologyNote: 'Struttura matriarcale con memoria spaziale pluridecennale capace di ricordare rotte idriche durante la siccità.',
+    quizClue: 'Comunica con infrasuoni sotto i 20 Hz percepiti anche attraverso le zampe e ha 40.000 muscoli nella proboscide.',
   },
   {
     id: 'giraffe',
     tab: 'savanna',
     name: 'Giraffa Gina',
     shortName: 'Giraffa Gina',
+    speciesName: 'Giraffa',
+    scientificName: 'Giraffa camelopardalis',
+    biome: 'Savana arborata ad acacie',
+    diet: 'Erbivoro brucatore',
+    acousticProfile: 'Ronzio notturno · 90–250 Hz',
     emoji: '🦒',
     soundLabel: 'GNAM GNAM!',
     habitat: 'Alberi di acacia',
@@ -353,12 +476,23 @@ const TALKING_ANIMALS: TalkingAnimal[] = [
       'Ogni giraffa ha macchie uniche sul mantello: non ne esistono due uguali!',
     ],
     cuddlePhrase: 'Gnam gnam! Mmm che buone queste foglioline croccanti!',
+    scienceFacts: [
+      'Per pompare sangue fino al cervello a oltre 5 metri d’altezza, il cuore genera una pressione arteriosa doppia rispetto a quella umana.',
+      'Ricerche di bio-acustica hanno scoperto che le giraffe emettono un ronzio armonico notturno attorno ai 92 Hz.',
+    ],
+    ethologyNote: 'Possiede solo 7 vertebre cervicali (come tutti i mammiferi), ma ciascuna può superare i 25 cm di lunghezza.',
+    quizClue: 'Ha 7 vertebre cervicali allungate, pressione arteriosa doppia dell’uomo e un ronzio notturno a 92 Hz.',
   },
   {
     id: 'zebra',
     tab: 'savanna',
     name: 'Zebra Zoe',
     shortName: 'Zebra Zoe',
+    speciesName: 'Zebra delle Pianure',
+    scientificName: 'Equus quagga',
+    biome: 'Pianure & Savane africane',
+    diet: 'Erbivoro pascolatore',
+    acousticProfile: 'Richiamo latrante · 450–2200 Hz',
     emoji: '🦓',
     soundLabel: 'HIII-HA!',
     habitat: 'Prati della savana',
@@ -379,12 +513,23 @@ const TALKING_ANIMALS: TalkingAnimal[] = [
       'Una zebra può correre fino a sessantacinque chilometri all’ora e sa correre a zig-zag!',
     ],
     cuddlePhrase: 'Hiii-ha! Che felicità correre sul prato insieme!',
+    scienceFacts: [
+      'Il pattern a strisce riduce drasticamente gli atterraggi di tafani e mosche tse-tse alterando la luce polarizzata riflessa.',
+      'Il mantello è unico per ciascun individuo e crea un effetto di mimetismo disruptivo nella corsa di gruppo.',
+    ],
+    ethologyNote: 'Forma gruppi coesi in cui i richiami brevi e ritmici servono a mantenere il contatto visivo e acustico tra i membri.',
+    quizClue: 'Le sue strisce uniche interferiscono con la luce polarizzata allontanando gli insetti ematofagi.',
   },
   {
     id: 'camel',
     tab: 'savanna',
     name: 'Cammello Camillo',
     shortName: 'Cammello',
+    speciesName: 'Dromedario / Cammello',
+    scientificName: 'Camelus dromedarius',
+    biome: 'Deserti aridi & Steppe',
+    diet: 'Erbivoro xerofilo',
+    acousticProfile: 'Bramito gutturale · 120–700 Hz',
     emoji: '🐪',
     soundLabel: 'BRRR-HUU!',
     habitat: 'Dune del deserto',
@@ -405,12 +550,23 @@ const TALKING_ANIMALS: TalkingAnimal[] = [
       'Le zampe del cammello sono larghe e morbide come cuscini per non affondare nella sabbia!',
     ],
     cuddlePhrase: 'Mmmm! Questi datteri dolci sono deliziosi!',
+    scienceFacts: [
+      'La gobba immagazzina tessuto adiposo concentrato, evitando uno strato di grasso isolante su tutto il corpo.',
+      'I globuli rossi ovali resistono a forti variazioni osmotiche quando l’animale reidrata decine di litri d’acqua in pochi minuti.',
+    ],
+    ethologyNote: 'Lascia oscillare la temperatura corporea tra 34 °C e 41 °C durante la giornata per limitare la sudorazione.',
+    quizClue: 'Ha globuli rossi ovali e concentra le riserve di grasso nella gobba per tollerare il clima desertico.',
   },
   {
     id: 'owl',
     tab: 'savanna',
     name: 'Gufo Barnaba',
     shortName: 'Gufo Barnaba',
+    speciesName: 'Gufo Comune',
+    scientificName: 'Asio otus',
+    biome: 'Foreste temperate & Boschi',
+    diet: 'Carnivoro rapace notturno',
+    acousticProfile: 'Richiamo puro · 350–650 Hz',
     emoji: '🦉',
     soundLabel: 'HUU-HUU!',
     habitat: 'Quercia stellata',
@@ -430,6 +586,12 @@ const TALKING_ANIMALS: TalkingAnimal[] = [
       'I gufi hanno un udito finissimo per ascoltare tutti i suoni notturni del bosco!',
     ],
     cuddlePhrase: 'Huu-huu! Che bel saluto gentile sotto le stelle!',
+    scienceFacts: [
+      'Le orecchie asimmetriche sul cranio permettono una triangolazione sonora 3D precisa anche nell’oscurità totale.',
+      'Le micro-frange sul bordo d’attacco delle remiganti spezzano le turbolenze aerodinamiche rendendo il volo quasi impercettibile.',
+    ],
+    ethologyNote: '14 vertebre cervicali (il doppio dell’uomo) consentono una rotazione del capo fino a 270 gradi.',
+    quizClue: 'Rapace notturno con orecchie asimmetriche per triangolazione 3D e piume frangiate per il volo silenzioso.',
   },
 ];
 
@@ -446,17 +608,34 @@ const AnimalPortraitVisual: React.FC<{
   animal: TalkingAnimal;
   size?: 'spotlight' | 'card';
   isPlaying?: boolean;
-}> = ({ animal, size = 'card', isPlaying = false }) => {
+  isMature?: boolean;
+}> = ({ animal, size = 'card', isPlaying = false, isMature = false }) => {
   if (animal.portraitSrc) {
     return (
       <img
         src={animal.portraitSrc}
-        alt={animal.name}
+        alt={isMature ? animal.speciesName : animal.name}
         referrerPolicy="no-referrer"
         className={`w-full h-full object-cover object-top transition-transform duration-300 ${
-          isPlaying ? 'scale-108' : ''
+          isPlaying ? 'scale-105' : ''
         }`}
       />
+    );
+  }
+
+  if (isMature) {
+    return (
+      <div className="relative w-full h-full bg-gradient-to-b from-slate-800 via-slate-900 to-slate-950 flex items-center justify-center overflow-hidden">
+        <span
+          className={`relative z-10 leading-none select-none transition-transform duration-200 ${
+            size === 'spotlight'
+              ? 'text-[56px] sm:text-[72px]'
+              : 'text-[38px] sm:text-[46px]'
+          } ${isPlaying ? 'scale-110' : ''}`}
+        >
+          {animal.emoji}
+        </span>
+      </div>
     );
   }
 
@@ -464,11 +643,10 @@ const AnimalPortraitVisual: React.FC<{
     <div
       className={`relative w-full h-full bg-gradient-to-b ${animal.stageSkyGradient} flex items-center justify-center overflow-hidden`}
     >
-      {/* Decorative soft sun / moon & hill */}
       <div
         className={`pointer-events-none absolute top-2 right-2.5 rounded-full ${
           animal.id === 'owl'
-            ? 'w-6 h-6 bg-amber-200/90 shadow-[0_0_12px_rgba(253,230,138,0.85)]'
+            ? 'w-6 h-6 bg-amber-200/90'
             : 'w-7 h-7 bg-yellow-200/85 blur-[1px]'
         }`}
       />
@@ -477,11 +655,11 @@ const AnimalPortraitVisual: React.FC<{
         style={{ backgroundColor: animal.stageHillColor }}
       />
       <span
-        className={`relative z-10 leading-none select-none drop-shadow-[0_6px_8px_rgba(15,23,42,0.3)] transition-transform duration-200 ${
+        className={`relative z-10 leading-none select-none drop-shadow-[0_4px_6px_rgba(15,23,42,0.28)] transition-transform duration-200 ${
           size === 'spotlight'
-            ? 'text-[66px] sm:text-[82px]'
-            : 'text-[46px] sm:text-[54px]'
-        } ${isPlaying ? 'scale-115 -rotate-3' : ''}`}
+            ? 'text-[64px] sm:text-[78px]'
+            : 'text-[44px] sm:text-[52px]'
+        } ${isPlaying ? 'scale-110 -rotate-2' : ''}`}
       >
         {animal.emoji}
       </span>
@@ -499,13 +677,33 @@ export const ZooParlanteStudio: React.FC<ZooParlanteStudioProps> = ({
     () => calculateChildAge(childProfile?.birthDate),
     [childProfile?.birthDate]
   );
-  const bravoWord = getGenderedWord(childGender, 'Bravissima', 'Bravissimo', 'Fantastico');
+  const ageTheme = useMemo(
+    () => getAgeVisualTheme(ageInfo.years, childProfile?.name, childGender),
+    [ageInfo.years, childProfile?.name, childGender]
+  );
+  const isMature = ageTheme.isMatureTheme;
+  const isTeen = ageTheme.stageId === 'teen_nextgen';
+  const isExplorer = ageTheme.stageId === 'primary_explorer';
+  const gPalette = ageTheme.genderPalette;
+
+  const bravoWord = getGenderedWord(childGender, 'Bravissima', 'Bravissimo', 'Ottimo lavoro');
+
+  const getDisplayAnimalName = useCallback(
+    (animal: TalkingAnimal) => (isMature ? animal.speciesName : isExplorer ? animal.speciesName : animal.name),
+    [isMature, isExplorer]
+  );
+
+  const getInitialNote = useCallback(
+    (animal: TalkingAnimal) =>
+      isMature ? animal.scienceFacts[0] : animal.greetings[0],
+    [isMature]
+  );
 
   const [mode, setMode] = useState<'explore' | 'guess'>('explore');
   const [habitatTab, setHabitatTab] = useState<HabitatTab>('farm');
   const [selectedId, setSelectedId] = useState<AnimalId>('dog');
-  const [speechBubble, setSpeechBubble] = useState<string>(
-    TALKING_ANIMALS[0].greetings[0]
+  const [speechBubble, setSpeechBubble] = useState<string>(() =>
+    getInitialNote(TALKING_ANIMALS[0])
   );
   const [phraseStep, setPhraseStep] = useState<Record<string, number>>({});
   const [curiosityStep, setCuriosityStep] = useState<Record<string, number>>({});
@@ -516,11 +714,13 @@ export const ZooParlanteStudio: React.FC<ZooParlanteStudioProps> = ({
     soundManager.isAnimalSoundPlaying ? soundManager.activeAnimalSoundId : null
   );
 
-  // Mini-game "Indovina il Verso" state (100% svago, randomized options, zero test impact)
+  // Quiz state: scales option count (3 for 2-3y, 4 for 4-11y, 6 for 12-14y) & clue mode for teens
+  const quizOptionCount = isTeen ? 6 : ageInfo.years <= 3 ? 3 : 4;
   const [quizOptions, setQuizOptions] = useState<TalkingAnimal[]>(() =>
-    shuffleArray(TALKING_ANIMALS.slice(0, 8)).slice(0, ageInfo.years <= 3 ? 3 : 4)
+    shuffleArray(TALKING_ANIMALS).slice(0, quizOptionCount)
   );
   const [quizTarget, setQuizTarget] = useState<TalkingAnimal>(TALKING_ANIMALS[0]);
+  const [quizPromptType, setQuizPromptType] = useState<'acoustic' | 'ethology'>('acoustic');
   const [quizSolved, setQuizSolved] = useState<boolean>(false);
   const [quizWrongIds, setQuizWrongIds] = useState<AnimalId[]>([]);
   const [quizStreak, setQuizStreak] = useState<number>(0);
@@ -537,7 +737,10 @@ export const ZooParlanteStudio: React.FC<ZooParlanteStudioProps> = ({
     [selectedId]
   );
 
-  // Subscribe to music & live animal sound playing state
+  useEffect(() => {
+    setSpeechBubble(getInitialNote(selectedAnimal));
+  }, [isMature, selectedAnimal, getInitialNote]);
+
   useEffect(() => {
     isMountedRef.current = true;
     soundManager.startBackgroundMusic();
@@ -546,7 +749,6 @@ export const ZooParlanteStudio: React.FC<ZooParlanteStudioProps> = ({
       setPlayingAnimalId(isPlaying ? animalId : null);
     });
 
-    // Pre-warm initial animal sounds
     TALKING_ANIMALS.slice(0, 6).forEach((a) => soundManager.prewarmAnimalSound(a.id));
 
     return () => {
@@ -559,12 +761,11 @@ export const ZooParlanteStudio: React.FC<ZooParlanteStudioProps> = ({
     };
   }, []);
 
-  // Pre-warm all animals in the currently selected habitat tab
   useEffect(() => {
     tabAnimals.forEach((a) => soundManager.prewarmAnimalSound(a.id));
   }, [tabAnimals]);
 
-  // Sound-only trigger (no narration overlapping the animal call!)
+  // Sound-only trigger: uses studio local PCM acoustic WAVs (includeVocalImitation: false -> zero TTS quota drain!)
   const handlePlaySoundOnly = useCallback((animal: TalkingAnimal) => {
     soundManager.unlockAudio();
     if (!soundManager.soundEnabled) {
@@ -572,12 +773,11 @@ export const ZooParlanteStudio: React.FC<ZooParlanteStudioProps> = ({
       setSoundOn(true);
     }
     soundManager.playAnimalSound(animal.id, {
-      includeVocalImitation: true,
+      includeVocalImitation: false,
       stopSpeechFirst: true,
     });
   }, []);
 
-  // Tap an animal card: play realistic animal sound FIRST, then speak greeting cleanly in onEnd
   const handleSelectAnimal = useCallback(
     (animal: TalkingAnimal) => {
       soundManager.unlockAudio();
@@ -586,43 +786,52 @@ export const ZooParlanteStudio: React.FC<ZooParlanteStudioProps> = ({
         setSoundOn(true);
       }
       setSelectedId(animal.id);
+      const pool = isMature ? animal.scienceFacts : animal.greetings;
       const idx = phraseStep[animal.id] ?? 0;
-      const line = animal.greetings[idx % animal.greetings.length];
+      const line = pool[idx % pool.length];
       setPhraseStep((prev) => ({ ...prev, [animal.id]: idx + 1 }));
       setSpeechBubble(line);
 
       soundManager.playAnimalSound(animal.id, {
-        includeVocalImitation: true,
+        includeVocalImitation: false,
         stopSpeechFirst: true,
         onEnd: () => {
           if (!isMountedRef.current) return;
-          soundManager.speakPraise(line);
+          soundManager.speak(line, { context: isMature ? 'general' : 'praise' });
         },
       });
     },
-    [phraseStep]
+    [phraseStep, isMature]
   );
 
   const handleCuriosity = () => {
     soundManager.unlockAudio();
     soundManager.stopAnimalSound();
+    const pool = isMature ? selectedAnimal.scienceFacts : selectedAnimal.curiosities;
     const idx = curiosityStep[selectedAnimal.id] ?? 0;
-    const fact = selectedAnimal.curiosities[idx % selectedAnimal.curiosities.length];
+    const fact = pool[idx % pool.length];
     setCuriosityStep((prev) => ({ ...prev, [selectedAnimal.id]: idx + 1 }));
     setSpeechBubble(fact);
     soundManager.playTwinkle();
     soundManager.speak(fact, { context: 'general' });
   };
 
-  const handleCuddle = () => {
+  const handleSecondaryAction = () => {
     soundManager.unlockAudio();
     soundManager.stopAnimalSound();
-    const line = selectedAnimal.cuddlePhrase;
-    setSpeechBubble(line);
-    setCuddleHearts((c) => c + 1);
-    soundManager.playSuccess();
-    confetti.burst();
-    soundManager.speakPraise(line);
+    if (isMature) {
+      const note = `${selectedAnimal.speciesName} (${selectedAnimal.scientificName}): ${selectedAnimal.ethologyNote}`;
+      setSpeechBubble(selectedAnimal.ethologyNote);
+      soundManager.playPop();
+      soundManager.speak(note, { context: 'general' });
+    } else {
+      const line = selectedAnimal.cuddlePhrase;
+      setSpeechBubble(line);
+      setCuddleHearts((c) => c + 1);
+      soundManager.playSuccess();
+      confetti.burst();
+      soundManager.speakPraise(line);
+    }
   };
 
   const startNewGuessRound = useCallback(
@@ -631,21 +840,24 @@ export const ZooParlanteStudio: React.FC<ZooParlanteStudioProps> = ({
       soundManager.stopSpeech();
       soundManager.stopAnimalSound();
 
-      const optionCount = ageInfo.years <= 3 ? 3 : 4;
       const pool = excludeId
         ? TALKING_ANIMALS.filter((a) => a.id !== excludeId)
         : TALKING_ANIMALS;
       const target =
         pool[Math.floor(Math.random() * pool.length)] || TALKING_ANIMALS[0];
 
-      // Pick visually & acoustically distinct distractors and shuffle cleanly
       const distractors = shuffleArray(
         TALKING_ANIMALS.filter((a) => a.id !== target.id)
-      ).slice(0, optionCount - 1);
+      ).slice(0, quizOptionCount - 1);
       const roundOptions = shuffleArray([target, ...distractors]);
+
+      // Teens alternate between acoustic identification & scientific ethology clue challenges
+      const nextPromptType: 'acoustic' | 'ethology' =
+        isTeen && Math.random() < 0.45 ? 'ethology' : 'acoustic';
 
       setQuizOptions(roundOptions);
       setQuizTarget(target);
+      setQuizPromptType(nextPromptType);
       setQuizSolved(false);
       setQuizWrongIds([]);
 
@@ -653,19 +865,27 @@ export const ZooParlanteStudio: React.FC<ZooParlanteStudioProps> = ({
 
       setTimeout(() => {
         if (!isMountedRef.current) return;
-        soundManager.playAnimalSound(target.id, {
-          includeVocalImitation: true,
-          stopSpeechFirst: true,
-          onEnd: () => {
-            if (!isMountedRef.current) return;
-            soundManager.speakInstruction(
-              'Ascolta bene! Quale animale fa questo verso?'
-            );
-          },
-        });
+        if (nextPromptType === 'ethology') {
+          soundManager.speakInstruction(
+            `Identifica la specie dall'indizio scientifico: ${target.quizClue}`
+          );
+        } else {
+          soundManager.playAnimalSound(target.id, {
+            includeVocalImitation: false,
+            stopSpeechFirst: true,
+            onEnd: () => {
+              if (!isMountedRef.current) return;
+              soundManager.speakInstruction(
+                isMature
+                  ? 'Analizza il segnale acustico: a quale specie appartiene?'
+                  : 'Ascolta bene! Quale animale fa questo verso?'
+              );
+            },
+          });
+        }
       }, 150);
     },
-    [ageInfo.years]
+    [quizOptionCount, isTeen, isMature]
   );
 
   const handleSwitchMode = (nextMode: 'explore' | 'guess') => {
@@ -677,7 +897,7 @@ export const ZooParlanteStudio: React.FC<ZooParlanteStudioProps> = ({
     if (nextMode === 'guess') {
       startNewGuessRound();
     } else {
-      setSpeechBubble(selectedAnimal.greetings[0]);
+      setSpeechBubble(getInitialNote(selectedAnimal));
     }
   };
 
@@ -687,7 +907,7 @@ export const ZooParlanteStudio: React.FC<ZooParlanteStudioProps> = ({
     const firstInTab = TALKING_ANIMALS.find((a) => a.tab === nextTab);
     if (firstInTab) {
       setSelectedId(firstInTab.id);
-      setSpeechBubble(firstInTab.greetings[0]);
+      setSpeechBubble(getInitialNote(firstInTab));
     }
   };
 
@@ -701,107 +921,161 @@ export const ZooParlanteStudio: React.FC<ZooParlanteStudioProps> = ({
       const nextStreak = quizStreak + 1;
       setQuizStreak(nextStreak);
       soundManager.playFanfare();
-      confetti.burst();
-      // Name only on milestone streaks (5, 10, 15...) so we never spam the child's name
+      if (!isTeen) confetti.burst();
       const greetPrefix =
         nextStreak % 5 === 0 ? `${bravoWord} ${childName}!` : `${bravoWord}!`;
       soundManager.playAnimalSound(animal.id, {
-        includeVocalImitation: true,
+        includeVocalImitation: false,
         stopSpeechFirst: true,
         onEnd: () => {
           if (!isMountedRef.current) return;
-          soundManager.speakPraise(`${greetPrefix} Era proprio ${animal.name}!`);
+          soundManager.speakPraise(
+            isMature
+              ? `Esatto! ${animal.speciesName}, nome scientifico ${animal.scientificName}.`
+              : `${greetPrefix} Era proprio ${getDisplayAnimalName(animal)}!`
+          );
         },
       });
     } else {
       setQuizWrongIds((prev) => [...prev, animal.id]);
       soundManager.playEncouragement();
-      soundManager.speak('Quasi! Riascolta bene il verso e riprova con calma!', {
-        context: 'instruction',
-        onEnd: () => {
-          if (!isMountedRef.current) return;
-          soundManager.playAnimalSound(quizTarget.id, {
-            includeVocalImitation: true,
-            stopSpeechFirst: false,
-          });
-        },
-      });
+      soundManager.speak(
+        isMature
+          ? 'Non è questa specie. Riascolta il profilo sonoro o verifica gli indizi.'
+          : 'Quasi! Riascolta bene il verso e riprova con calma!',
+        {
+          context: 'instruction',
+          onEnd: () => {
+            if (!isMountedRef.current) return;
+            if (quizPromptType === 'acoustic') {
+              soundManager.playAnimalSound(quizTarget.id, {
+                includeVocalImitation: false,
+                stopSpeechFirst: false,
+              });
+            }
+          },
+        }
+      );
     }
   };
 
   const isSelectedPlaying = playingAnimalId === selectedAnimal.id;
   const isQuizTargetPlaying = playingAnimalId === quizTarget.id;
 
+  const studioHeaderTitle = isTeen
+    ? 'Bio-Acustica & Etologia'
+    : isMature
+    ? 'Atlante Natura'
+    : isExplorer
+    ? 'Mondo Animale'
+    : 'Zoo & Fattoria Parlante';
+
   return (
-    <div className="safe-viewport-pad relative w-full h-full flex flex-col justify-between overflow-hidden select-none">
-      {/* FULL-BLEED STORYBOOK SUNNY MEADOW BACKDROP */}
+    <div
+      className={`safe-viewport-pad relative w-full h-full flex flex-col justify-between overflow-hidden select-none ${
+        isMature ? 'bg-[#0b0f17] text-slate-100' : 'bg-sky-200 text-slate-900'
+      }`}
+    >
+      {/* AGE-ADAPTIVE BACKDROP */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden z-0">
-        <img
-          src={arenaMeadowBackdrop}
-          alt=""
-          aria-hidden="true"
-          referrerPolicy="no-referrer"
-          className="w-full h-full object-cover object-center scale-[1.01]"
-        />
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'linear-gradient(180deg, rgba(14, 165, 233, 0.14) 0%, rgba(255, 255, 255, 0.04) 48%, rgba(22, 101, 52, 0.16) 100%)',
-          }}
-        />
+        {isMature ? (
+          <div className="w-full h-full bg-gradient-to-b from-[#0b0f17] via-[#0f172a] to-[#090d16]" />
+        ) : (
+          <>
+            <img
+              src={arenaMeadowBackdrop}
+              alt=""
+              aria-hidden="true"
+              referrerPolicy="no-referrer"
+              className={`w-full h-full object-cover object-center scale-[1.01] ${
+                isExplorer ? 'brightness-[0.95] saturate-[0.82]' : ''
+              }`}
+            />
+            <div
+              className="absolute inset-0"
+              style={{
+                background: isExplorer
+                  ? 'linear-gradient(180deg, rgba(15, 23, 42, 0.22) 0%, rgba(248, 250, 252, 0.35) 55%, rgba(15, 23, 42, 0.25) 100%)'
+                  : 'linear-gradient(180deg, rgba(14, 165, 233, 0.14) 0%, rgba(255, 255, 255, 0.04) 48%, rgba(22, 101, 52, 0.16) 100%)',
+              }}
+            />
+          </>
+        )}
       </div>
 
-      {/* TOP NAVIGATION BAR */}
-      <header className="landscape-header-compact app-shell-container relative z-10 flex items-center justify-between px-2.5 sm:px-5 lg:px-8 pt-2 sm:pt-3 pb-1 shrink-0 gap-2">
-        <button
-          onClick={() => {
-            soundManager.stopAnimalSound();
-            soundManager.stopSpeech();
-            soundManager.playPop();
-            onClose();
-          }}
-          aria-label="Torna alla Home"
-          className="glossy-bubble-btn bg-gradient-to-b from-white to-slate-100 text-slate-900 px-2.5 min-[360px]:px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border-2 border-white flex items-center gap-1.5 cursor-pointer shrink-0 min-h-[38px] sm:min-h-[42px]"
-        >
-          <Home className="w-4 h-4 text-blue-700 fill-blue-700 shrink-0" />
-          <span className="hidden min-[360px]:inline font-fun font-extrabold text-xs sm:text-sm text-slate-900 whitespace-nowrap">
-            Home
-          </span>
-        </button>
+      {/* ALIGNED 3-COLUMN TOP HEADER (ZERO OVERLAP) */}
+      <header className="landscape-header-compact app-shell-container relative z-10 px-3 sm:px-5 lg:px-8 pt-2 sm:pt-3 pb-1 shrink-0">
+        <div className="ui-aligned-header max-w-3xl mx-auto">
+          <button
+            type="button"
+            onClick={() => {
+              soundManager.stopAnimalSound();
+              soundManager.stopSpeech();
+              soundManager.playPop();
+              onClose();
+            }}
+            aria-label="Torna alla Home"
+            className={`px-3 sm:px-4 h-10 flex items-center gap-1.5 cursor-pointer shrink-0 transition-colors ${
+              isMature
+                ? 'rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 border border-white/12'
+                : 'glossy-bubble-btn bg-white text-slate-900 rounded-full border-2 border-white'
+            }`}
+          >
+            <Home className={`w-4 h-4 shrink-0 ${isMature ? gPalette.accentTextClass : 'text-slate-700'}`} />
+            <span className="hidden min-[360px]:inline font-fun font-bold text-xs sm:text-sm whitespace-nowrap">
+              Home
+            </span>
+          </button>
 
-        {/* Wooden Zoo Signboard */}
-        <div className="storybook-wood-sign rounded-2xl px-2.5 sm:px-5 py-1.5 inline-flex items-center justify-center gap-1.5 sm:gap-2 min-w-0 flex-1 max-w-fit overflow-hidden">
-          <span className="hidden min-[360px]:inline text-base sm:text-lg leading-none shrink-0">🐾</span>
-          <span className="font-kids font-bold text-xs min-[380px]:text-sm sm:text-lg text-[#4a2206] tracking-tight truncate">
-            Zoo &amp; Fattoria Parlante
-          </span>
-          <span className="hidden min-[360px]:inline text-base sm:text-lg leading-none shrink-0">🐾</span>
+          <div
+            className={`h-10 px-3 sm:px-4 flex items-center justify-center gap-2 min-w-0 mx-auto max-w-full ${
+              isMature
+                ? `rounded-xl bg-slate-900/95 border ${gPalette.accentBorderClass} text-slate-100`
+                : `rounded-full bg-gradient-to-r ${gPalette.headerGradientClass} border-2 border-white/85 text-white shadow-sm`
+            }`}
+          >
+            {isMature ? (
+              <AudioLines className={`w-4 h-4 shrink-0 ${gPalette.accentTextClass}`} />
+            ) : (
+              <span className="text-sm sm:text-base leading-none shrink-0">🐾</span>
+            )}
+            <span className="font-kids font-bold text-xs sm:text-sm tracking-tight truncate">
+              {studioHeaderTitle}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              const next = soundManager.toggleMusic();
+              setMusicOn(next);
+            }}
+            title={musicOn ? 'Disattiva Musica' : 'Attiva Musica'}
+            aria-label={musicOn ? 'Disattiva Musica' : 'Attiva Musica'}
+            className={`w-10 h-10 flex items-center justify-center cursor-pointer shrink-0 transition-colors ${
+              isMature
+                ? musicOn
+                  ? `rounded-xl ${gPalette.accentBgClass} border border-white/10`
+                  : 'rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 border border-white/12'
+                : `glossy-bubble-btn rounded-full border-2 ${
+                    musicOn
+                      ? `${gPalette.accentBgClass} border-white/90`
+                      : 'bg-white text-slate-600 border-white'
+                  }`
+            }`}
+          >
+            {musicOn ? (
+              <Music className="w-4 h-4 stroke-[2.4]" />
+            ) : (
+              <VolumeX className="w-4 h-4 stroke-[2.4]" />
+            )}
+          </button>
         </div>
-
-        <button
-          onClick={() => {
-            const next = soundManager.toggleMusic();
-            setMusicOn(next);
-          }}
-          title={musicOn ? 'Disattiva Musica' : 'Attiva Musica'}
-          className={`glossy-bubble-btn w-9 h-9 sm:w-10 sm:h-10 rounded-full border-2 flex items-center justify-center cursor-pointer shrink-0 ${
-            musicOn
-              ? 'bg-gradient-to-b from-fuchsia-400 to-purple-600 text-white border-white/90'
-              : 'bg-gradient-to-b from-white to-slate-100 text-slate-600 border-white'
-          }`}
-        >
-          {musicOn ? (
-            <Music className="w-4 h-4 stroke-[2.6]" />
-          ) : (
-            <VolumeX className="w-4 h-4 stroke-[2.6]" />
-          )}
-        </button>
       </header>
 
       {/* ONE-TAP UNMUTE HELPER BANNER IF SOUND EFFECTS ARE MUTED */}
       {!soundOn && (
-        <div className="app-shell-container relative z-10 px-2.5 sm:px-5 lg:px-8 pt-1 shrink-0">
+        <div className="app-shell-container relative z-10 px-3 sm:px-5 lg:px-8 pt-1 shrink-0">
           <button
             type="button"
             onClick={() => {
@@ -810,171 +1084,280 @@ export const ZooParlanteStudio: React.FC<ZooParlanteStudioProps> = ({
               setSoundOn(true);
               handlePlaySoundOnly(selectedAnimal);
             }}
-            className="w-full max-w-md mx-auto rounded-2xl bg-amber-400 hover:bg-amber-300 text-amber-950 border-2 border-white shadow-md px-3.5 py-2 flex items-center justify-center gap-2 font-fun font-extrabold text-xs sm:text-sm cursor-pointer"
+            className="w-full max-w-md mx-auto rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 border border-amber-200 px-3.5 py-2 flex items-center justify-center gap-2 font-fun font-bold text-xs sm:text-sm cursor-pointer"
           >
             <Volume2 className="w-4 h-4 shrink-0" />
-            <span>Tocca qui per attivare l’audio e sentire i versi degli animali!</span>
+            <span>Tocca qui per attivare l’audio e ascoltare i suoni naturali</span>
           </button>
         </div>
       )}
 
-      {/* MODE SWITCHER (ESPLORA vs INDOVINA IL VERSO) */}
-      <div className="app-shell-container relative z-10 px-2.5 sm:px-5 lg:px-8 pt-1 pb-1 shrink-0">
-        <div className="storybook-wood-shelf rounded-2xl p-1.5 grid grid-cols-2 gap-1.5 max-w-md mx-auto">
+      {/* ALIGNED 2-TAB MODE SWITCHER */}
+      <nav className="app-shell-container relative z-10 px-3 sm:px-5 lg:px-8 py-1.5 shrink-0">
+        <div
+          className={`ui-aligned-tabs grid-cols-2 max-w-md mx-auto p-1 ${
+            isMature
+              ? 'bg-slate-900/95 border border-white/10 rounded-xl'
+              : isExplorer
+              ? 'bg-white/90 border border-slate-200 rounded-2xl shadow-sm'
+              : 'storybook-wood-shelf rounded-2xl p-1.5'
+          }`}
+        >
           <button
             type="button"
             onClick={() => handleSwitchMode('explore')}
-            className={`min-w-0 py-2 px-1.5 sm:px-2.5 rounded-xl font-kids font-bold text-[11px] min-[370px]:text-xs sm:text-sm flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer transition-all ${
-              mode === 'explore'
-                ? 'bg-gradient-to-b from-amber-200 via-yellow-300 to-amber-400 text-[#422006] border-2 border-white shadow-sm'
-                : 'bg-amber-950/35 text-amber-50 hover:bg-amber-950/45'
+            className={`px-2.5 py-2 font-fun font-bold text-xs sm:text-sm cursor-pointer transition-all ${
+              isMature
+                ? mode === 'explore'
+                  ? `${gPalette.tabActiveClass} rounded-lg`
+                  : 'text-slate-400 hover:text-slate-100 rounded-lg'
+                : isExplorer
+                ? mode === 'explore'
+                  ? `${gPalette.tabActiveClass} rounded-xl`
+                  : 'text-slate-600 hover:text-slate-900 rounded-xl'
+                : mode === 'explore'
+                ? `${gPalette.tabActiveClass} rounded-xl border-2 border-white`
+                : 'bg-amber-950/35 text-amber-50 hover:bg-amber-950/45 rounded-xl'
             }`}
           >
-            <span className="shrink-0">🐶</span>
-            <span className="truncate">Esplora Versi (14)</span>
+            {isMature ? <Compass className="w-4 h-4 shrink-0" /> : <span className="shrink-0">🐾</span>}
+            <span className="truncate">
+              {isMature ? 'Archivio Specie (14)' : 'Esplora Versi (14)'}
+            </span>
           </button>
+
           <button
             type="button"
             onClick={() => handleSwitchMode('guess')}
-            className={`min-w-0 py-2 px-1.5 sm:px-2.5 rounded-xl font-kids font-bold text-[11px] min-[370px]:text-xs sm:text-sm flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer transition-all ${
-              mode === 'guess'
-                ? 'bg-gradient-to-b from-emerald-300 via-green-400 to-emerald-500 text-white border-2 border-white shadow-sm'
-                : 'bg-amber-950/35 text-amber-50 hover:bg-amber-950/45'
+            className={`px-2.5 py-2 font-fun font-bold text-xs sm:text-sm cursor-pointer transition-all ${
+              isMature
+                ? mode === 'guess'
+                  ? `${gPalette.tabActiveClass} rounded-lg`
+                  : 'text-slate-400 hover:text-slate-100 rounded-lg'
+                : isExplorer
+                ? mode === 'guess'
+                  ? `${gPalette.tabActiveClass} rounded-xl`
+                  : 'text-slate-600 hover:text-slate-900 rounded-xl'
+                : mode === 'guess'
+                ? `${gPalette.tabActiveClass} rounded-xl border-2 border-white`
+                : 'bg-amber-950/35 text-amber-50 hover:bg-amber-950/45 rounded-xl'
             }`}
           >
-            <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-            <span className="truncate">Indovina il Verso</span>
+            <HelpCircle className="w-4 h-4 shrink-0" />
+            <span className="truncate">
+              {isTeen ? 'Quiz Bio-Acustico' : isMature ? 'Sfida Sonora' : 'Indovina il Verso'}
+            </span>
           </button>
         </div>
-      </div>
+      </nav>
 
-      {/* MAIN ZOO & FATTORIA STAGE */}
-      <main className="app-shell-container relative z-10 flex-1 flex flex-col justify-start px-2.5 sm:px-5 lg:px-8 py-1.5 w-full min-h-0 gap-2.5 overflow-y-auto">
+      {/* MAIN CONTENT STAGE */}
+      <main className="app-shell-container relative z-10 flex-1 flex flex-col justify-start px-3 sm:px-5 lg:px-8 py-1.5 w-full min-h-0 gap-2.5 overflow-y-auto">
         {mode === 'explore' ? (
           <>
-            {/* SPOTLIGHT BOARD FOR SELECTED ANIMAL */}
-            <section className="storybook-parchment-board rounded-[28px] p-3.5 sm:p-4 flex flex-col sm:flex-row items-center gap-3.5 sm:gap-5 max-w-3xl mx-auto w-full shrink-0">
-              {/* Tappable Sound-First Animal Portrait */}
+            {/* SPOTLIGHT PANEL FOR SELECTED SPECIES */}
+            <section
+              className={`p-3.5 sm:p-4 flex flex-col sm:flex-row items-center gap-3.5 sm:gap-5 max-w-3xl mx-auto w-full shrink-0 ${
+                isMature
+                  ? 'rounded-2xl bg-slate-900/95 border border-white/10'
+                  : 'storybook-parchment-board rounded-[24px]'
+              }`}
+            >
+              {/* Tappable Sound-First Portrait */}
               <button
                 type="button"
                 onClick={() => handlePlaySoundOnly(selectedAnimal)}
-                title={`Tocca per sentire il verso di ${selectedAnimal.name}`}
+                title={`Ascolta il suono di ${getDisplayAnimalName(selectedAnimal)}`}
                 className="relative shrink-0 cursor-pointer group focus:outline-none"
               >
                 <div
-                  className={`w-26 h-26 sm:w-34 sm:h-34 rounded-3xl overflow-hidden border-4 border-white shadow-xl bg-gradient-to-b ${selectedAnimal.cardGradient} transition-transform ${
-                    isSelectedPlaying ? 'ring-4 ring-amber-300 scale-105' : 'group-hover:scale-103'
-                  }`}
+                  className={`w-24 h-24 sm:w-32 sm:h-32 overflow-hidden transition-transform ${
+                    isMature
+                      ? `rounded-2xl border ${isSelectedPlaying ? gPalette.accentBorderClass : 'border-white/15'} bg-slate-950`
+                      : `rounded-3xl border-4 border-white shadow-lg bg-gradient-to-b ${selectedAnimal.cardGradient}`
+                  } ${isSelectedPlaying ? 'scale-103' : 'group-hover:scale-102'}`}
                 >
                   <AnimalPortraitVisual
                     animal={selectedAnimal}
                     size="spotlight"
                     isPlaying={isSelectedPlaying}
+                    isMature={isMature}
                   />
                 </div>
-                <span
-                  className={`absolute -bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full font-fun font-extrabold text-[10px] sm:text-xs whitespace-nowrap border-2 shadow-md transition-colors ${
-                    isSelectedPlaying
-                      ? 'bg-emerald-600 text-white border-emerald-200 animate-pulse'
-                      : 'bg-amber-950 text-amber-200 border-amber-300'
-                  }`}
-                >
-                  {isSelectedPlaying ? '🔊 ' : ''}
-                  {selectedAnimal.soundLabel}
-                </span>
+                {!isMature && (
+                  <span
+                    className={`absolute -bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full font-fun font-extrabold text-[10px] sm:text-xs whitespace-nowrap border-2 shadow-sm ${
+                      isSelectedPlaying
+                        ? 'bg-emerald-600 text-white border-emerald-200'
+                        : 'bg-slate-900 text-amber-200 border-amber-300'
+                    }`}
+                  >
+                    {selectedAnimal.soundLabel}
+                  </span>
+                )}
               </button>
 
-              {/* Speech Bubble & Playful Actions */}
-              <div className="flex-1 min-w-0 text-center sm:text-left">
+              {/* Details & Actions */}
+              <div className="flex-1 min-w-0 text-center sm:text-left w-full">
                 <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
-                  <h2 className="font-kids font-bold text-xl sm:text-2xl text-slate-900 leading-tight">
-                    {selectedAnimal.emoji} {selectedAnimal.name}
+                  <h2
+                    className={`font-kids font-bold text-lg sm:text-2xl leading-tight ${
+                      isMature ? 'text-white' : 'text-slate-900'
+                    }`}
+                  >
+                    {!isMature && `${selectedAnimal.emoji} `}
+                    {getDisplayAnimalName(selectedAnimal)}
                   </h2>
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 text-[11px] font-fun font-bold">
-                    🌿 {selectedAnimal.habitat}
-                  </span>
+                  {isMature ? (
+                    <span className="text-xs sm:text-sm italic text-slate-400 font-medium">
+                      {selectedAnimal.scientificName}
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 text-[11px] font-fun font-bold">
+                      {selectedAnimal.habitat}
+                    </span>
+                  )}
                 </div>
 
-                <div className="mt-2 storybook-tray-3d rounded-2xl px-3.5 py-2 text-xs sm:text-sm font-semibold text-amber-950 leading-relaxed">
-                  “{speechBubble}”
+                {/* Compact Scientific Metadata Row for Preteen/Teen (9-14) */}
+                {isMature && (
+                  <div className="mt-1.5 flex flex-wrap items-center justify-center sm:justify-start gap-x-3 gap-y-1 text-[11px] text-slate-400">
+                    <span>Bioma: <strong className="text-slate-200 font-semibold">{selectedAnimal.biome}</strong></span>
+                    <span>Dieta: <strong className="text-slate-200 font-semibold">{selectedAnimal.diet}</strong></span>
+                    <span className="tabular-nums">Acustica: <strong className={`${gPalette.accentTextClass} font-semibold`}>{selectedAnimal.acousticProfile}</strong></span>
+                  </div>
+                )}
+
+                <div
+                  className={`mt-2 px-3.5 py-2 text-xs sm:text-sm leading-relaxed ${
+                    isMature
+                      ? 'rounded-xl bg-slate-950/80 border border-white/8 text-slate-200 font-normal'
+                      : 'storybook-tray-3d rounded-2xl font-semibold text-amber-950'
+                  }`}
+                >
+                  {isMature ? speechBubble : `“${speechBubble}”`}
                 </div>
 
-                {/* 3 Interactive Fun Buttons */}
-                <div className="mt-2.5 grid grid-cols-3 gap-1.5 sm:gap-2">
+                {/* 3 Aligned Action Buttons */}
+                <div className="mt-2.5 grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => handlePlaySoundOnly(selectedAnimal)}
-                    className="home-wood-outer min-w-0 rounded-2xl p-[3px] cursor-pointer"
+                    className={`min-w-0 cursor-pointer transition-colors ${
+                      isMature
+                        ? `rounded-xl py-2 px-2.5 ${gPalette.accentBgClass} ${gPalette.accentBgHoverClass} font-fun font-semibold text-xs flex items-center justify-center gap-1.5`
+                        : 'home-wood-outer rounded-2xl p-[3px]'
+                    }`}
                   >
-                    <span
-                      className={`home-inner-orange rounded-[13px] py-2 px-1.5 sm:px-2 flex items-center justify-center gap-1 text-white font-fun font-extrabold text-[10.5px] min-[370px]:text-[11px] sm:text-xs whitespace-nowrap ${
-                        isSelectedPlaying ? 'brightness-110 ring-2 ring-yellow-200' : ''
-                      }`}
-                    >
-                      <Volume2
-                        className={`w-3.5 h-3.5 shrink-0 ${
-                          isSelectedPlaying ? 'animate-bounce' : ''
-                        }`}
-                      />
-                      <span className="truncate">{isSelectedPlaying ? 'Suona...' : 'Verso'}</span>
-                    </span>
+                    {isMature ? (
+                      <>
+                        <Volume2 className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">{isSelectedPlaying ? 'In corso...' : 'Suono'}</span>
+                      </>
+                    ) : (
+                      <span className="home-inner-orange rounded-[13px] py-2 px-1.5 flex items-center justify-center gap-1 text-white font-fun font-extrabold text-[11px] sm:text-xs">
+                        <Volume2 className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">{isSelectedPlaying ? 'Suona...' : 'Verso'}</span>
+                      </span>
+                    )}
                   </button>
 
                   <button
                     type="button"
                     onClick={handleCuriosity}
-                    className="home-wood-outer min-w-0 rounded-2xl p-[3px] cursor-pointer"
+                    className={`min-w-0 cursor-pointer transition-colors ${
+                      isMature
+                        ? 'rounded-xl py-2 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-100 border border-white/10 font-fun font-semibold text-xs flex items-center justify-center gap-1.5'
+                        : 'home-wood-outer rounded-2xl p-[3px]'
+                    }`}
                   >
-                    <span className="home-inner-teal rounded-[13px] py-2 px-1.5 sm:px-2 flex items-center justify-center gap-1 text-white font-fun font-extrabold text-[10.5px] min-[370px]:text-[11px] sm:text-xs whitespace-nowrap">
-                      <Sparkles className="w-3.5 h-3.5 shrink-0 text-amber-200" />
-                      <span className="truncate">Curiosità</span>
-                    </span>
+                    {isMature ? (
+                      <>
+                        <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">Scheda</span>
+                      </>
+                    ) : (
+                      <span className="home-inner-teal rounded-[13px] py-2 px-1.5 flex items-center justify-center gap-1 text-white font-fun font-extrabold text-[11px] sm:text-xs">
+                        <Sparkles className="w-3.5 h-3.5 shrink-0 text-amber-200" />
+                        <span className="truncate">Curiosità</span>
+                      </span>
+                    )}
                   </button>
 
                   <button
                     type="button"
-                    onClick={handleCuddle}
-                    className="home-lavender-outer min-w-0 rounded-2xl p-[3px] cursor-pointer"
+                    onClick={handleSecondaryAction}
+                    className={`min-w-0 cursor-pointer transition-colors ${
+                      isMature
+                        ? 'rounded-xl py-2 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-100 border border-white/10 font-fun font-semibold text-xs flex items-center justify-center gap-1.5'
+                        : 'home-lavender-outer rounded-2xl p-[3px]'
+                    }`}
                   >
-                    <span className="home-inner-purple rounded-[13px] py-2 px-1.5 sm:px-2 flex items-center justify-center gap-1 text-white font-fun font-extrabold text-[10.5px] min-[370px]:text-[11px] sm:text-xs whitespace-nowrap">
-                      <Heart className="w-3.5 h-3.5 shrink-0 fill-pink-200 text-pink-200" />
-                      <span className="truncate">Coccole</span>
-                    </span>
+                    {isMature ? (
+                      <>
+                        <Compass className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">Etologia</span>
+                      </>
+                    ) : (
+                      <span className="home-inner-purple rounded-[13px] py-2 px-1.5 flex items-center justify-center gap-1 text-white font-fun font-extrabold text-[11px] sm:text-xs">
+                        <Heart className="w-3.5 h-3.5 shrink-0 fill-pink-200 text-pink-200" />
+                        <span className="truncate">{isExplorer ? 'Saluta' : 'Coccole'}</span>
+                      </span>
+                    )}
                   </button>
                 </div>
               </div>
             </section>
 
-            {/* HABITAT TABS: FATTORIA & BOSCO vs SAVANA & NATURA */}
-            <div className="max-w-3xl mx-auto w-full flex items-center justify-center gap-2 shrink-0">
+            {/* ALIGNED HABITAT TABS */}
+            <div className="max-w-3xl mx-auto w-full grid grid-cols-2 gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => handleSwitchTab('farm')}
-                className={`flex-1 max-w-[230px] py-2 px-3 rounded-2xl font-kids font-bold text-xs sm:text-sm border-2 cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
-                  habitatTab === 'farm'
-                    ? 'bg-gradient-to-b from-emerald-400 to-green-600 text-white border-white shadow-md'
-                    : 'bg-white/85 text-amber-950 border-amber-200 hover:bg-white'
+                className={`py-2 px-3 font-fun font-bold text-xs sm:text-sm cursor-pointer transition-all flex items-center justify-center gap-1.5 min-w-0 ${
+                  isMature
+                    ? habitatTab === 'farm'
+                      ? `rounded-xl ${gPalette.tabActiveClass}`
+                      : 'rounded-xl bg-slate-900 text-slate-400 hover:text-slate-100 border border-white/10'
+                    : habitatTab === 'farm'
+                    ? `rounded-2xl ${gPalette.tabActiveClass} border-2 border-white`
+                    : 'rounded-2xl bg-white/85 text-slate-800 border-2 border-slate-200 hover:bg-white'
                 }`}
               >
-                <span>🏡</span>
-                <span>Fattoria &amp; Bosco (8)</span>
+                {!isMature && <span className="shrink-0">🏡</span>}
+                <span className="truncate">
+                  {isMature ? 'Fauna Domestica & Stagni (8)' : 'Fattoria & Bosco (8)'}
+                </span>
               </button>
+
               <button
                 type="button"
                 onClick={() => handleSwitchTab('savanna')}
-                className={`flex-1 max-w-[230px] py-2 px-3 rounded-2xl font-kids font-bold text-xs sm:text-sm border-2 cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
-                  habitatTab === 'savanna'
-                    ? 'bg-gradient-to-b from-amber-400 to-orange-600 text-white border-white shadow-md'
-                    : 'bg-white/85 text-amber-950 border-amber-200 hover:bg-white'
+                className={`py-2 px-3 font-fun font-bold text-xs sm:text-sm cursor-pointer transition-all flex items-center justify-center gap-1.5 min-w-0 ${
+                  isMature
+                    ? habitatTab === 'savanna'
+                      ? `rounded-xl ${gPalette.tabActiveClass}`
+                      : 'rounded-xl bg-slate-900 text-slate-400 hover:text-slate-100 border border-white/10'
+                    : habitatTab === 'savanna'
+                    ? `rounded-2xl ${gPalette.tabActiveClass} border-2 border-white`
+                    : 'rounded-2xl bg-white/85 text-slate-800 border-2 border-slate-200 hover:bg-white'
                 }`}
               >
-                <span>🦁</span>
-                <span>Savana &amp; Natura (6)</span>
+                {!isMature && <span className="shrink-0">🦁</span>}
+                <span className="truncate">
+                  {isMature ? 'Fauna Selvatica & Ecosistemi (6)' : 'Savana & Natura (6)'}
+                </span>
               </button>
             </div>
 
-            {/* CARVED WOODEN SHELF HOLDING ALL ANIMALS IN ACTIVE HABITAT */}
-            <section className="storybook-wood-shelf rounded-3xl p-2.5 sm:p-3 max-w-3xl mx-auto w-full shrink-0">
+            {/* SPECIES GRID */}
+            <section
+              className={`max-w-3xl mx-auto w-full shrink-0 ${
+                isMature
+                  ? 'rounded-2xl bg-slate-900/75 border border-white/10 p-2.5 sm:p-3'
+                  : 'storybook-wood-shelf rounded-3xl p-2.5 sm:p-3'
+              }`}
+            >
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
                 {tabAnimals.map((animal) => {
                   const isActive = animal.id === selectedAnimal.id;
@@ -984,43 +1367,79 @@ export const ZooParlanteStudio: React.FC<ZooParlanteStudioProps> = ({
                       key={animal.id}
                       type="button"
                       onClick={() => handleSelectAnimal(animal)}
-                      style={{
-                        boxShadow: `0 5px 0 ${animal.shadowColor}, 0 12px 20px -4px rgba(15, 23, 42, 0.35)`,
-                      }}
-                      className={`zoo-3d-card bg-gradient-to-b ${animal.cardGradient} flex flex-col text-left cursor-pointer w-full transition-transform ${
-                        isPlayingCard
-                          ? 'ring-4 ring-emerald-300 scale-[1.03]'
-                          : isActive
-                          ? 'ring-4 ring-yellow-200 scale-[1.015]'
-                          : ''
+                      style={
+                        isMature
+                          ? undefined
+                          : {
+                              boxShadow: `0 4px 0 ${animal.shadowColor}, 0 10px 18px -6px rgba(15, 23, 42, 0.3)`,
+                            }
+                      }
+                      className={`flex flex-col text-left cursor-pointer w-full transition-all overflow-hidden ${
+                        isMature
+                          ? `rounded-xl bg-slate-950/90 border ${
+                              isPlayingCard || isActive
+                                ? `${gPalette.accentBorderClass} ring-1 ${gPalette.accentRingClass}`
+                                : 'border-white/10 hover:border-white/25'
+                            }`
+                          : `zoo-3d-card bg-gradient-to-b ${animal.cardGradient} ${
+                              isPlayingCard
+                                ? 'ring-3 ring-emerald-300 scale-[1.02]'
+                                : isActive
+                                ? 'ring-3 ring-yellow-200 scale-[1.01]'
+                                : ''
+                            }`
                       }`}
                     >
-                      <div className="relative w-full h-22 sm:h-24 overflow-hidden">
+                      <div className="relative w-full h-20 sm:h-24 overflow-hidden">
                         <AnimalPortraitVisual
                           animal={animal}
                           size="card"
                           isPlaying={isPlayingCard}
+                          isMature={isMature}
                         />
-                        <div className="absolute inset-x-0 bottom-0 h-5 bg-gradient-to-t from-black/35 to-transparent" />
+                        {!isMature && (
+                          <div className="absolute inset-x-0 bottom-0 h-5 bg-gradient-to-t from-black/35 to-transparent" />
+                        )}
                         <span
-                          className={`storybook-play-dot absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center ${
-                            isPlayingCard ? 'bg-emerald-500 animate-pulse' : ''
+                          className={`absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center ${
+                            isMature
+                              ? isPlayingCard
+                                ? gPalette.accentBgClass
+                                : 'bg-slate-900/85 border border-white/15 text-slate-200'
+                              : `storybook-play-dot ${isPlayingCard ? 'bg-emerald-500' : ''}`
                           }`}
                         >
                           {isPlayingCard ? (
                             <Volume2 className="w-3.5 h-3.5 text-white" />
                           ) : (
-                            <Play className={`w-3 h-3 ml-0.5 ${animal.playIconClass}`} />
+                            <Play
+                              className={`w-3 h-3 ml-0.5 ${
+                                isMature ? 'text-slate-200 fill-slate-200' : animal.playIconClass
+                              }`}
+                            />
                           )}
                         </span>
                       </div>
                       <div className="px-2 py-1.5 text-center leading-tight">
-                        <span className="block text-[9.5px] font-extrabold uppercase tracking-wide text-white/95 drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]">
-                          {animal.soundLabel}
-                        </span>
-                        <span className="block font-kids font-bold text-xs sm:text-sm text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)] mt-0.5">
-                          {animal.shortName}
-                        </span>
+                        {isMature ? (
+                          <>
+                            <span className="block font-fun font-semibold text-xs text-slate-100 truncate">
+                              {animal.speciesName}
+                            </span>
+                            <span className="block text-[10px] italic text-slate-400 truncate mt-0.5">
+                              {animal.scientificName}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="block text-[9.5px] font-extrabold uppercase tracking-wide text-white/95">
+                              {animal.soundLabel}
+                            </span>
+                            <span className="block font-kids font-bold text-xs sm:text-sm text-white mt-0.5 truncate">
+                              {isExplorer ? animal.speciesName : animal.shortName}
+                            </span>
+                          </>
+                        )}
                       </div>
                     </button>
                   );
@@ -1029,59 +1448,104 @@ export const ZooParlanteStudio: React.FC<ZooParlanteStudioProps> = ({
             </section>
           </>
         ) : (
-          /* FUN ZERO-PRESSURE MINI-GAME: "INDOVINA IL VERSO!" */
+          /* QUIZ MODE (3 OPTIONS 2-3y, 4 OPTIONS 4-11y, 6 OPTIONS + ETHOLOGY CLUES 12-14y) */
           <div className="max-w-3xl mx-auto w-full flex flex-col gap-3">
-            <section className="storybook-parchment-board rounded-[28px] p-4 sm:p-5 text-center">
-              <p className="text-xs font-fun font-extrabold uppercase tracking-wider text-indigo-700">
-                🎵 Gioco di Svago · Serie: {quizStreak} ⭐
+            <section
+              className={`p-4 sm:p-5 text-center ${
+                isMature
+                  ? 'rounded-2xl bg-slate-900/95 border border-white/10'
+                  : 'storybook-parchment-board rounded-[24px]'
+              }`}
+            >
+              <p
+                className={`text-xs font-fun font-bold uppercase tracking-wider tabular-nums ${
+                  isMature ? gPalette.accentTextClass : 'text-indigo-700'
+                }`}
+              >
+                {isMature
+                  ? `${quizPromptType === 'ethology' ? 'Indizio Etologico' : 'Riconoscimento Acustico'} · Serie: ${quizStreak}`
+                  : `Gioco di Svago · Serie: ${quizStreak} ⭐`}
               </p>
-              <h2 className="font-kids font-bold text-lg sm:text-2xl text-slate-900 mt-1">
+
+              <h2
+                className={`font-kids font-bold text-base sm:text-xl mt-1.5 ${
+                  isMature ? 'text-white' : 'text-slate-900'
+                }`}
+              >
                 {quizSolved
-                  ? `🎉 ${bravoWord}! Era proprio ${quizTarget.name}!`
+                  ? isMature
+                    ? `Corretto · ${quizTarget.speciesName} (${quizTarget.scientificName})`
+                    : `${bravoWord}! Era proprio ${getDisplayAnimalName(quizTarget)}!`
+                  : quizPromptType === 'ethology'
+                  ? quizTarget.quizClue
+                  : isMature
+                  ? 'Riconosci la specie dal segnale acustico riprodotto'
                   : 'Ascolta il verso: quale animale sta parlando?'}
               </h2>
 
               <div className="mt-3 flex items-center justify-center gap-2.5 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => handlePlaySoundOnly(quizTarget)}
-                  className="home-wood-outer rounded-2xl p-[3.5px] cursor-pointer"
-                >
-                  <span
-                    className={`home-inner-orange rounded-[13px] px-4 py-2 inline-flex items-center gap-2 text-white font-kids font-bold text-sm ${
-                      isQuizTargetPlaying ? 'brightness-110 ring-2 ring-yellow-200' : ''
+                {quizPromptType === 'acoustic' && (
+                  <button
+                    type="button"
+                    onClick={() => handlePlaySoundOnly(quizTarget)}
+                    className={`cursor-pointer transition-colors ${
+                      isMature
+                        ? `rounded-xl px-4 py-2 ${gPalette.accentBgClass} ${gPalette.accentBgHoverClass} font-fun font-semibold text-xs sm:text-sm inline-flex items-center gap-2`
+                        : 'home-wood-outer rounded-2xl p-[3px]'
                     }`}
                   >
-                    <Volume2
-                      className={`w-4 h-4 shrink-0 ${
-                        isQuizTargetPlaying ? 'animate-bounce' : ''
-                      }`}
-                    />
-                    <span>
-                      {isQuizTargetPlaying ? 'Ascolta il Verso...' : 'Riascolta il Verso!'}
-                    </span>
-                  </span>
-                </button>
+                    {isMature ? (
+                      <>
+                        <Volume2 className="w-4 h-4 shrink-0" />
+                        <span>{isQuizTargetPlaying ? 'Riproduzione...' : 'Riproduci Suono'}</span>
+                      </>
+                    ) : (
+                      <span className="home-inner-orange rounded-[13px] px-4 py-2 inline-flex items-center gap-2 text-white font-kids font-bold text-sm">
+                        <Volume2 className="w-4 h-4 shrink-0" />
+                        <span>{isQuizTargetPlaying ? 'Ascolta...' : 'Riascolta il Verso'}</span>
+                      </span>
+                    )}
+                  </button>
+                )}
 
                 {quizSolved && (
                   <button
                     type="button"
                     onClick={() => startNewGuessRound(quizTarget.id)}
-                    className="home-wood-outer rounded-2xl p-[3.5px] cursor-pointer"
+                    className={`cursor-pointer transition-colors ${
+                      isMature
+                        ? 'rounded-xl px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-fun font-semibold text-xs sm:text-sm inline-flex items-center gap-2'
+                        : 'home-wood-outer rounded-2xl p-[3px]'
+                    }`}
                   >
-                    <span className="home-inner-green rounded-[13px] px-4 py-2 inline-flex items-center gap-2 text-white font-kids font-bold text-sm">
-                      <RotateCcw className="w-4 h-4 shrink-0" />
-                      <span>Prossimo Verso</span>
-                    </span>
+                    {isMature ? (
+                      <>
+                        <RotateCcw className="w-4 h-4 shrink-0" />
+                        <span>Prossima Domanda</span>
+                      </>
+                    ) : (
+                      <span className="home-inner-green rounded-[13px] px-4 py-2 inline-flex items-center gap-2 text-white font-kids font-bold text-sm">
+                        <RotateCcw className="w-4 h-4 shrink-0" />
+                        <span>Prossimo Verso</span>
+                      </span>
+                    )}
                   </button>
                 )}
               </div>
             </section>
 
-            <section className="storybook-wood-shelf rounded-3xl p-2.5 sm:p-3">
+            <section
+              className={
+                isMature
+                  ? 'rounded-2xl bg-slate-900/75 border border-white/10 p-2.5 sm:p-3'
+                  : 'storybook-wood-shelf rounded-3xl p-2.5 sm:p-3'
+              }
+            >
               <div
                 className={`grid gap-2.5 ${
                   quizOptions.length === 3
+                    ? 'grid-cols-2 sm:grid-cols-3'
+                    : quizOptions.length === 6
                     ? 'grid-cols-2 sm:grid-cols-3'
                     : 'grid-cols-2 sm:grid-cols-4'
                 }`}
@@ -1095,35 +1559,59 @@ export const ZooParlanteStudio: React.FC<ZooParlanteStudioProps> = ({
                       key={animal.id}
                       type="button"
                       onClick={() => handleGuessPick(animal)}
-                      style={{
-                        boxShadow: `0 5px 0 ${animal.shadowColor}, 0 12px 20px -4px rgba(15, 23, 42, 0.35)`,
-                      }}
-                      className={`zoo-3d-card bg-gradient-to-b ${animal.cardGradient} flex flex-col text-left cursor-pointer transition-all ${
+                      style={
+                        isMature
+                          ? undefined
+                          : {
+                              boxShadow: `0 4px 0 ${animal.shadowColor}, 0 10px 18px -6px rgba(15, 23, 42, 0.3)`,
+                            }
+                      }
+                      className={`flex flex-col text-left cursor-pointer transition-all overflow-hidden ${
                         isLastOdd ? 'col-span-2 sm:col-span-1 w-[68%] sm:w-full mx-auto' : 'w-full'
                       } ${
-                        isWinner
-                          ? 'ring-4 ring-emerald-300 scale-[1.03]'
-                          : isWrong
-                          ? 'opacity-45 grayscale scale-95 pointer-events-none'
-                          : ''
+                        isMature
+                          ? `rounded-xl bg-slate-950/90 border ${
+                              isWinner
+                                ? 'border-emerald-400 ring-2 ring-emerald-400/50'
+                                : isWrong
+                                ? 'opacity-35 grayscale pointer-events-none border-white/5'
+                                : 'border-white/10 hover:border-white/30'
+                            }`
+                          : `zoo-3d-card bg-gradient-to-b ${animal.cardGradient} ${
+                              isWinner
+                                ? 'ring-4 ring-emerald-300 scale-[1.02]'
+                                : isWrong
+                                ? 'opacity-45 grayscale scale-95 pointer-events-none'
+                                : ''
+                            }`
                       }`}
                     >
-                      <div className="relative w-full h-26 sm:h-30 overflow-hidden">
+                      <div className="relative w-full h-24 sm:h-28 overflow-hidden">
                         <AnimalPortraitVisual
                           animal={animal}
                           size="card"
                           isPlaying={isWinner && isQuizTargetPlaying}
+                          isMature={isMature}
                         />
                         {isWinner && (
-                          <span className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center shadow-md">
-                            <Check className="w-4 h-4 text-white stroke-[3]" />
+                          <span className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center shadow-sm">
+                            <Check className="w-3.5 h-3.5 text-white stroke-[3]" />
                           </span>
                         )}
                       </div>
                       <div className="px-2 py-2 text-center leading-tight">
-                        <span className="block font-kids font-bold text-xs sm:text-sm text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]">
-                          {animal.shortName}
+                        <span
+                          className={`block font-fun font-bold text-xs sm:text-sm truncate ${
+                            isMature ? 'text-slate-100' : 'text-white'
+                          }`}
+                        >
+                          {getDisplayAnimalName(animal)}
                         </span>
+                        {isMature && (
+                          <span className="block text-[10px] italic text-slate-400 truncate mt-0.5">
+                            {animal.scientificName}
+                          </span>
+                        )}
                       </div>
                     </button>
                   );
@@ -1134,15 +1622,23 @@ export const ZooParlanteStudio: React.FC<ZooParlanteStudioProps> = ({
         )}
       </main>
 
-      {/* WARM CREAM PARCHMENT FOOTER */}
-      <footer className="landscape-footer-compact app-shell-container relative z-10 px-2.5 sm:px-5 lg:px-8 pb-2 sm:pb-3 w-full shrink-0">
-        <div className="storybook-footer-pill rounded-2xl px-3.5 py-2 flex items-center justify-between gap-2 max-w-3xl mx-auto">
-          <span className="text-xs sm:text-sm font-fun font-extrabold text-amber-950">
-            🐾 Spazio Svago · Tocca gli animali per ascoltare i versi della fattoria e della savana
+      {/* ALIGNED COMPACT FOOTER */}
+      <footer className="landscape-footer-compact app-shell-container relative z-10 px-3 sm:px-5 lg:px-8 pb-2 sm:pb-3 w-full shrink-0">
+        <div
+          className={`px-3.5 py-2 flex items-center justify-between gap-2 max-w-3xl mx-auto ${
+            isMature
+              ? 'rounded-xl bg-slate-900/90 border border-white/10 text-slate-300'
+              : 'storybook-footer-pill rounded-2xl text-amber-950'
+          }`}
+        >
+          <span className="text-xs font-fun font-semibold truncate">
+            {isMature
+              ? 'Archivio bio-acustico · Tocca una specie per analizzarne suono, habitat e note scientifiche'
+              : 'Tocca gli animali per ascoltare i versi della fattoria e della savana'}
           </span>
-          {cuddleHearts > 0 && (
-            <span className="px-2.5 py-0.5 rounded-full bg-pink-100 text-pink-700 font-fun font-extrabold text-xs whitespace-nowrap shrink-0">
-              💖 {cuddleHearts}
+          {!isMature && cuddleHearts > 0 && (
+            <span className={`px-2.5 py-0.5 rounded-full font-fun font-bold text-xs whitespace-nowrap shrink-0 ${gPalette.badgeClass}`}>
+              ♥ {cuddleHearts}
             </span>
           )}
         </div>

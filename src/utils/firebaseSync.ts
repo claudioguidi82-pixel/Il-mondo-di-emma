@@ -134,10 +134,10 @@ export function detectCurrentDeviceLabel(): string {
 
 /**
  * Strips large base64 data URLs before persisting to Firestore so the cloud document
- * stays compact (< 180 KB), strictly respecting the 250,000-char blueprint limit and
- * keeping personal photos 100% on the local device.
+ * stays compact (< 245 KB), strictly respecting the 250,000-char blueprint limit and
+ * keeping personal photos 100% on the local device. Never slices mid-JSON.
  */
-function buildCloudPayloadObject(progress: UserProgress) {
+export function buildCloudPayloadObject(progress: UserProgress) {
   const sanitized = sanitizeAndValidateProgress(progress) || progress;
   const safeChildName = (sanitized.childProfile?.name || '')
     .replace(/[<>`]/g, '')
@@ -208,14 +208,35 @@ function buildCloudPayloadObject(progress: UserProgress) {
     archivedReportOverviews: (sanitized.archivedReportOverviews || []).slice(0, 30),
   };
 
+  // Guarantee valid JSON strictly under the 250,000-char Firestore Rules limit (never slice mid-JSON)
   let syncPayload = JSON.stringify(lightweightEnvelope);
   if (syncPayload.length > 245000) {
-    // Further trim history if very large
+    const trimmedArchives = (lightweightEnvelope.archivedReportOverviews || [])
+      .slice(0, 15)
+      .map((item) => ({
+        ...item,
+        transcript: (item.transcript || '').slice(0, 2400),
+      }));
     syncPayload = JSON.stringify({
       ...lightweightEnvelope,
       levelHistory: (lightweightEnvelope.levelHistory || []).slice(-60),
-      archivedReportOverviews: (lightweightEnvelope.archivedReportOverviews || []).slice(0, 15),
-    }).slice(0, 249000);
+      evaluationSnapshots: (lightweightEnvelope.evaluationSnapshots || []).slice(-15),
+      archivedReportOverviews: trimmedArchives,
+    });
+  }
+  if (syncPayload.length > 245000) {
+    syncPayload = JSON.stringify({
+      ...lightweightEnvelope,
+      levelHistory: (lightweightEnvelope.levelHistory || []).slice(-30),
+      evaluationSnapshots: (lightweightEnvelope.evaluationSnapshots || []).slice(-10),
+      completedPuzzleIds: completedPuzzleIds.slice(-200),
+      archivedReportOverviews: (lightweightEnvelope.archivedReportOverviews || [])
+        .slice(0, 8)
+        .map((item) => ({
+          ...item,
+          transcript: '',
+        })),
+    });
   }
 
   const deviceLabel = detectCurrentDeviceLabel().slice(0, 80);
@@ -241,8 +262,9 @@ function buildCloudPayloadObject(progress: UserProgress) {
 }
 
 /**
- * Inteligently merges local progress with cloud progress so switching between
- * smartphone, tablet, and foldable never loses solved levels, stickers, or archived reports.
+ * Intelligently merges local progress with cloud progress so switching between
+ * smartphone, tablet, and foldable never loses solved levels, stickers, history,
+ * per-subject progress, birthday rewards, or archived reports.
  */
 export function mergeCloudAndLocalProgress(
   local: UserProgress,
@@ -277,7 +299,12 @@ export function mergeCloudAndLocalProgress(
             local.childProfile?.customBackgroundUrl ||
             cloud.childProfile?.customBackgroundUrl,
         }
-      : primary.childProfile;
+      : {
+          ...primary.childProfile,
+          customBackgroundUrl:
+            local.childProfile?.customBackgroundUrl ||
+            cloud.childProfile?.customBackgroundUrl,
+        };
 
   // Union completedPuzzleIds and unlockedStickerIds
   const mergedCompletedIds = Array.from(
@@ -294,6 +321,67 @@ export function mergeCloudAndLocalProgress(
     ])
   ).slice(0, 40);
 
+  // Merge levelHistory deduplicated by timestamp + level + puzzleId + category
+  const historyMap = new Map<string, NonNullable<UserProgress['levelHistory']>[number]>();
+  for (const entry of [
+    ...(secondary.levelHistory || []),
+    ...(primary.levelHistory || []),
+  ]) {
+    if (!entry) continue;
+    const key = `${entry.timestamp || ''}|${entry.level}|${entry.puzzleId || ''}|${entry.category}`;
+    if (!historyMap.has(key)) {
+      historyMap.set(key, entry);
+    }
+  }
+  const mergedHistory = Array.from(historyMap.values())
+    .sort((a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''))
+    .slice(-150);
+
+  // Merge evaluationSnapshots deduplicated by id
+  const snapMap = new Map<string, NonNullable<UserProgress['evaluationSnapshots']>[number]>();
+  for (const snap of [
+    ...(secondary.evaluationSnapshots || []),
+    ...(primary.evaluationSnapshots || []),
+  ]) {
+    if (snap && snap.id && !snapMap.has(snap.id)) {
+      snapMap.set(snap.id, snap);
+    }
+  }
+  const mergedSnapshots = Array.from(snapMap.values())
+    .sort((a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''))
+    .slice(-30);
+
+  // Merge categoryStats picking the richer domain record for each subject
+  const pickRicherCategory = (
+    a?: UserProgress['categoryStats']['logic'],
+    b?: UserProgress['categoryStats']['logic']
+  ) => {
+    if (!a) return b || { correct: 0, total: 0, attempts: 0 };
+    if (!b) return a;
+    if ((b.total || 0) > (a.total || 0)) return b;
+    if ((a.total || 0) > (b.total || 0)) return a;
+    return (b.correct || 0) > (a.correct || 0) ? b : a;
+  };
+  const mergedCategoryStats: UserProgress['categoryStats'] = {
+    logic: pickRicherCategory(primary.categoryStats?.logic, secondary.categoryStats?.logic),
+    letters: pickRicherCategory(primary.categoryStats?.letters, secondary.categoryStats?.letters),
+    numbers: pickRicherCategory(primary.categoryStats?.numbers, secondary.categoryStats?.numbers),
+    shapes: pickRicherCategory(primary.categoryStats?.shapes, secondary.categoryStats?.shapes),
+    music: pickRicherCategory(primary.categoryStats?.music, secondary.categoryStats?.music),
+    english: pickRicherCategory(primary.categoryStats?.english, secondary.categoryStats?.english),
+  };
+
+  // Merge sessionDates union & preserve sessionsCount
+  const mergedSessionDates = Array.from(
+    new Set([
+      ...(secondary.sessionDates || []),
+      ...(primary.sessionDates || []),
+    ])
+  )
+    .filter(Boolean)
+    .sort()
+    .slice(-365);
+
   // Merge archived report overviews by id sorted newest first
   const archiveMap = new Map<string, NonNullable<UserProgress['archivedReportOverviews']>[number]>();
   for (const item of [
@@ -308,6 +396,33 @@ export function mergeCloudAndLocalProgress(
     .sort((a, b) => (b.createdAtIso || '').localeCompare(a.createdAtIso || ''))
     .slice(0, 60);
 
+  // Merge daily mission and birthday celebration markers cleanly
+  const latestDailyMissionDate =
+    (local.dailyMissionDate || '') >= (cloud.dailyMissionDate || '')
+      ? local.dailyMissionDate || cloud.dailyMissionDate
+      : cloud.dailyMissionDate;
+  const mergedDailyMissionCount =
+    local.dailyMissionDate === cloud.dailyMissionDate
+      ? Math.max(local.dailyMissionCount || 0, cloud.dailyMissionCount || 0)
+      : latestDailyMissionDate === local.dailyMissionDate
+      ? local.dailyMissionCount || 0
+      : cloud.dailyMissionCount || 0;
+
+  const mergedDailyChestDate =
+    (local.dailyChestClaimedDate || '') >= (cloud.dailyChestClaimedDate || '')
+      ? local.dailyChestClaimedDate || cloud.dailyChestClaimedDate
+      : cloud.dailyChestClaimedDate;
+
+  const mergedBirthdayYear =
+    (local.lastBirthdayCelebratedYear || '') >= (cloud.lastBirthdayCelebratedYear || '')
+      ? local.lastBirthdayCelebratedYear || cloud.lastBirthdayCelebratedYear
+      : cloud.lastBirthdayCelebratedYear;
+
+  const mergedLastPlayedDate =
+    (local.lastPlayedDate || '') >= (cloud.lastPlayedDate || '')
+      ? local.lastPlayedDate || cloud.lastPlayedDate
+      : cloud.lastPlayedDate;
+
   const merged: UserProgress = {
     ...primary,
     childProfile: mergedProfile,
@@ -319,20 +434,41 @@ export function mergeCloudAndLocalProgress(
     stars: Math.max(local.stars || 0, cloud.stars || 0),
     gems: Math.max(local.gems || 0, cloud.gems || 0),
     streakDays: Math.max(local.streakDays || 1, cloud.streakDays || 1),
+    lastPlayedDate: mergedLastPlayedDate,
+    sessionsCount: Math.max(
+      local.sessionsCount || 1,
+      cloud.sessionsCount || 1,
+      mergedSessionDates.length || 1
+    ),
+    sessionDates: mergedSessionDates.length > 0 ? mergedSessionDates : primary.sessionDates,
     totalPuzzlesSolved: Math.max(
       local.totalPuzzlesSolved || 0,
       cloud.totalPuzzlesSolved || 0
     ),
     totalAttempts: Math.max(local.totalAttempts || 0, cloud.totalAttempts || 0),
+    trisGamesPlayed: Math.max(local.trisGamesPlayed || 0, cloud.trisGamesPlayed || 0),
+    trisGamesWon: Math.max(local.trisGamesWon || 0, cloud.trisGamesWon || 0),
+    adultFilteredCount: Math.max(local.adultFilteredCount || 0, cloud.adultFilteredCount || 0),
+    categoryStats: mergedCategoryStats,
+    levelHistory: mergedHistory,
+    evaluationSnapshots: mergedSnapshots,
     completedPuzzleIds: mergedCompletedIds,
     unlockedStickerIds: mergedStickers.length > 0 ? mergedStickers : ['stk_star'],
     archivedReportOverviews: mergedArchives,
+    dailyMissionDate: latestDailyMissionDate,
+    dailyMissionCount: mergedDailyMissionCount,
+    dailyChestClaimedDate: mergedDailyChestDate,
+    lastBirthdayCelebratedYear: mergedBirthdayYear,
     savedDrawings:
       (local.savedDrawings || []).some((d) => Boolean(d.dataUrl))
         ? local.savedDrawings
         : primary.savedDrawings,
     parentPinHash: primary.parentPinHash || secondary.parentPinHash,
     parentPinHint: primary.parentPinHint || secondary.parentPinHint,
+    // Keep local device audio preferences
+    soundEnabled: local.soundEnabled,
+    voiceEnabled: local.voiceEnabled,
+    musicEnabled: local.musicEnabled,
   };
 
   return sanitizeAndValidateProgress(merged) || merged;
@@ -351,6 +487,50 @@ export function subscribeToGoogleAuth(callback: (user: User | null) => void): ()
   return onAuthStateChanged(auth, callback);
 }
 
+// Serialize Firestore writes to prevent concurrent create/update race conditions on first sync
+let firestoreWriteQueue: Promise<unknown> = Promise.resolve();
+
+function reconstructProgressFromCloudDoc(data: Record<string, unknown>): UserProgress | null {
+  const rawSyncPayload = typeof data.syncPayload === 'string' ? data.syncPayload : '';
+  if (rawSyncPayload) {
+    try {
+      const parsed = JSON.parse(rawSyncPayload);
+      const restored = sanitizeAndValidateProgress(parsed);
+      if (restored) return restored;
+    } catch {
+      // Fallback to top-level structured fields below
+    }
+  }
+
+  const childName = typeof data.childName === 'string' ? data.childName : '';
+  const childBirthDate = typeof data.childBirthDate === 'string' ? data.childBirthDate : '';
+  const childGender =
+    data.childGender === 'm' || data.childGender === 'f' || data.childGender === 'n'
+      ? data.childGender
+      : 'n';
+
+  return sanitizeAndValidateProgress({
+    childProfile: {
+      name: childName,
+      surname: '',
+      birthDate: childBirthDate,
+      gender: childGender,
+      isConfigured: Boolean(childName && childBirthDate),
+    },
+    currentLevel: data.currentLevel,
+    highestLevelReached: data.highestLevelReached,
+    stars: data.stars,
+    gems: data.gems,
+    streakDays: data.streakDays,
+    totalPuzzlesSolved: data.totalPuzzlesSolved,
+    totalAttempts: data.totalAttempts,
+    sessionsCount: data.sessionsCount,
+    lastPlayedDate: data.lastPlayedDate,
+    unlockedStickerIds: data.unlockedStickerIds,
+    completedPuzzleIds: data.completedPuzzleIds,
+  });
+}
+
 export async function saveUserProgressToFirestore(
   progress: UserProgress
 ): Promise<{ updatedAt: string; deviceLabel: string } | null> {
@@ -359,32 +539,56 @@ export async function saveUserProgressToFirestore(
     return null;
   }
 
-  const docPath = `user_progress/${currentUser.uid}`;
-  const docRef = doc(db, 'user_progress', currentUser.uid);
-  const payload = buildCloudPayloadObject(progress);
-
-  try {
-    const existingSnap = await getDoc(docRef);
-    if (!existingSnap.exists()) {
-      await setDoc(docRef, {
-        ownerId: currentUser.uid,
-        ...payload,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-    } else {
-      await updateDoc(docRef, {
-        ...payload,
-        updatedAt: serverTimestamp(),
-      });
+  const runWrite = async (): Promise<{ updatedAt: string; deviceLabel: string } | null> => {
+    const activeUser = auth.currentUser;
+    if (!activeUser || !activeUser.emailVerified) {
+      return null;
     }
-    return {
-      updatedAt: new Date().toISOString(),
-      deviceLabel: payload.deviceLabel,
-    };
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, docPath);
-  }
+
+    const docPath = `user_progress/${activeUser.uid}`;
+    const docRef = doc(db, 'user_progress', activeUser.uid);
+    const payload = buildCloudPayloadObject(progress);
+
+    try {
+      const existingSnap = await getDoc(docRef);
+      if (!existingSnap.exists()) {
+        try {
+          await setDoc(docRef, {
+            ownerId: activeUser.uid,
+            ...payload,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        } catch (createErr) {
+          // Handle cross-device race where another device created the doc milliseconds earlier
+          const recheck = await getDoc(docRef).catch(() => null);
+          if (recheck && recheck.exists()) {
+            await updateDoc(docRef, {
+              ...payload,
+              updatedAt: serverTimestamp(),
+            });
+          } else {
+            throw createErr;
+          }
+        }
+      } else {
+        await updateDoc(docRef, {
+          ...payload,
+          updatedAt: serverTimestamp(),
+        });
+      }
+      return {
+        updatedAt: new Date().toISOString(),
+        deviceLabel: payload.deviceLabel,
+      };
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, docPath);
+    }
+  };
+
+  const nextTask = firestoreWriteQueue.then(runWrite, runWrite);
+  firestoreWriteQueue = nextTask.catch(() => undefined);
+  return nextTask;
 }
 
 export async function loadUserProgressFromFirestore(): Promise<{
@@ -405,17 +609,8 @@ export async function loadUserProgressFromFirestore(): Promise<{
     if (!snap.exists()) {
       return { progress: null, updatedAt: null, deviceLabel: null };
     }
-    const data = snap.data();
-    const rawSyncPayload = typeof data.syncPayload === 'string' ? data.syncPayload : '';
-    let restored: UserProgress | null = null;
-    if (rawSyncPayload) {
-      try {
-        const parsed = JSON.parse(rawSyncPayload);
-        restored = sanitizeAndValidateProgress(parsed);
-      } catch {
-        restored = null;
-      }
-    }
+    const data = snap.data() as Record<string, unknown>;
+    const restored = reconstructProgressFromCloudDoc(data);
 
     const ts = data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null;
     const updatedAt = ts ? ts.toISOString() : null;
@@ -435,44 +630,42 @@ export function subscribeToCloudProgressSnapshot(
   userId: string,
   onRemoteUpdate: (info: {
     progress: UserProgress;
-    syncedAtLabel: string | null;
+    updatedAt: string | null;
     deviceLabel: string | null;
-  }) => void
+  }) => void,
+  onSyncError?: (message: string) => void
 ): () => void {
   const docPath = `user_progress/${userId}`;
   const docRef = doc(db, 'user_progress', userId);
   return onSnapshot(
     docRef,
     (snap) => {
-      if (!snap.exists()) return;
-      const data = snap.data();
-      const rawSyncPayload = typeof data.syncPayload === 'string' ? data.syncPayload : '';
-      if (!rawSyncPayload) return;
-      try {
-        const parsed = JSON.parse(rawSyncPayload);
-        const restored = sanitizeAndValidateProgress(parsed);
-        if (!restored) return;
-        const ts = data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null;
-        const syncedAtLabel = ts
-          ? ts.toLocaleString('it-IT', {
-              day: '2-digit',
-              month: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-            })
-          : null;
-        const deviceLabel = typeof data.deviceLabel === 'string' ? data.deviceLabel : null;
-        onRemoteUpdate({
-          progress: restored,
-          syncedAtLabel,
-          deviceLabel,
-        });
-      } catch {
-        // Ignore malformed snapshot
-      }
+      // Ignore local pending writes so we only merge confirmed remote/server state
+      if (!snap.exists() || snap.metadata.hasPendingWrites) return;
+      const data = snap.data() as Record<string, unknown>;
+      const restored = reconstructProgressFromCloudDoc(data);
+      if (!restored) return;
+      const ts = data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null;
+      const updatedAt = ts ? ts.toISOString() : null;
+      const deviceLabel = typeof data.deviceLabel === 'string' ? data.deviceLabel : null;
+      onRemoteUpdate({
+        progress: restored,
+        updatedAt,
+        deviceLabel,
+      });
     },
     (error) => {
-      handleFirestoreError(error, OperationType.GET, docPath);
+      try {
+        handleFirestoreError(error, OperationType.GET, docPath);
+      } catch (wrapped) {
+        if (onSyncError) {
+          onSyncError(
+            wrapped instanceof Error
+              ? wrapped.message
+              : 'Errore di sincronizzazione in tempo reale con Firestore.'
+          );
+        }
+      }
     }
   );
 }

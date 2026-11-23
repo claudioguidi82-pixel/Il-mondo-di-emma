@@ -21,7 +21,7 @@ import {
   getDailyCuriositySpark,
   getDailyMissionStatus,
 } from '../utils/motivationEngine';
-import { calculateChildAge, getDisplayChildName, getGenderedWord } from '../utils/childProfile';
+import { calculateChildAge, getAgeVisualTheme, getDisplayChildName, getGenderedWord } from '../utils/childProfile';
 import { soundManager } from '../utils/audio';
 import { confetti } from '../utils/confetti';
 import treasureChest3d from '../assets/images/treasure_chest_3d_1795267243685.jpg';
@@ -64,6 +64,10 @@ export const TreasureAlbumModal: React.FC<TreasureAlbumModalProps> = ({
   const childName = getDisplayChildName(childProfile);
   const childGender = childProfile?.gender || 'n';
   const ageInfo = useMemo(() => calculateChildAge(childProfile?.birthDate), [childProfile?.birthDate]);
+  const ageTheme = useMemo(
+    () => getAgeVisualTheme(ageInfo.years, childProfile?.name, childGender),
+    [ageInfo.years, childProfile?.name, childGender]
+  );
   const curiosity = useMemo(
     () => getDailyCuriositySpark(childProfile?.birthDate),
     [childProfile?.birthDate]
@@ -145,14 +149,30 @@ export const TreasureAlbumModal: React.FC<TreasureAlbumModalProps> = ({
       aria-modal="true"
       aria-label="Album dei Tesori e Curiosità"
     >
-      <div className="relative w-full max-w-2xl my-auto rounded-3xl bg-[#fafaf8] text-slate-900 border border-white/90 shadow-[0_28px_70px_-15px_rgba(15,23,42,0.55)] overflow-hidden flex flex-col max-h-[92dvh] animate-pop-in">
+      <div
+        className={`relative w-full max-w-2xl my-auto rounded-3xl overflow-hidden flex flex-col max-h-[92dvh] animate-pop-in ${
+          ageTheme.isMatureTheme
+            ? 'bg-slate-950 text-slate-100 border border-white/10 shadow-2xl'
+            : 'bg-[#fafaf8] text-slate-900 border border-white/90 shadow-[0_28px_70px_-15px_rgba(15,23,42,0.55)]'
+        }`}
+      >
         {/* TOP HEADER */}
-        <header className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 text-white px-4 sm:px-6 py-4 flex items-center justify-between gap-3 shrink-0">
+        <header
+          className={`px-4 sm:px-6 py-4 flex items-center justify-between gap-3 shrink-0 ${
+            ageTheme.isMatureTheme
+              ? 'bg-slate-900/95 border-b border-white/10 text-slate-100'
+              : `bg-gradient-to-r ${ageTheme.genderPalette.headerGradientClass} text-white`
+          }`}
+        >
           <div className="min-w-0">
             <h2 className="font-fun font-extrabold text-lg sm:text-2xl tracking-tight leading-tight truncate">
-              Album dei Tesori di {childName}
+              {ageTheme.stageId === 'teen_nextgen'
+                ? `Archivio & Badge · ${childName}`
+                : ageTheme.stageId === 'preteen_campus'
+                ? `Collezione & Traguardi · ${childName}`
+                : `Album dei Tesori di ${childName}`}
             </h2>
-            <p className="text-xs sm:text-sm text-white/90 font-medium mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 tabular-nums">
+            <p className="text-xs sm:text-sm text-white/85 font-medium mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 tabular-nums">
               <span>{explorerWord} · {ageInfo.shortAgeLabel}</span>
               <span className="opacity-50" aria-hidden="true">·</span>
               <span className="inline-flex items-center gap-1 font-bold text-amber-200">
@@ -171,30 +191,49 @@ export const TreasureAlbumModal: React.FC<TreasureAlbumModalProps> = ({
               soundManager.playPop();
               onClose();
             }}
-            className="w-11 h-11 rounded-2xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center cursor-pointer transition-colors shrink-0"
+            className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center cursor-pointer transition-colors shrink-0 ${
+              ageTheme.isMatureTheme
+                ? 'bg-white/8 hover:bg-white/15 text-slate-200 border border-white/10'
+                : 'bg-white/20 hover:bg-white/30 text-white'
+            }`}
             aria-label="Chiudi Album dei Tesori"
           >
             <X className="w-5 h-5 stroke-[2.5]" />
           </button>
         </header>
 
-        {/* SEGMENTED NAVIGATION TABS */}
-        <nav className="px-4 sm:px-6 pt-3 pb-2 bg-white border-b border-slate-200/80 shrink-0">
-          <div className="grid grid-cols-3 gap-2 bg-slate-100 p-1 rounded-2xl">
+        {/* SEGMENTED NAVIGATION TABS (ALIGNED 3-COL GRID, ZERO OVERLAP) */}
+        <nav
+          className={`px-3 sm:px-6 pt-3 pb-2.5 border-b shrink-0 ${
+            ageTheme.isMatureTheme
+              ? 'bg-slate-900/70 border-white/10'
+              : 'bg-white border-slate-200/80'
+          }`}
+        >
+          <div
+            className={`ui-aligned-tabs grid-cols-3 ${
+              ageTheme.isMatureTheme
+                ? 'bg-slate-950/90 border border-white/10'
+                : 'bg-slate-100'
+            }`}
+          >
             <button
               type="button"
               onClick={() => {
                 soundManager.playPop();
                 setActiveTab('stickers');
               }}
-              className={`min-h-[44px] rounded-xl px-2.5 py-2 font-fun font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              className={`min-h-[42px] min-w-0 rounded-xl px-2 sm:px-3 py-2 font-fun font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 activeTab === 'stickers'
-                  ? 'bg-white text-indigo-700 shadow-xs'
+                  ? 'text-white shadow-xs'
+                  : ageTheme.isMatureTheme
+                  ? 'text-slate-300 hover:text-white'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
+              style={activeTab === 'stickers' ? { backgroundColor: ageTheme.genderPalette.accentHex } : undefined}
             >
               <Gift className="w-4 h-4 shrink-0" />
-              <span className="whitespace-nowrap">Adesivi</span>
+              <span className="truncate">{ageTheme.isMatureTheme ? 'Badge' : 'Adesivi'}</span>
             </button>
 
             <button
@@ -203,14 +242,17 @@ export const TreasureAlbumModal: React.FC<TreasureAlbumModalProps> = ({
                 soundManager.playPop();
                 setActiveTab('trophies');
               }}
-              className={`min-h-[44px] rounded-xl px-2 py-2 font-fun font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              className={`min-h-[42px] min-w-0 rounded-xl px-2 sm:px-3 py-2 font-fun font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 activeTab === 'trophies'
-                  ? 'bg-white text-amber-700 shadow-xs'
+                  ? 'text-white shadow-xs'
+                  : ageTheme.isMatureTheme
+                  ? 'text-slate-300 hover:text-white'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
+              style={activeTab === 'trophies' ? { backgroundColor: ageTheme.genderPalette.accentHex } : undefined}
             >
               <Trophy className="w-4 h-4 shrink-0" />
-              <span className="whitespace-nowrap">Trofei</span>
+              <span className="truncate">Trofei</span>
             </button>
 
             <button
@@ -219,14 +261,19 @@ export const TreasureAlbumModal: React.FC<TreasureAlbumModalProps> = ({
                 soundManager.playPop();
                 setActiveTab('drawings');
               }}
-              className={`min-h-[44px] rounded-xl px-2 py-2 font-fun font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              className={`min-h-[42px] min-w-0 rounded-xl px-2 sm:px-3 py-2 font-fun font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 activeTab === 'drawings'
-                  ? 'bg-white text-fuchsia-700 shadow-xs'
+                  ? 'text-white shadow-xs'
+                  : ageTheme.isMatureTheme
+                  ? 'text-slate-300 hover:text-white'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
+              style={activeTab === 'drawings' ? { backgroundColor: ageTheme.genderPalette.accentHex } : undefined}
             >
               <Palette className="w-4 h-4 shrink-0" />
-              <span className="whitespace-nowrap">Disegni ({(progress.savedDrawings || []).length})</span>
+              <span className="truncate">
+                {ageTheme.isMatureTheme ? 'Sketch' : 'Disegni'} ({(progress.savedDrawings || []).length})
+              </span>
             </button>
           </div>
         </nav>

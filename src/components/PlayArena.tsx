@@ -448,8 +448,8 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
     [childProfile?.birthDate]
   );
   const ageTheme = useMemo(
-    () => getAgeVisualTheme(ageInfo.years, childProfile?.name),
-    [ageInfo.years, childProfile?.name]
+    () => getAgeVisualTheme(ageInfo.years, childProfile?.name, childGender),
+    [ageInfo.years, childProfile?.name, childGender]
   );
   // Limit calling child by name strictly to milestone levels (Level 1, 10, 20, 30...)
   const allowNameThisLevel = shouldCallChildByName(currentLevel);
@@ -576,7 +576,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
       if (cancelled) return;
       if (nextPuzzle.animalSoundId) {
         soundManager.playAnimalSound(nextPuzzle.animalSoundId, {
-          includeVocalImitation: true,
+          includeVocalImitation: false,
           stopSpeechFirst: true,
           onEnd: () => {
             if (cancelled) return;
@@ -637,13 +637,14 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
   }, [puzzle, clearReplayTimers]);
 
   const handleReplayVoice = useCallback(() => {
+    soundManager.voiceEnabled = true;
     soundManager.unlockAudio();
     soundManager.playPop();
     // Never penalize non-readers in hintsUsed for re-listening to the spoken question!
     audioReplayCountRef.current += 1;
     if (puzzle.animalSoundId) {
       soundManager.playAnimalSound(puzzle.animalSoundId, {
-        includeVocalImitation: true,
+        includeVocalImitation: false,
         stopSpeechFirst: true,
         onEnd: () => {
           soundManager.speakInstruction(puzzle.speechText, () => {
@@ -664,6 +665,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
   const handleSpeakOptionCard = useCallback(
     (e: React.MouseEvent, option: PuzzleOption) => {
       e.stopPropagation();
+      soundManager.voiceEnabled = true;
       soundManager.unlockAudio();
       audioReplayCountRef.current += 1;
       if (option.noteFreq) {
@@ -796,7 +798,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
           context: 'instruction',
           onEnd: () => {
             soundManager.playAnimalSound(animalIdToReplay, {
-              includeVocalImitation: true,
+              includeVocalImitation: false,
               stopSpeechFirst: false,
             });
           },
@@ -829,6 +831,8 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
       puzzle.chcPrimary,
       puzzle.chcSecondary,
       {
+        puzzleId: puzzle.id,
+        difficultyTier: puzzle.difficultyTier,
         pointer: lastPointerSnapshotRef.current,
         answeredBeforeAudioEnd: answeredBeforeAudioEndRef.current,
         audioReplayCount: audioReplayCountRef.current,
@@ -883,42 +887,57 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
   );
 
   return (
-    <div className="safe-viewport-pad relative w-full h-full flex flex-col justify-between overflow-hidden bg-sky-300 select-none">
+    <div
+      className={`safe-viewport-pad relative w-full h-full flex flex-col justify-between overflow-hidden select-none ${
+        ageTheme.isMatureTheme ? 'bg-slate-950 text-slate-100' : 'bg-sky-300'
+      }`}
+    >
       {/* ===================================================================== */}
-      {/* AGE-ADAPTIVE WORLD BACKDROP (STORYBOOK FOR 2-8, CAMPUS/NEXTGEN 9-14)  */}
+      {/* AGE-ADAPTIVE WORLD BACKDROP (STORYBOOK 2-8, SOBER MINIMAL 9-14)       */}
       {/* ===================================================================== */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden z-0">
-        <img
-          src={arenaMeadowBackdrop}
-          alt=""
-          aria-hidden="true"
-          referrerPolicy="no-referrer"
-          className={`absolute inset-0 w-full h-full object-cover object-center scale-[1.01] transition-all duration-500 ${
-            ageTheme.stageId === 'teen_nextgen'
-              ? 'brightness-[0.35] contrast-[1.2] saturate-[0.85]'
-              : ageTheme.stageId === 'preteen_campus'
-              ? 'brightness-[0.72] contrast-[1.1]'
-              : ''
-          }`}
-        />
-        {/* Gentle radial vignette so cards and boards pop with vivid contrast */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              ageTheme.stageId === 'teen_nextgen'
-                ? 'linear-gradient(180deg, rgba(2, 6, 23, 0.72) 0%, rgba(15, 23, 42, 0.58) 50%, rgba(2, 6, 23, 0.82) 100%)'
-                : ageTheme.stageId === 'preteen_campus'
-                ? 'linear-gradient(180deg, rgba(15, 23, 42, 0.35) 0%, rgba(30, 58, 138, 0.18) 50%, rgba(15, 23, 42, 0.45) 100%)'
-                : 'linear-gradient(180deg, rgba(14, 165, 233, 0.14) 0%, rgba(255, 255, 255, 0.04) 45%, rgba(22, 101, 52, 0.14) 100%)',
-          }}
-        />
+        {!ageTheme.isMatureTheme ? (
+          <>
+            <img
+              src={arenaMeadowBackdrop}
+              alt=""
+              aria-hidden="true"
+              referrerPolicy="no-referrer"
+              className="absolute inset-0 w-full h-full object-cover object-center scale-[1.01] transition-all duration-500"
+            />
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  ageTheme.stageId === 'primary_explorer'
+                    ? 'linear-gradient(180deg, rgba(248, 250, 252, 0.28) 0%, rgba(255, 255, 255, 0.14) 50%, rgba(15, 23, 42, 0.22) 100%)'
+                    : 'linear-gradient(180deg, rgba(14, 165, 233, 0.14) 0%, rgba(255, 255, 255, 0.04) 45%, rgba(22, 101, 52, 0.14) 100%)',
+              }}
+            />
+          </>
+        ) : (
+          <>
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  ageTheme.stageId === 'teen_nextgen'
+                    ? 'linear-gradient(180deg, #090d16 0%, #0d1320 55%, #090d16 100%)'
+                    : 'linear-gradient(180deg, #0f172a 0%, #172033 55%, #0f172a 100%)',
+              }}
+            />
+            <div
+              className="absolute -top-24 left-1/2 -translate-x-1/2 w-[min(780px,95vw)] h-[240px] rounded-full blur-3xl opacity-20"
+              style={{ background: ageTheme.genderPalette.accentHex }}
+            />
+          </>
+        )}
       </div>
 
       {/* ===================================================================== */}
-      {/* GLOSSY 3D BUBBLE TOP NAVIGATION BAR (ZERO TRUNCATION ON ALL SCREENS)  */}
+      {/* ALIGNED TOP NAVIGATION BAR (ZERO OVERLAP ON ALL SCREENS)              */}
       {/* ===================================================================== */}
-      <header className="landscape-header-compact app-shell-container relative z-10 flex items-center justify-between px-2 sm:px-5 lg:px-8 pt-1.5 sm:pt-3 pb-1 shrink-0 gap-1 sm:gap-2.5">
+      <header className="landscape-header-compact ui-aligned-header app-shell-container relative z-10 flex items-center justify-between px-2.5 sm:px-5 lg:px-8 pt-1.5 sm:pt-3 pb-1 shrink-0 gap-1.5 sm:gap-2.5">
         <button
           onClick={() => {
             soundManager.stopSpeech();
@@ -927,10 +946,20 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
             onExitToTitle();
           }}
           aria-label="Torna alla Home"
-          className="glossy-bubble-btn bg-gradient-to-b from-white to-slate-100 text-slate-900 px-2 min-[370px]:px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full border-2 border-white flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer shrink-0 min-w-[36px] min-h-[36px] sm:min-h-[42px]"
+          className={`glossy-bubble-btn px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full border flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer shrink-0 min-w-[38px] min-h-[38px] sm:min-h-[42px] ${
+            ageTheme.isMatureTheme
+              ? 'bg-slate-900/90 text-slate-100 border-white/15 hover:bg-slate-800'
+              : 'bg-gradient-to-b from-white to-slate-100 text-slate-900 border-2 border-white'
+          }`}
         >
-          <Home className="w-4 h-4 text-blue-700 fill-blue-700 shrink-0" />
-          <span className="hidden min-[370px]:inline font-fun font-extrabold text-xs sm:text-sm text-slate-900 whitespace-nowrap">
+          <Home
+            className={`w-4 h-4 shrink-0 ${ageTheme.genderPalette.accentTextClass}`}
+          />
+          <span
+            className={`hidden min-[370px]:inline font-fun font-extrabold text-xs sm:text-sm whitespace-nowrap ${
+              ageTheme.isMatureTheme ? 'text-slate-100' : 'text-slate-900'
+            }`}
+          >
             Home
           </span>
         </button>

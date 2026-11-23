@@ -44,6 +44,7 @@ import {
   signInWithGooglePopup,
   signOutGoogleAccount,
   subscribeToGoogleAuth,
+  subscribeToCloudProgressSnapshot,
   saveUserProgressToFirestore,
   loadUserProgressFromFirestore,
   mergeCloudAndLocalProgress,
@@ -107,6 +108,7 @@ export default function App() {
   const progressRef = useRef(progress);
   progressRef.current = progress;
   const hasAutoOpenedBirthdayRef = useRef(false);
+  const skipNextCloudAutoSaveRef = useRef(false);
 
   const childProfile = progress.childProfile;
   const ageInfo = useMemo(
@@ -117,9 +119,10 @@ export default function App() {
     () => getBirthdayStatus(childProfile?.birthDate),
     [childProfile?.birthDate]
   );
+  const childGender = childProfile?.gender || 'n';
   const ageTheme = useMemo(
-    () => getAgeVisualTheme(ageInfo.years, childProfile?.name),
-    [ageInfo.years, childProfile?.name]
+    () => getAgeVisualTheme(ageInfo.years, childProfile?.name, childGender),
+    [ageInfo.years, childProfile?.name, childGender]
   );
   const worldTitle = useMemo(() => getWorldTitle(childProfile), [childProfile]);
   const childName = useMemo(() => getDisplayChildName(childProfile), [childProfile]);
@@ -127,6 +130,39 @@ export default function App() {
   const shouldShowProfileModal = !childProfile?.isConfigured || isProfileModalOpen;
   const isBirthdayGiftClaimedThisYear =
     progress.lastBirthdayCelebratedYear === birthdayStatus.todayBirthdayYearKey;
+
+  // Compact deterministic signature of all cloud-synced progress fields so EVERY meaningful update syncs reliably
+  const cloudSyncSignature = useMemo(() => {
+    const archiveSig = (progress.archivedReportOverviews || [])
+      .map((a) => `${a.id}:${a.hasAudioBlob ? 1 : 0}`)
+      .join(',');
+    return [
+      progress.currentLevel,
+      progress.highestLevelReached,
+      progress.stars,
+      progress.gems,
+      progress.streakDays,
+      progress.totalPuzzlesSolved,
+      progress.totalAttempts,
+      progress.trisGamesPlayed,
+      progress.trisGamesWon,
+      progress.childProfile?.name || '',
+      progress.childProfile?.surname || '',
+      progress.childProfile?.birthDate || '',
+      progress.childProfile?.gender || 'n',
+      progress.childProfile?.isConfigured ? 1 : 0,
+      (progress.unlockedStickerIds || []).join(','),
+      (progress.completedPuzzleIds || []).length,
+      (progress.levelHistory || []).length,
+      (progress.evaluationSnapshots || []).length,
+      progress.parentPinHash || '',
+      progress.lastBirthdayCelebratedYear || '',
+      progress.dailyChestClaimedDate || '',
+      progress.dailyMissionDate || '',
+      progress.dailyMissionCount || 0,
+      archiveSig,
+    ].join('|');
+  }, [progress]);
 
   // Automatically celebrate the child's birthday when today matches their birth day & month
   useEffect(() => {
@@ -172,6 +208,7 @@ export default function App() {
         const merged = syncAnnualAndMonthlyProgress(
           mergeCloudAndLocalProgress(progressRef.current, cloudResult?.progress || null)
         );
+        skipNextCloudAutoSaveRef.current = true;
         setProgress(merged);
         saveUserProgress(merged);
         const savedInfo = await saveUserProgressToFirestore(merged);
@@ -196,9 +233,64 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Automatically debounce-sync progress to Firestore whenever progress changes while signed in
+  // Real-time Firestore onSnapshot listener (only active when auth is ready & email verified)
   useEffect(() => {
     if (!cloudSyncState.uid || !cloudSyncState.emailVerified) return;
+    const unsubscribeSnapshot = subscribeToCloudProgressSnapshot(
+      cloudSyncState.uid,
+      ({ progress: remoteProgress, updatedAt, deviceLabel }) => {
+        const merged = syncAnnualAndMonthlyProgress(
+          mergeCloudAndLocalProgress(progressRef.current, remoteProgress)
+        );
+        const prevSig = JSON.stringify({
+          lvl: progressRef.current.currentLevel,
+          stars: progressRef.current.stars,
+          gems: progressRef.current.gems,
+          solved: progressRef.current.totalPuzzlesSolved,
+          comp: (progressRef.current.completedPuzzleIds || []).length,
+          arch: (progressRef.current.archivedReportOverviews || []).length,
+          stk: (progressRef.current.unlockedStickerIds || []).length,
+          name: progressRef.current.childProfile?.name,
+        });
+        const nextSig = JSON.stringify({
+          lvl: merged.currentLevel,
+          stars: merged.stars,
+          gems: merged.gems,
+          solved: merged.totalPuzzlesSolved,
+          comp: (merged.completedPuzzleIds || []).length,
+          arch: (merged.archivedReportOverviews || []).length,
+          stk: (merged.unlockedStickerIds || []).length,
+          name: merged.childProfile?.name,
+        });
+        if (prevSig !== nextSig) {
+          skipNextCloudAutoSaveRef.current = true;
+          setProgress(merged);
+          saveUserProgress(merged);
+        }
+        setCloudSyncState((prev) => ({
+          ...prev,
+          lastSyncedAt: updatedAt || prev.lastSyncedAt,
+          deviceLabel: deviceLabel || prev.deviceLabel,
+          syncError: null,
+        }));
+      },
+      (errMessage) => {
+        setCloudSyncState((prev) => ({
+          ...prev,
+          syncError: errMessage,
+        }));
+      }
+    );
+    return () => unsubscribeSnapshot();
+  }, [cloudSyncState.uid, cloudSyncState.emailVerified]);
+
+  // Automatically debounce-sync progress to Firestore whenever any cloud-tracked progress field changes
+  useEffect(() => {
+    if (!cloudSyncState.uid || !cloudSyncState.emailVerified) return;
+    if (skipNextCloudAutoSaveRef.current) {
+      skipNextCloudAutoSaveRef.current = false;
+      return;
+    }
     const timer = window.setTimeout(async () => {
       try {
         const res = await saveUserProgressToFirestore(progressRef.current);
@@ -210,22 +302,18 @@ export default function App() {
             syncError: null,
           }));
         }
-      } catch {
-        // Non-blocking background sync; local progress is always preserved
+      } catch (err) {
+        setCloudSyncState((prev) => ({
+          ...prev,
+          syncError:
+            err instanceof Error
+              ? err.message
+              : 'Sincronizzazione automatica temporaneamente non riuscita.',
+        }));
       }
-    }, 1800);
+    }, 1500);
     return () => window.clearTimeout(timer);
-  }, [
-    cloudSyncState.uid,
-    cloudSyncState.emailVerified,
-    progress.currentLevel,
-    progress.stars,
-    progress.gems,
-    progress.totalPuzzlesSolved,
-    progress.childProfile?.name,
-    progress.childProfile?.birthDate,
-    progress.archivedReportOverviews?.length,
-  ]);
+  }, [cloudSyncState.uid, cloudSyncState.emailVerified, cloudSyncSignature]);
 
   const handleGoogleSignIn = async () => {
     soundManager.playPop();
@@ -727,6 +815,7 @@ export default function App() {
       completedPuzzleIds: [],
       levelHistory: [],
       evaluationSnapshots: [],
+      archivedReportOverviews: [],
       sessionsCount: 1,
       sessionDates: [today],
       annualProgressRows: [],
@@ -738,10 +827,26 @@ export default function App() {
       dailyChestClaimedDate: undefined,
       parentPreviewMode: false,
       adultFilteredCount: 0,
+      lastBirthdayCelebratedYear: progress.lastBirthdayCelebratedYear,
     };
     const syncedFresh = syncAnnualAndMonthlyProgress(fresh);
+    skipNextCloudAutoSaveRef.current = true;
     setProgress(syncedFresh);
     saveUserProgress(syncedFresh);
+    if (cloudSyncState.uid && cloudSyncState.emailVerified) {
+      void saveUserProgressToFirestore(syncedFresh)
+        .then((res) => {
+          if (res) {
+            setCloudSyncState((prev) => ({
+              ...prev,
+              lastSyncedAt: res.updatedAt,
+              deviceLabel: res.deviceLabel,
+              syncError: null,
+            }));
+          }
+        })
+        .catch(() => {});
+    }
     soundManager.speak(
       `Progressi azzerati, ${childName}! Si riparte dal primo livello con gioia!`
     );
@@ -753,7 +858,7 @@ export default function App() {
 
   return (
     <div
-      className={`age-theme-${ageTheme.stageId} fixed inset-0 z-0 h-[100dvh] max-h-[100dvh] w-full overflow-hidden text-white font-sans select-none flex flex-col justify-between`}
+      className={`age-theme-${ageTheme.stageId} gender-theme-${childGender} fixed inset-0 z-0 h-[100dvh] max-h-[100dvh] w-full overflow-hidden text-white font-sans select-none flex flex-col justify-between`}
     >
       {/* ========================================================================= */}
       {/* FULL-SCREEN CUSTOMIZABLE BACKGROUND (CHILD PHOTO OR ILLUSTRATED SKY)      */}
@@ -809,7 +914,7 @@ export default function App() {
           {/* 1. TOP TITLE PLAQUE (EVOLVES WITH CHILD'S AGE 2-14) + CENTERED SETTINGS GEAR */}
           <div className="landscape-header-compact flex flex-col items-center text-center pt-1 sm:pt-1.5 px-2 sm:px-4 shrink-0">
             <div className="home-wood-plaque inline-flex flex-col items-center px-3 sm:px-7 pt-2 sm:pt-3 pb-1.5 sm:pb-2.5 max-w-full">
-              {!ageTheme.isMatureTheme && (
+              {ageTheme.stageId === 'early_childhood' && (
                 <>
                   {/* Left 3D Golden Star Cluster */}
                   <svg
@@ -922,7 +1027,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* CENTERED COMPACT CIRCULAR SETTINGS GEAR + BIRTHDAY CELEBRATION TRIGGER */}
+            {/* CENTERED COMPACT CIRCULAR SETTINGS GEAR + VOICE GREETING + BIRTHDAY CELEBRATION TRIGGER */}
             <div className="mt-2 sm:mt-2.5 relative z-20 flex items-center justify-center gap-2">
               <button
                 type="button"
@@ -930,11 +1035,48 @@ export default function App() {
                   soundManager.playPop();
                   setIsSettingsOpen(true);
                 }}
-                className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-gradient-to-b from-[#f4ba6d] via-[#d98c3a] to-[#a95c1a] border-2 border-[#fde4ad] shadow-[0_4px_0_#6b3309,0_10px_20px_rgba(15,10,4,0.45),inset_0_2px_3px_rgba(255,248,225,0.85)] flex items-center justify-center cursor-pointer active:translate-y-0.5 hover:brightness-105 transition-all group"
+                className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center cursor-pointer active:translate-y-0.5 hover:brightness-105 transition-all group ${
+                  ageTheme.isMatureTheme
+                    ? `bg-slate-900/95 border ${ageTheme.genderPalette.accentBorderClass} shadow-md`
+                    : `${ageTheme.genderPalette.accentBgClass} border-2 border-white/90 shadow-lg`
+                }`}
                 aria-label="Impostazioni: Area Genitori, Cloud Google, Profilo e Audio"
                 title="Impostazioni (Area Genitori, Cloud Google & Profilo)"
               >
-                <Settings className="w-5 h-5 sm:w-5.5 sm:h-5.5 text-white drop-shadow-[0_2px_2px_rgba(107,51,9,0.75)] group-hover:rotate-45 transition-transform duration-300" />
+                <Settings className={`w-5 h-5 sm:w-5.5 sm:h-5.5 group-hover:rotate-45 transition-transform duration-300 ${ageTheme.isMatureTheme ? ageTheme.genderPalette.accentTextClass : 'text-white'}`} />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!progress.voiceEnabled) {
+                    updateProgress((prev) => ({ ...prev, voiceEnabled: true }));
+                  }
+                  soundManager.voiceEnabled = true;
+                  soundManager.unlockAudio();
+                  soundManager.playTwinkle();
+                  const welcomeWord = getGenderedWord(
+                    childProfile?.gender || 'n',
+                    'Benvenuta',
+                    'Benvenuto',
+                    'Benvenuto'
+                  );
+                  soundManager.speakPraise(
+                    ageTheme.isMatureTheme
+                      ? `Ciao ${childName}! ${welcomeWord} nel tuo ${ageTheme.stageBadge}! Scegli una sfida o esplora le tue attività!`
+                      : `Evviva ${childName}! ${welcomeWord} nel tuo mondo magico! Giochiamo insieme!`
+                  );
+                }}
+                className={`h-10 sm:h-11 px-3 sm:px-3.5 rounded-full flex items-center justify-center gap-1.5 cursor-pointer active:translate-y-0.5 hover:brightness-105 transition-all font-fun font-extrabold text-xs ${
+                  ageTheme.isMatureTheme
+                    ? `bg-slate-900/95 border ${ageTheme.genderPalette.accentBorderClass} text-slate-100 shadow-md`
+                    : 'bg-gradient-to-b from-amber-300 via-orange-400 to-orange-600 text-slate-950 border-2 border-white/90 shadow-lg'
+                }`}
+                aria-label="Ascolta voce narrante"
+                title="Ascolta il saluto della voce narrante"
+              >
+                <Volume2 className={`w-4 h-4 shrink-0 ${ageTheme.isMatureTheme ? ageTheme.genderPalette.accentTextClass : 'text-slate-950'}`} />
+                <span>Voce</span>
               </button>
 
               {(birthdayStatus.isBirthdayToday || birthdayStatus.isBirthdayCountdownSoon) && (
@@ -995,234 +1137,271 @@ export default function App() {
             )}
           </div>
 
-          {/* 3. BOTTOM ACTION DOCK (ADAPTS AUTOMATICALLY FROM STORYBOOK TO NEXTGEN STUDIO) */}
-          <div className="home-landscape-dock w-full flex flex-col items-center shrink-0 gap-2.5 sm:gap-3 pb-1">
-            
-            {/* ROW 1: INIZIA GIOCO / SFIDA + STUDIO DISEGNO / ATELIER */}
-            <div className="home-landscape-cards home-dock-row relative w-full max-w-[400px] sm:max-w-[460px] pt-4 sm:pt-5 flex items-stretch justify-between gap-2.5 sm:gap-3.5 mx-auto">
-              
-              {/* Glossy 3D Rainbow Arch for Early Childhood & Primary Explorer */}
-              {!ageTheme.isMatureTheme && (
+          {/* 3. BOTTOM ACTION DOCK (CLEAN ALIGNED GRID — EVOLVES FROM STORYBOOK TO MINIMAL STUDIO) */}
+          <div className="home-landscape-dock home-dock-aligned shrink-0 pb-1">
+            {/* ROW 1: PLAY / SESSION + STUDIO / SKETCHPAD */}
+            <div
+              className={`home-landscape-cards home-dock-row relative w-full grid grid-cols-2 gap-2.5 sm:gap-3 items-stretch ${
+                ageTheme.stageId === 'early_childhood' ? 'pt-6 sm:pt-7' : 'pt-0'
+              }`}
+            >
+              {/* Glossy 3D Rainbow Arch strictly for Early Childhood (2-5) — positioned cleanly above buttons */}
+              {ageTheme.stageId === 'early_childhood' && (
                 <svg
                   viewBox="0 0 180 78"
-                  className="home-rainbow-arch absolute -top-2 sm:-top-2.5 left-1/2 -translate-x-1/2 w-[124px] sm:w-[144px] h-[54px] sm:h-[62px] pointer-events-none z-20 drop-shadow-[0_4px_6px_rgba(15,23,42,0.35)]"
+                  className="home-rainbow-arch absolute -top-2 left-1/2 -translate-x-1/2 w-[112px] sm:w-[130px] h-[46px] sm:h-[54px] pointer-events-none z-20 drop-shadow-[0_4px_6px_rgba(15,23,42,0.35)]"
                   fill="none"
                   aria-hidden="true"
                 >
-                  <defs>
-                    <linearGradient id="rbStar" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#fff9b3" />
-                      <stop offset="55%" stopColor="#facc15" />
-                      <stop offset="100%" stopColor="#ea580c" />
-                    </linearGradient>
-                  </defs>
                   <path d="M 32 62 A 58 48 0 0 1 148 62" stroke="#ff4d6d" strokeWidth="7" strokeLinecap="round" />
                   <path d="M 38 62 A 52 42 0 0 1 142 62" stroke="#ff9f1c" strokeWidth="6.5" strokeLinecap="round" />
                   <path d="M 44 62 A 46 36 0 0 1 136 62" stroke="#ffe033" strokeWidth="6.5" strokeLinecap="round" />
                   <path d="M 50 62 A 40 30 0 0 1 130 62" stroke="#34d399" strokeWidth="6.5" strokeLinecap="round" />
                   <path d="M 56 62 A 34 24 0 0 1 124 62" stroke="#38bdf8" strokeWidth="6.5" strokeLinecap="round" />
-                  <path d="M 44 38 A 54 44 0 0 1 136 38" stroke="rgba(255,255,255,0.45)" strokeWidth="2.4" strokeLinecap="round" />
-                  <path
-                    d="M27 29 L30.2 35.8 L37.6 36.8 L32.2 42 L33.5 49.4 L27 45.8 L20.5 49.4 L21.8 42 L16.4 36.8 L23.8 35.8 Z"
-                    fill="url(#rbStar)"
-                    stroke="#9a3412"
-                    strokeWidth="1.3"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M45 48 L47 52.2 L51.6 52.8 L48.2 56 L49 60.5 L45 58.3 L41 60.5 L41.8 56 L38.4 52.8 L43 52.2 Z"
-                    fill="url(#rbStar)"
-                    stroke="#9a3412"
-                    strokeWidth="1.1"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M150 28 L153.2 34.8 L160.6 35.8 L155.2 41 L156.5 48.4 L150 44.8 L143.5 48.4 L144.8 41 L139.4 35.8 L146.8 34.8 Z"
-                    fill="url(#rbStar)"
-                    stroke="#9a3412"
-                    strokeWidth="1.3"
-                    strokeLinejoin="round"
-                  />
                 </svg>
               )}
 
               {/* LEFT BUTTON: PLAY / CHALLENGE */}
               <button
+                type="button"
                 onClick={handleStartGame}
-                className="home-wood-outer relative z-10 flex-1 min-w-0 rounded-[22px] p-[4px] cursor-pointer group text-left"
+                className={`relative z-10 min-w-0 cursor-pointer group text-left transition-all ${
+                  ageTheme.isMatureTheme
+                    ? `rounded-xl ${ageTheme.genderPalette.accentBgClass} ${ageTheme.genderPalette.accentBgHoverClass} border border-white/15 px-3.5 py-3 flex items-center gap-2.5`
+                    : 'home-wood-outer rounded-[20px] p-[4px]'
+                }`}
                 title={ageTheme.labels.playMainTitle(progress.currentLevel)}
               >
-                <div className="home-inner-green home-action-inner rounded-[18px] px-2.5 sm:px-3.5 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-2.5 h-full">
-                  {!ageTheme.isMatureTheme && (
-                    <>
-                      <svg
-                        viewBox="0 0 36 22"
-                        className="absolute bottom-0 left-1 w-7 h-4 text-emerald-700/45 pointer-events-none"
-                        fill="currentColor"
-                        aria-hidden="true"
-                      >
-                        <path d="M4 22 Q6 10 1 3 Q9 9 11 22 Z M12 22 Q16 8 22 2 Q18 12 19 22 Z M20 22 Q24 12 31 7 Q26 15 27 22 Z" />
-                      </svg>
-                      <svg
-                        viewBox="0 0 36 22"
-                        className="absolute bottom-0 right-1 w-7 h-4 text-emerald-700/45 pointer-events-none scale-x-[-1]"
-                        fill="currentColor"
-                        aria-hidden="true"
-                      >
-                        <path d="M4 22 Q6 10 1 3 Q9 9 11 22 Z M12 22 Q16 8 22 2 Q18 12 19 22 Z M20 22 Q24 12 31 7 Q26 15 27 22 Z" />
-                      </svg>
-                    </>
-                  )}
-                  <div className="home-action-icon relative z-10 w-9 h-9 sm:w-11 sm:h-11 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                    <Play className="w-7 h-7 sm:w-8 sm:h-8 fill-white text-white ml-0.5 drop-shadow-[0_3px_4px_rgba(6,78,59,0.55)]" />
+                {ageTheme.isMatureTheme ? (
+                  <>
+                    <div className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
+                      <Play className="w-5 h-5 fill-white text-white ml-0.5" />
+                    </div>
+                    <div className="min-w-0 leading-tight">
+                      <span className="block font-fun font-bold text-sm sm:text-base text-white truncate">
+                        {ageTheme.labels.playMainTitle(progress.currentLevel)}
+                      </span>
+                      <span className="block text-[11px] font-medium text-white/85 mt-0.5 truncate">
+                        {ageTheme.labels.playMainSub}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="home-inner-green home-action-inner rounded-[16px] px-2.5 sm:px-3.5 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-2.5 h-full">
+                    <div className="home-action-icon relative z-10 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <Play className="w-7 h-7 sm:w-8 sm:h-8 fill-white text-white ml-0.5 drop-shadow-xs" />
+                    </div>
+                    <div className="relative z-10 min-w-0 leading-tight">
+                      <span className="home-action-title block font-kids font-bold text-[14px] sm:text-[16px] text-white truncate">
+                        {ageTheme.labels.playMainTitle(progress.currentLevel)}
+                      </span>
+                      <span className="home-action-sub block text-[10.5px] sm:text-xs font-fun font-bold text-emerald-50/95 mt-0.5 truncate">
+                        {ageTheme.labels.playMainSub}
+                      </span>
+                    </div>
                   </div>
-
-                  <div className="relative z-10 min-w-0 leading-tight">
-                    <span className="home-action-title block font-kids font-bold text-[14px] sm:text-[17px] text-white drop-shadow-[0_2px_2px_rgba(6,78,59,0.55)] truncate">
-                      {ageTheme.labels.playMainTitle(progress.currentLevel)}
-                    </span>
-                    <span className="home-action-sub block text-[11px] sm:text-xs font-fun font-bold text-emerald-50/95 tabular-nums mt-0.5 truncate">
-                      {ageTheme.labels.playMainSub}
-                    </span>
-                  </div>
-                </div>
+                )}
               </button>
 
-              {/* RIGHT BUTTON: STUDIO DISEGNO / ATELIER */}
+              {/* RIGHT BUTTON: STUDIO DISEGNO / SKETCHPAD */}
               <button
+                type="button"
                 onClick={handleOpenStudio}
-                className="home-lavender-outer relative z-10 flex-1 min-w-0 rounded-[22px] p-[4px] cursor-pointer group text-left"
+                className={`relative z-10 min-w-0 cursor-pointer group text-left transition-all ${
+                  ageTheme.isMatureTheme
+                    ? 'rounded-xl bg-slate-900/95 hover:bg-slate-800/95 border border-white/12 px-3.5 py-3 flex items-center gap-2.5 text-slate-100'
+                    : 'home-lavender-outer rounded-[20px] p-[4px]'
+                }`}
                 title={ageTheme.labels.studioTitle}
               >
-                <div className="home-inner-purple home-action-inner rounded-[18px] px-2.5 sm:px-3.5 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-2.5 h-full">
-                  <svg
-                    viewBox="0 0 48 48"
-                    className="home-action-icon relative z-10 w-10 h-10 sm:w-11 sm:h-11 shrink-0 drop-shadow-[0_3px_4px_rgba(59,7,100,0.5)] group-hover:scale-108 transition-transform"
-                    aria-hidden="true"
-                  >
-                    <defs>
-                      <linearGradient id="palWood" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%" stopColor="#fde0a6" />
-                        <stop offset="60%" stopColor="#e5a95c" />
-                        <stop offset="100%" stopColor="#b87328" />
-                      </linearGradient>
-                    </defs>
-                    <path
-                      d="M23 7 C12 7 5 14.5 5 24 C5 33.5 12.5 40 21.5 40 C24.5 40 26.5 38.2 26.5 35.8 C26.5 34.4 25.8 33.2 25.8 32 C25.8 30.2 27.2 29 29.5 29 L33.5 29 C39.5 29 43 25.2 43 20.5 C43 12.8 34.5 7 23 7 Z"
-                      fill="url(#palWood)"
-                      stroke="#78350f"
-                      strokeWidth="1.6"
-                    />
-                    <circle cx="17" cy="31.5" r="3" fill="#9333ea" stroke="#78350f" strokeWidth="1" />
-                    <circle cx="14" cy="19" r="3.2" fill="#ef4444" />
-                    <circle cx="21.5" cy="13.5" r="3.1" fill="#facc15" />
-                    <circle cx="30" cy="14.5" r="3.1" fill="#3b82f6" />
-                    <circle cx="35.5" cy="21" r="2.9" fill="#22c55e" />
-                    <path d="M27 33 L41 11" stroke="#92400e" strokeWidth="3.2" strokeLinecap="round" />
-                    <path d="M25.5 35.5 C23 36.5 22 39 24.5 39.5 C27 40 29 38 28.5 35.5 Z" fill="#38bdf8" stroke="#0369a1" strokeWidth="0.9" />
-                  </svg>
-
-                  <div className="relative z-10 min-w-0 leading-tight">
-                    <span className="home-action-title block font-kids font-bold text-[14px] sm:text-[17px] text-white drop-shadow-[0_2px_2px_rgba(59,7,100,0.55)] truncate">
-                      {ageTheme.labels.studioTitle}
+                {ageTheme.isMatureTheme ? (
+                  <>
+                    <div className={`w-9 h-9 rounded-lg ${ageTheme.genderPalette.accentSoftBgClass} border flex items-center justify-center shrink-0`}>
+                      <Sparkles className="w-4.5 h-4.5" />
+                    </div>
+                    <div className="min-w-0 leading-tight">
+                      <span className="block font-fun font-bold text-sm sm:text-base text-slate-100 truncate">
+                        {ageTheme.labels.studioTitle}
+                      </span>
+                      <span className="block text-[11px] font-medium text-slate-400 mt-0.5 truncate">
+                        {ageTheme.labels.studioSub}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="home-inner-purple home-action-inner rounded-[16px] px-2.5 sm:px-3.5 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-2.5 h-full">
+                    <span className="home-action-icon relative z-10 w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/18 border border-white/30 flex items-center justify-center shrink-0 text-xl sm:text-2xl">
+                      🎨
                     </span>
-                    <span className="home-action-sub block text-[11px] sm:text-xs font-fun font-bold text-fuchsia-100/95 mt-0.5 truncate">
-                      {ageTheme.labels.studioSub}
-                    </span>
+                    <div className="relative z-10 min-w-0 leading-tight">
+                      <span className="home-action-title block font-kids font-bold text-[14px] sm:text-[16px] text-white truncate">
+                        {ageTheme.labels.studioTitle}
+                      </span>
+                      <span className="home-action-sub block text-[10.5px] sm:text-xs font-fun font-bold text-fuchsia-100/95 mt-0.5 truncate">
+                        {ageTheme.labels.studioSub}
+                      </span>
+                    </div>
                   </div>
-                </div>
+                )}
               </button>
             </div>
 
-            {/* SECONDARY ROWS: ZOO/BIO-ACUSTICA + SVAGO/LOGICA + SCRIGNO/ COLLEZIONE */}
-            <div className="home-landscape-secondary w-full flex flex-col gap-2.5 sm:gap-3">
-              {/* ROW 2: SIDE-BY-SIDE ZOO + GIOCHI DI SVAGO */}
-              <div className="home-dock-row grid grid-cols-2 gap-2.5 sm:gap-3 w-full max-w-[400px] sm:max-w-[460px] mx-auto">
+            {/* ROW 2: ZOO/BIO-ACUSTICA + SVAGO/MIND GAMES */}
+            <div className="home-landscape-secondary w-full flex flex-col gap-2.5">
+              <div className="home-dock-row grid grid-cols-2 gap-2.5 sm:gap-3 w-full">
                 <button
                   type="button"
                   onClick={handleOpenZoo}
-                  className="home-wood-outer min-w-0 rounded-[20px] p-[4px] cursor-pointer group text-left"
+                  className={`min-w-0 cursor-pointer group text-left transition-all ${
+                    ageTheme.isMatureTheme
+                      ? 'rounded-xl bg-slate-900/95 hover:bg-slate-800/95 border border-white/12 px-3 py-2.5 flex items-center justify-between gap-2 text-slate-100'
+                      : 'home-wood-outer rounded-[18px] p-[4px]'
+                  }`}
                   title={ageTheme.labels.zooTitle}
                 >
-                  <div className="home-inner-orange home-action-inner rounded-[16px] flex items-center justify-between gap-2 py-1.5 sm:py-2 px-2 sm:px-3 text-white min-h-[54px] h-full">
-                    <span className="relative z-10 inline-flex items-center gap-2 min-w-0">
-                      <span className="home-action-icon w-9 h-9 sm:w-10 sm:h-10 rounded-xl overflow-hidden border-2 border-amber-100 shadow-sm bg-amber-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                        <img
-                          src={zooLion3d}
-                          alt="Natura e Animali"
-                          referrerPolicy="no-referrer"
-                          className="w-full h-full object-cover"
-                        />
-                      </span>
-                      <span className="min-w-0 leading-tight">
-                        <span className="home-action-title block font-kids font-bold text-[13px] sm:text-[15px] text-white drop-shadow-[0_2px_2px_rgba(124,45,18,0.55)] truncate">
-                          {ageTheme.labels.zooTitle}
+                  {ageTheme.isMatureTheme ? (
+                    <>
+                      <span className="inline-flex items-center gap-2.5 min-w-0">
+                        <span className={`w-8 h-8 rounded-lg ${ageTheme.genderPalette.accentSoftBgClass} border flex items-center justify-center shrink-0`}>
+                          <Volume2 className="w-4 h-4" />
                         </span>
-                        <span className="home-action-sub block text-[10px] sm:text-[11px] font-fun font-bold text-amber-50/95 mt-0.5 truncate">
-                          {ageTheme.labels.zooSub}
+                        <span className="min-w-0 leading-tight">
+                          <span className="block font-fun font-bold text-xs sm:text-sm text-slate-100 truncate">
+                            {ageTheme.labels.zooTitle}
+                          </span>
+                          <span className="block text-[10.5px] text-slate-400 mt-0.5 truncate">
+                            {ageTheme.labels.zooSub}
+                          </span>
                         </span>
                       </span>
-                    </span>
-                    <ChevronRight className="relative z-10 w-4 h-4 text-white/90 shrink-0 hidden sm:block group-hover:translate-x-0.5 transition-transform" />
-                  </div>
+                      <ChevronRight className="w-4 h-4 text-slate-500 shrink-0 hidden sm:block" />
+                    </>
+                  ) : (
+                    <div className="home-inner-orange home-action-inner rounded-[14px] flex items-center justify-between gap-2 py-2 px-2.5 text-white min-h-[54px] h-full">
+                      <span className="relative z-10 inline-flex items-center gap-2 min-w-0">
+                        <span className="home-action-icon w-9 h-9 rounded-xl overflow-hidden border-2 border-amber-100 bg-amber-100 flex items-center justify-center shrink-0">
+                          <img
+                            src={zooLion3d}
+                            alt="Natura e Animali"
+                            referrerPolicy="no-referrer"
+                            className="w-full h-full object-cover"
+                          />
+                        </span>
+                        <span className="min-w-0 leading-tight">
+                          <span className="home-action-title block font-kids font-bold text-[13px] sm:text-[15px] text-white truncate">
+                            {ageTheme.labels.zooTitle}
+                          </span>
+                          <span className="home-action-sub block text-[10px] sm:text-[11px] font-fun font-bold text-amber-50/95 mt-0.5 truncate">
+                            {ageTheme.labels.zooSub}
+                          </span>
+                        </span>
+                      </span>
+                      <ChevronRight className="relative z-10 w-4 h-4 text-white/90 shrink-0 hidden sm:block" />
+                    </div>
+                  )}
                 </button>
 
                 <button
                   type="button"
                   onClick={handleOpenSvago}
-                  className="home-wood-outer min-w-0 rounded-[20px] p-[4px] cursor-pointer group text-left"
+                  className={`min-w-0 cursor-pointer group text-left transition-all ${
+                    ageTheme.isMatureTheme
+                      ? 'rounded-xl bg-slate-900/95 hover:bg-slate-800/95 border border-white/12 px-3 py-2.5 flex items-center justify-between gap-2 text-slate-100'
+                      : 'home-wood-outer rounded-[18px] p-[4px]'
+                  }`}
                   title={ageTheme.labels.svagoTitle}
                 >
-                  <div className="home-inner-teal home-action-inner rounded-[16px] flex items-center justify-between gap-2 py-1.5 sm:py-2 px-2 sm:px-3 text-white min-h-[54px] h-full">
-                    <span className="relative z-10 inline-flex items-center gap-2 min-w-0">
-                      <span className="home-action-icon w-9 h-9 sm:w-10 sm:h-10 rounded-xl border-2 border-cyan-100/80 shadow-sm bg-cyan-950/35 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                        <Gamepad2 className="w-5 h-5 sm:w-6 sm:h-6 text-amber-200" />
-                      </span>
-                      <span className="min-w-0 leading-tight">
-                        <span className="home-action-title block font-kids font-bold text-[13px] sm:text-[15px] text-white drop-shadow-[0_2px_2px_rgba(4,47,69,0.55)] truncate">
-                          {ageTheme.labels.svagoTitle}
+                  {ageTheme.isMatureTheme ? (
+                    <>
+                      <span className="inline-flex items-center gap-2.5 min-w-0">
+                        <span className={`w-8 h-8 rounded-lg ${ageTheme.genderPalette.accentSoftBgClass} border flex items-center justify-center shrink-0`}>
+                          <Gamepad2 className="w-4 h-4" />
                         </span>
-                        <span className="home-action-sub block text-[10px] sm:text-[11px] font-fun font-bold text-cyan-50/95 mt-0.5 truncate">
-                          {ageTheme.labels.svagoSub}
+                        <span className="min-w-0 leading-tight">
+                          <span className="block font-fun font-bold text-xs sm:text-sm text-slate-100 truncate">
+                            {ageTheme.labels.svagoTitle}
+                          </span>
+                          <span className="block text-[10.5px] text-slate-400 mt-0.5 truncate">
+                            {ageTheme.labels.svagoSub}
+                          </span>
                         </span>
                       </span>
-                    </span>
-                    <ChevronRight className="relative z-10 w-4 h-4 text-white/90 shrink-0 hidden sm:block group-hover:translate-x-0.5 transition-transform" />
-                  </div>
+                      <ChevronRight className="w-4 h-4 text-slate-500 shrink-0 hidden sm:block" />
+                    </>
+                  ) : (
+                    <div className="home-inner-teal home-action-inner rounded-[14px] flex items-center justify-between gap-2 py-2 px-2.5 text-white min-h-[54px] h-full">
+                      <span className="relative z-10 inline-flex items-center gap-2 min-w-0">
+                        <span className="home-action-icon w-9 h-9 rounded-xl border-2 border-cyan-100/80 bg-cyan-950/35 flex items-center justify-center shrink-0">
+                          <Gamepad2 className="w-5 h-5 text-amber-200" />
+                        </span>
+                        <span className="min-w-0 leading-tight">
+                          <span className="home-action-title block font-kids font-bold text-[13px] sm:text-[15px] text-white truncate">
+                            {ageTheme.labels.svagoTitle}
+                          </span>
+                          <span className="home-action-sub block text-[10px] sm:text-[11px] font-fun font-bold text-cyan-50/95 mt-0.5 truncate">
+                            {ageTheme.labels.svagoSub}
+                          </span>
+                        </span>
+                      </span>
+                      <ChevronRight className="relative z-10 w-4 h-4 text-white/90 shrink-0 hidden sm:block" />
+                    </div>
+                  )}
                 </button>
               </div>
 
-              {/* ROW 3: TREASURE CHEST / TRAGUARDI & COLLEZIONE BAR */}
+              {/* ROW 3: TREASURE CHEST / MILESTONE BAR (ALIGNED TO EXACT SAME WIDTH) */}
               <button
                 type="button"
                 onClick={() => {
                   soundManager.playPop();
                   setIsAlbumOpen(true);
                 }}
-                className="home-wood-outer home-dock-row w-full max-w-[400px] sm:max-w-[460px] mx-auto rounded-[20px] p-[4px] cursor-pointer"
+                className={`home-dock-row w-full cursor-pointer transition-all ${
+                  ageTheme.isMatureTheme
+                    ? 'rounded-xl bg-slate-900/95 hover:bg-slate-800/95 border border-white/12 px-3.5 py-2.5 flex items-center justify-between gap-2 text-slate-100'
+                    : 'home-wood-outer rounded-[18px] p-[4px]'
+                }`}
                 title={ageTheme.labels.chestTitle}
               >
-                <div className="home-inner-gold rounded-[16px] flex items-center justify-between gap-2 py-1.5 sm:py-2 px-2.5 sm:px-3.5 text-[#422006] min-h-[48px]">
-                  <span className="relative z-10 inline-flex items-center gap-2 sm:gap-2.5 min-w-0">
-                    <span className="home-action-icon w-9 h-9 sm:w-10 sm:h-10 rounded-xl overflow-hidden border-2 border-amber-100 shadow-sm bg-amber-100 flex items-center justify-center shrink-0">
-                      <img
-                        src={treasureChest3d}
-                        alt="Scrigno e Traguardi"
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover"
-                      />
+                {ageTheme.isMatureTheme ? (
+                  <>
+                    <span className="inline-flex items-center gap-2.5 min-w-0">
+                      <span className={`w-8 h-8 rounded-lg ${ageTheme.genderPalette.accentSoftBgClass} border flex items-center justify-center shrink-0`}>
+                        <Gift className="w-4 h-4" />
+                      </span>
+                      <span className="font-fun font-semibold text-xs sm:text-sm text-slate-100 truncate">
+                        {dailyMission.isDailyChestReady
+                          ? `${ageTheme.labels.chestTitle} · Ricompensa Pronta (+3 💎)`
+                          : `${ageTheme.labels.chestTitle} · Target ${dailyMission.inCurrentCycle}/${DAILY_MISSION_TARGET}`}
+                      </span>
                     </span>
-                    <span className="font-kids font-bold text-[12px] sm:text-[15px] leading-tight text-left text-[#422006] min-w-0 break-words">
-                      {dailyMission.isDailyChestReady
-                        ? `${ageTheme.labels.chestTitle} Pronto · Apri (+3 💎)`
-                        : `${ageTheme.labels.chestTitle} · Missione ${dailyMission.inCurrentCycle}/${DAILY_MISSION_TARGET}`}
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-fun font-bold tabular-nums shrink-0 ${ageTheme.genderPalette.badgeClass}`}>
+                      {(progress.unlockedStickerIds || ['stk_star']).length}/18
                     </span>
-                  </span>
-                  <span className="relative z-10 inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-50/92 border border-amber-200 text-xs sm:text-sm font-fun font-extrabold text-amber-950 whitespace-nowrap shrink-0 tabular-nums shadow-2xs">
-                    <Gift className="w-3.5 h-3.5 text-orange-600 shrink-0" />
-                    <span>{(progress.unlockedStickerIds || ['stk_star']).length}/18</span>
-                  </span>
-                </div>
+                  </>
+                ) : (
+                  <div className="home-inner-gold rounded-[14px] flex items-center justify-between gap-2 py-2 px-3 text-[#422006] min-h-[48px]">
+                    <span className="relative z-10 inline-flex items-center gap-2.5 min-w-0">
+                      <span className="home-action-icon w-9 h-9 rounded-xl overflow-hidden border-2 border-amber-100 bg-amber-100 flex items-center justify-center shrink-0">
+                        <img
+                          src={treasureChest3d}
+                          alt="Scrigno e Traguardi"
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover"
+                        />
+                      </span>
+                      <span className="font-kids font-bold text-[12.5px] sm:text-[15px] leading-tight text-left text-[#422006] min-w-0 truncate">
+                        {dailyMission.isDailyChestReady
+                          ? `${ageTheme.labels.chestTitle} Pronto · Apri (+3 💎)`
+                          : `${ageTheme.labels.chestTitle} · Missione ${dailyMission.inCurrentCycle}/${DAILY_MISSION_TARGET}`}
+                      </span>
+                    </span>
+                    <span className="relative z-10 inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-50/92 border border-amber-200 text-xs sm:text-sm font-fun font-extrabold text-amber-950 whitespace-nowrap shrink-0 tabular-nums">
+                      <Gift className="w-3.5 h-3.5 text-orange-600 shrink-0" />
+                      <span>{(progress.unlockedStickerIds || ['stk_star']).length}/18</span>
+                    </span>
+                  </div>
+                )}
               </button>
             </div>
           </div>

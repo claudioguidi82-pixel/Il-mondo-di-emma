@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-import { GoogleGenAI, ThinkingLevel, Type } from '@google/genai';
+import { GoogleGenAI, Modality, ThinkingLevel, Type } from '@google/genai';
 
 dotenv.config();
 process.env.DISABLE_HMR = 'true';
@@ -120,26 +120,71 @@ const aiTts = process.env.GEMINI_API_KEY
     })
   : null;
 
+const aiLive = process.env.GEMINI_API_KEY
+  ? new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      apiVersion: 'v1alpha',
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    })
+  : null;
+
 // Single consistent Italian MALE voice across the entire app (never flips to female fallback)
 const APP_MALE_VOICE_NAME = 'Charon';
 const TTS_LITE_MODEL = 'gemini-3.8-flash-lite-tts';
 const TTS_STUDIO_MODEL = 'gemini-3.8-flash-tts';
-const TTS_MODEL_CHAIN = [TTS_LITE_MODEL, TTS_STUDIO_MODEL] as const;
+const TTS_31_PREVIEW_MODEL = 'gemini-3.1-flash-tts-preview';
+const TTS_25_PREVIEW_MODEL = 'gemini-2.5-flash-preview-tts';
+const LIVE_NATIVE_AUDIO_25_MODEL = 'gemini-2.5-flash-native-audio-latest';
+const LIVE_NATIVE_AUDIO_31_MODEL = 'gemini-3.1-flash-live-preview';
+
+interface UnaryTtsModelSpec {
+  model: string;
+  supportsSpeechMetadata: boolean;
+}
+
+const UNARY_TTS_MODELS: readonly UnaryTtsModelSpec[] = [
+  { model: TTS_LITE_MODEL, supportsSpeechMetadata: true },
+  { model: TTS_STUDIO_MODEL, supportsSpeechMetadata: true },
+  { model: TTS_31_PREVIEW_MODEL, supportsSpeechMetadata: false },
+  { model: TTS_25_PREVIEW_MODEL, supportsSpeechMetadata: false },
+] as const;
+
+const LIVE_TTS_MODELS: readonly string[] = [
+  LIVE_NATIVE_AUDIO_25_MODEL,
+  LIVE_NATIVE_AUDIO_31_MODEL,
+] as const;
+
+const ALL_NEURAL_TTS_MODELS: readonly string[] = [
+  ...UNARY_TTS_MODELS.map((m) => m.model),
+  ...LIVE_TTS_MODELS,
+] as const;
+
 const MANDATORY_OVERVIEW_OPENING = 'Benvenuti genitori, a voi il report del giorno.';
 
-// Per-model quota circuit breaker so exhausted Free Tier models enter cooldown cleanly
-// without repeatedly hitting Gemini 429s or spamming server warnings.
+// Per-model quota circuit breaker & in-flight deduplication so Free Tier TTS quota is conserved cleanly.
 const modelQuotaBlockedUntil = new Map<string, number>();
+const modelQuotaScope = new Map<string, 'minute' | 'daily'>();
+const inFlightTtsRequests = new Map<string, Promise<{ audio: CachedAudio; fromCache: boolean }>>();
 
 class QuotaCooldownError extends Error {
   public readonly retryAfterSeconds: number;
   public readonly model: string;
+  public readonly scope: 'minute' | 'daily';
 
-  constructor(model: string, retryAfterSeconds: number) {
-    super(`Quota giornaliera temporaneamente esaurita per ${model}.`);
+  constructor(model: string, retryAfterSeconds: number, scope: 'minute' | 'daily' = 'daily') {
+    super(
+      scope === 'minute'
+        ? `Limite temporaneo al minuto raggiunto per ${model}.`
+        : `Quota giornaliera temporaneamente esaurita per ${model}.`
+    );
     this.name = 'QuotaCooldownError';
     this.model = model;
     this.retryAfterSeconds = retryAfterSeconds;
+    this.scope = scope;
   }
 }
 
@@ -153,35 +198,40 @@ function isQuotaExhaustedError(err: unknown): boolean {
   );
 }
 
-function parseRetryDelaySeconds(err: unknown): number {
+function parseQuotaDetails(err: unknown): { retryAfterSeconds: number; scope: 'minute' | 'daily' } {
   const msg = err instanceof Error ? err.message : String(err);
   const lower = msg.toLowerCase();
   const isDailyLimit =
     lower.includes('per day') ||
     lower.includes('perday') ||
-    lower.includes('daily');
+    lower.includes('daily') ||
+    lower.includes('requestsperday') ||
+    lower.includes('free_tier_requests');
+  if (isDailyLimit) {
+    // Cool down exhausted daily-quota model for 15 minutes so active fallback models run with zero delay
+    return { retryAfterSeconds: 900, scope: 'daily' };
+  }
   const retrySecMatch = msg.match(/"retryDelay"\s*:\s*"(\d+)s"/i);
   if (retrySecMatch) {
     const parsed = parseInt(retrySecMatch[1], 10);
     if (Number.isFinite(parsed) && parsed > 0) {
-      if (isDailyLimit || parsed > 180) {
-        // Keep server cooldown short (3 min) so key upgrades or rolling windows recover promptly
-        return 180;
+      if (parsed > 90) {
+        return { retryAfterSeconds: 900, scope: 'daily' };
       }
-      return Math.min(Math.max(parsed, 15), 65);
+      return { retryAfterSeconds: Math.min(Math.max(parsed, 8), 60), scope: 'minute' };
     }
   }
-  if (isDailyLimit) {
-    return 180;
-  }
-  return 45;
+  return { retryAfterSeconds: 30, scope: 'minute' };
 }
 
 function getModelQuotaRetrySeconds(model: string): number {
   const until = modelQuotaBlockedUntil.get(model) ?? 0;
   const remainingMs = until - Date.now();
   if (remainingMs <= 0) {
-    if (until > 0) modelQuotaBlockedUntil.delete(model);
+    if (until > 0) {
+      modelQuotaBlockedUntil.delete(model);
+      modelQuotaScope.delete(model);
+    }
     return 0;
   }
   return Math.ceil(remainingMs / 1000);
@@ -191,16 +241,304 @@ function isModelQuotaBlocked(model: string): boolean {
   return getModelQuotaRetrySeconds(model) > 0;
 }
 
-function markModelQuotaBlocked(model: string, err: unknown): number {
+function markModelQuotaBlocked(model: string, err: unknown): { retryAfterSeconds: number; scope: 'minute' | 'daily' } {
   const alreadyBlocked = isModelQuotaBlocked(model);
-  const retryAfterSeconds = parseRetryDelaySeconds(err);
-  modelQuotaBlockedUntil.set(model, Date.now() + retryAfterSeconds * 1000);
+  const details = parseQuotaDetails(err);
+  modelQuotaBlockedUntil.set(model, Date.now() + details.retryAfterSeconds * 1000);
+  modelQuotaScope.set(model, details.scope);
   if (!alreadyBlocked) {
     console.info(
-      `[TTS/AI Quota] Model ${model} reached quota limit; cooling down for ${retryAfterSeconds}s.`
+      `[TTS/AI Quota] Model ${model} hit ${details.scope} quota limit; switching to next neural model for ${details.retryAfterSeconds}s.`
     );
   }
-  return retryAfterSeconds;
+  return details;
+}
+
+async function synthesizeViaLiveNativeAudio(
+  liveModel: string,
+  textToSpeak: string,
+  style: string,
+  timeoutMs = 15000
+): Promise<CachedAudio> {
+  if (!aiLive) {
+    throw new Error('Gemini Live TTS non configurato.');
+  }
+  const chunks: Buffer[] = [];
+  let rawMimeType = 'audio/pcm;rate=24000';
+
+  await new Promise<void>((resolve, reject) => {
+    let settled = false;
+    let sessionRef: { close: () => void } | null = null;
+    const finishOk = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try {
+        sessionRef?.close();
+      } catch {
+        // ignore
+      }
+      resolve();
+    };
+    const finishErr = (err: unknown) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try {
+        sessionRef?.close();
+      } catch {
+        // ignore
+      }
+      reject(err instanceof Error ? err : new Error(String(err)));
+    };
+
+    const timer = setTimeout(() => {
+      if (chunks.length > 0) {
+        finishOk();
+      } else {
+        finishErr(new Error(`Live TTS timeout after ${timeoutMs}ms on ${liveModel}`));
+      }
+    }, timeoutMs);
+
+    aiLive.live
+      .connect({
+        model: liveModel,
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: APP_MALE_VOICE_NAME },
+            },
+          },
+          systemInstruction: {
+            parts: [
+              {
+                text:
+                  `You are a pure Italian Text-to-Speech synthesis engine with a warm, realistic Italian male voice (${style}). ` +
+                  'Read aloud word-for-word ONLY the exact Italian text enclosed inside <tts>...</tts> with natural Italian neural prosody and expressive intonation. ' +
+                  'NEVER add any greeting, commentary, or extra words before or after the text.',
+              },
+            ],
+          },
+        },
+        callbacks: {
+          onmessage: (msg: unknown) => {
+            const m = msg as {
+              serverContent?: {
+                modelTurn?: {
+                  parts?: Array<{ inlineData?: { data?: string; mimeType?: string } }>;
+                };
+                turnComplete?: boolean;
+              };
+            };
+            const parts = m?.serverContent?.modelTurn?.parts || [];
+            for (const p of parts) {
+              if (p?.inlineData?.data) {
+                if (p.inlineData.mimeType) {
+                  rawMimeType = p.inlineData.mimeType;
+                }
+                chunks.push(Buffer.from(p.inlineData.data, 'base64'));
+              }
+            }
+            if (m?.serverContent?.turnComplete) {
+              finishOk();
+            }
+          },
+          onerror: (err: unknown) => {
+            finishErr(err);
+          },
+          onclose: () => {
+            if (!settled) {
+              if (chunks.length > 0) finishOk();
+              else finishErr(new Error('Live TTS connection closed without audio.'));
+            }
+          },
+        },
+      })
+      .then((session) => {
+        sessionRef = session;
+        if (settled) {
+          try {
+            session.close();
+          } catch {
+            // ignore
+          }
+          return;
+        }
+        session.sendClientContent({
+          turns: [{ role: 'user', parts: [{ text: `<tts>${textToSpeak}</tts>` }] }],
+          turnComplete: true,
+        });
+      })
+      .catch(finishErr);
+  });
+
+  const combinedPcm = Buffer.concat(chunks);
+  if (combinedPcm.length === 0) {
+    throw new Error('Live TTS returned empty audio stream.');
+  }
+  const playable = ensurePlayableAudioBase64(combinedPcm.toString('base64'), rawMimeType);
+  return {
+    buffer: Buffer.from(playable.audioData, 'base64'),
+    mimeType: playable.mimeType,
+  };
+}
+
+async function synthesizeCharonNeuralAudio(
+  cleanText: string,
+  style: string,
+  unaryTimeoutMs = 13500,
+  liveTimeoutMs = 16000
+): Promise<CachedAudio> {
+  if (!aiTts && !aiLive) {
+    throw new Error('Gemini TTS non configurato sul server.');
+  }
+
+  let lastQuotaErr: QuotaCooldownError | null = null;
+  let lastErr: unknown = null;
+
+  // Tier 1: Unary Gemini TTS models (3.8-flash-lite-tts, 3.8-flash-tts, 3.1-flash-tts-preview, 2.5-flash-preview-tts)
+  if (aiTts) {
+    for (const spec of UNARY_TTS_MODELS) {
+      const remainingCooldown = getModelQuotaRetrySeconds(spec.model);
+      if (remainingCooldown > 0) {
+        lastQuotaErr = new QuotaCooldownError(
+          spec.model,
+          remainingCooldown,
+          modelQuotaScope.get(spec.model) ?? 'daily'
+        );
+        continue;
+      }
+
+      try {
+        const partPayload = spec.supportsSpeechMetadata
+          ? { text: cleanText, speechMetadata: { style } }
+          : { text: cleanText };
+
+        const response = await callWithTransientRetry(
+          () =>
+            aiTts.models.generateContent({
+              model: spec.model,
+              contents: [
+                {
+                  role: 'user',
+                  parts: [partPayload],
+                },
+              ],
+              config: {
+                responseModalities: ['AUDIO'],
+                speechConfig: {
+                  voiceConfig: {
+                    prebuiltVoiceConfig: { voiceName: APP_MALE_VOICE_NAME },
+                  },
+                },
+              },
+            }),
+          1,
+          unaryTimeoutMs
+        );
+
+        const inlineData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+        const base64Audio = inlineData?.data;
+        if (!base64Audio) {
+          throw new Error(`Risposta audio vuota da ${spec.model}.`);
+        }
+
+        const playable = ensurePlayableAudioBase64(base64Audio, inlineData?.mimeType);
+        return {
+          buffer: Buffer.from(playable.audioData, 'base64'),
+          mimeType: playable.mimeType,
+        };
+      } catch (err) {
+        if (isQuotaExhaustedError(err)) {
+          const { retryAfterSeconds, scope } = markModelQuotaBlocked(spec.model, err);
+          lastQuotaErr = new QuotaCooldownError(spec.model, retryAfterSeconds, scope);
+          continue;
+        }
+        // If 2.5-flash-preview-tts or 3.1-flash-tts-preview rejected a very short word with 400 ("Model tried to generate text"), retry once with explicit TTS transcript wrapper
+        const errMsg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+        if (!spec.supportsSpeechMetadata && errMsg.includes('only be used for tts')) {
+          try {
+            const wrappedRes = await withTimeout(
+              aiTts.models.generateContent({
+                model: spec.model,
+                contents: [
+                  {
+                    role: 'user',
+                    parts: [
+                      {
+                        text: `Read aloud in Italian with a warm male voice: "${cleanText}"`,
+                      },
+                    ],
+                  },
+                ],
+                config: {
+                  responseModalities: ['AUDIO'],
+                  speechConfig: {
+                    voiceConfig: {
+                      prebuiltVoiceConfig: { voiceName: APP_MALE_VOICE_NAME },
+                    },
+                  },
+                },
+              }),
+              unaryTimeoutMs
+            );
+            const inlineData = wrappedRes.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+            if (inlineData?.data) {
+              const playable = ensurePlayableAudioBase64(inlineData.data, inlineData?.mimeType);
+              return {
+                buffer: Buffer.from(playable.audioData, 'base64'),
+                mimeType: playable.mimeType,
+              };
+            }
+          } catch (retryErr) {
+            if (isQuotaExhaustedError(retryErr)) {
+              const { retryAfterSeconds, scope } = markModelQuotaBlocked(spec.model, retryErr);
+              lastQuotaErr = new QuotaCooldownError(spec.model, retryAfterSeconds, scope);
+              continue;
+            }
+          }
+        }
+        lastErr = err;
+      }
+    }
+  }
+
+  // Tier 2: Gemini Live Native Audio models (gemini-2.5-flash-native-audio-latest, gemini-3.1-flash-live-preview)
+  // Always uses the exact same Charon Italian male neural voice with natural expressive prosody
+  if (aiLive) {
+    for (const liveModel of LIVE_TTS_MODELS) {
+      const remainingCooldown = getModelQuotaRetrySeconds(liveModel);
+      if (remainingCooldown > 0) {
+        lastQuotaErr = new QuotaCooldownError(
+          liveModel,
+          remainingCooldown,
+          modelQuotaScope.get(liveModel) ?? 'daily'
+        );
+        continue;
+      }
+      try {
+        return await synthesizeViaLiveNativeAudio(
+          liveModel,
+          cleanText,
+          style,
+          liveTimeoutMs
+        );
+      } catch (err) {
+        if (isQuotaExhaustedError(err)) {
+          const { retryAfterSeconds, scope } = markModelQuotaBlocked(liveModel, err);
+          lastQuotaErr = new QuotaCooldownError(liveModel, retryAfterSeconds, scope);
+          continue;
+        }
+        lastErr = err;
+      }
+    }
+  }
+
+  if (lastQuotaErr) {
+    throw lastQuotaErr;
+  }
+  throw lastErr ?? new Error('Servizio vocale maschile temporaneamente non disponibile.');
 }
 
 async function getItalianMaleAudio(
@@ -217,77 +555,24 @@ async function getItalianMaleAudio(
     return { audio: cached, fromCache: true };
   }
 
-  if (!aiTts) {
-    throw new Error('Gemini TTS non configurato sul server.');
+  const existingInFlight = inFlightTtsRequests.get(cacheKey);
+  if (existingInFlight) {
+    return existingInFlight;
   }
 
-  const style = buildItalianMaleSpeechStyle(context, ageYears);
-  let lastQuotaErr: QuotaCooldownError | null = null;
-  let lastErr: unknown = null;
+  const requestPromise = (async (): Promise<{ audio: CachedAudio; fromCache: boolean }> => {
+    const style = buildItalianMaleSpeechStyle(context, ageYears);
+    const audioItem = await synthesizeCharonNeuralAudio(cleanText, style, 13500, 16000);
+    setCachedAudio(cacheKey, audioItem);
+    return { audio: audioItem, fromCache: false };
+  })();
 
-  for (const modelName of TTS_MODEL_CHAIN) {
-    const remainingCooldown = getModelQuotaRetrySeconds(modelName);
-    if (remainingCooldown > 0) {
-      lastQuotaErr = new QuotaCooldownError(modelName, remainingCooldown);
-      continue;
-    }
-
-    try {
-      const response = await callWithTransientRetry(
-        () =>
-          aiTts.models.generateContent({
-            model: modelName,
-            contents: [
-              {
-                role: 'user',
-                parts: [
-                  {
-                    text: cleanText,
-                    speechMetadata: {
-                      style,
-                    },
-                  },
-                ],
-              },
-            ],
-            config: {
-              responseModalities: ['AUDIO'],
-              speechConfig: {
-                voiceConfig: {
-                  prebuiltVoiceConfig: { voiceName: APP_MALE_VOICE_NAME },
-                },
-              },
-            },
-          }),
-        1,
-        10500
-      );
-
-      const inlineData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-      const base64Audio = inlineData?.data;
-      if (!base64Audio) {
-        throw new Error('Risposta audio vuota dal modello TTS.');
-      }
-
-      const playable = ensurePlayableAudioBase64(base64Audio, inlineData?.mimeType);
-      const buffer = Buffer.from(playable.audioData, 'base64');
-      const audioItem: CachedAudio = { buffer, mimeType: playable.mimeType };
-      setCachedAudio(cacheKey, audioItem);
-      return { audio: audioItem, fromCache: false };
-    } catch (err) {
-      if (isQuotaExhaustedError(err)) {
-        const retrySec = markModelQuotaBlocked(modelName, err);
-        lastQuotaErr = new QuotaCooldownError(modelName, retrySec);
-        continue;
-      }
-      lastErr = err;
-    }
+  inFlightTtsRequests.set(cacheKey, requestPromise);
+  try {
+    return await requestPromise;
+  } finally {
+    inFlightTtsRequests.delete(cacheKey);
   }
-
-  if (lastQuotaErr) {
-    throw lastQuotaErr;
-  }
-  throw lastErr ?? new Error('Servizio vocale maschile temporaneamente non disponibile.');
 }
 
 interface OverviewTurn {
@@ -346,18 +631,17 @@ app.get('/healthz', (_req, res) => {
 });
 
 app.get('/api/health', (_req, res) => {
-  const liteRetry = getModelQuotaRetrySeconds(TTS_LITE_MODEL);
-  const studioRetry = getModelQuotaRetrySeconds(TTS_STUDIO_MODEL);
-  const anyModelAvailable = liteRetry === 0 || studioRetry === 0;
+  const retryTimes = ALL_NEURAL_TTS_MODELS.map((m) => getModelQuotaRetrySeconds(m));
+  const anyModelAvailable = retryTimes.some((r) => r === 0);
   const ttsRetryAfterSeconds = anyModelAvailable
     ? 0
-    : Math.min(liteRetry || 3600, studioRetry || 3600);
+    : Math.min(...retryTimes.map((r) => r || 60));
   res.json({
     status: 'ok',
     cachedClips: audioCache.size,
     voiceName: APP_MALE_VOICE_NAME,
     hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
-    ttsLiteAvailable: Boolean(aiTts) && anyModelAvailable,
+    ttsLiteAvailable: Boolean(aiTts || aiLive) && anyModelAvailable,
     ttsRetryAfterSeconds,
   });
 });
@@ -602,71 +886,14 @@ async function getAnimalSoundAudio(
     return { audio: cached, fromCache: true };
   }
 
-  if (!aiTts) {
-    throw new Error('Gemini TTS non configurato sul server.');
-  }
-
-  let lastQuotaErr: QuotaCooldownError | null = null;
-  let lastErr: unknown = null;
-
-  for (const modelName of TTS_MODEL_CHAIN) {
-    const remainingCooldown = getModelQuotaRetrySeconds(modelName);
-    if (remainingCooldown > 0) {
-      lastQuotaErr = new QuotaCooldownError(modelName, remainingCooldown);
-      continue;
-    }
-
-    try {
-      const response = await aiTts.models.generateContent({
-        model: modelName,
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              {
-                text: spec.onomatopoeia,
-                speechMetadata: {
-                  style: spec.style,
-                },
-              },
-            ],
-          },
-        ],
-        config: {
-          responseModalities: ['AUDIO'],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: APP_MALE_VOICE_NAME },
-            },
-          },
-        },
-      });
-
-      const inlineData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-      const base64Audio = inlineData?.data;
-      if (!base64Audio) {
-        throw new Error('Risposta audio vuota per il verso animale.');
-      }
-
-      const playable = ensurePlayableAudioBase64(base64Audio, inlineData?.mimeType);
-      const buffer = Buffer.from(playable.audioData, 'base64');
-      const audioItem: CachedAudio = { buffer, mimeType: playable.mimeType };
-      setCachedAudio(cacheKey, audioItem);
-      return { audio: audioItem, fromCache: false };
-    } catch (err) {
-      if (isQuotaExhaustedError(err)) {
-        const retrySec = markModelQuotaBlocked(modelName, err);
-        lastQuotaErr = new QuotaCooldownError(modelName, retrySec);
-        continue;
-      }
-      lastErr = err;
-    }
-  }
-
-  if (lastQuotaErr) {
-    throw lastQuotaErr;
-  }
-  throw lastErr ?? new Error('Verso vocale temporaneamente occupato.');
+  const audioItem = await synthesizeCharonNeuralAudio(
+    spec.onomatopoeia,
+    spec.style,
+    12000,
+    14000
+  );
+  setCachedAudio(cacheKey, audioItem);
+  return { audio: audioItem, fromCache: false };
 }
 
 // POST /api/animal-sound - Returns expressive cached Gemini vocal animal sound clip
@@ -1267,76 +1494,35 @@ app.post('/api/report-audio-overview', async (req, res) => {
       scriptSource = 'local';
     }
 
-    // 2. Synthesize studio-quality realistic MALE WAV audio (Charon) via ONE clean unary Gemini TTS call:
-    //    Tier 1: gemini-3.8-flash-tts single male speaker (Charon) — flagship realistic male studio voice
-    //    Tier 2: gemini-3.8-flash-lite-tts single male speaker (Charon) — realistic male studio backup
-    //    NEVER fall back to electronic female or robotic browser voices!
+    // 2. Synthesize studio-quality realistic MALE WAV audio (Charon) via the 6-model neural prosody chain
     let synthesizedAudio: { audioData: string; mimeType: string } | null = null;
     let ttsHitQuota = false;
 
-    if (aiTts) {
-      const maleVoiceConfig = {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: APP_MALE_VOICE_NAME },
-          },
-        },
-      };
-
+    if (aiTts || aiLive) {
       const fullMaleNarrationText = turns
         .map((turn) => turn.line.replace(/^Marco\s*:\s*/i, '').trim())
         .filter(Boolean)
         .join(' ');
 
-      const ttsParts = [
-        {
-          text: fullMaleNarrationText,
-          speechMetadata: {
-            style:
-              'Warm, realistic, articulate Italian male pedagogist and child development expert presenting the daily learning report to parents with natural studio cadence and clear diction',
-          },
-        },
-      ];
+      const overviewStyle =
+        'Warm, realistic, articulate Italian male pedagogist and child development expert presenting the daily learning report to parents with natural studio cadence and clear diction';
 
-      const maleTtsAttempts: Array<{ model: string; retries: number; timeoutMs: number }> = [
-        { model: TTS_STUDIO_MODEL, retries: 2, timeoutMs: 65000 },
-        { model: TTS_LITE_MODEL, retries: 1, timeoutMs: 35000 },
-      ];
-
-      for (const ttsCfg of maleTtsAttempts) {
-        if (isModelQuotaBlocked(ttsCfg.model)) {
+      try {
+        const audioItem = await synthesizeCharonNeuralAudio(
+          fullMaleNarrationText,
+          overviewStyle,
+          55000,
+          45000
+        );
+        synthesizedAudio = {
+          audioData: audioItem.buffer.toString('base64'),
+          mimeType: audioItem.mimeType,
+        };
+      } catch (ttsErr) {
+        if (isQuotaExhaustedError(ttsErr)) {
           ttsHitQuota = true;
-          continue;
-        }
-        try {
-          const audioResponse = await callWithTransientRetry(
-            () =>
-              aiTts.models.generateContent({
-                model: ttsCfg.model,
-                contents: [{ role: 'user', parts: ttsParts }],
-                config: maleVoiceConfig,
-              }),
-            ttsCfg.retries,
-            ttsCfg.timeoutMs
-          );
-          const inlineData = audioResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-          if (inlineData?.data) {
-            synthesizedAudio = ensurePlayableAudioBase64(
-              inlineData.data,
-              inlineData.mimeType
-            );
-            break;
-          }
-        } catch (ttsErr) {
-          if (isQuotaExhaustedError(ttsErr)) {
-            markModelQuotaBlocked(ttsCfg.model, ttsErr);
-            ttsHitQuota = true;
-          } else {
-            console.info(
-              `Audio Overview male TTS ${ttsCfg.model} transiently unavailable.`
-            );
-          }
+        } else {
+          console.info('Audio Overview male TTS transiently unavailable:', ttsErr);
         }
       }
     }

@@ -1213,13 +1213,199 @@ export type AgeVisualStageId =
   | 'early_childhood'   // 2-5 anni: Mondo Fiabesco
   | 'primary_explorer'  // 6-8 anni: Accademia Esploratori
   | 'preteen_campus'    // 9-11 anni: Campus Scienze & Logica
-  | 'teen_nextgen';     // 12-14 anni: NextGen Reasoning & STEM Lab
+  | 'teen_nextgen';     // 12-14 anni: NextGen Minimal Studio
+
+export interface GenderSystemPalette {
+  gender: ChildGender;
+  label: string;
+  accentHex: string;
+  accentSoftHex: string;
+  accentBgClass: string;
+  accentBgHoverClass: string;
+  accentTextClass: string;
+  accentSoftBgClass: string;
+  accentBorderClass: string;
+  accentRingClass: string;
+  tabActiveClass: string;
+  badgeClass: string;
+  headerGradientClass: string;
+}
+
+/**
+ * Returns tasteful, high-contrast system colors tailored to the user's gender ('f' | 'm' | 'n')
+ * and progressively refined in saturation/sobriety as the user grows older.
+ */
+export function getGenderSystemPalette(
+  gender: ChildGender | undefined = 'n',
+  stageId: AgeVisualStageId = 'early_childhood'
+): GenderSystemPalette {
+  const g: ChildGender = gender === 'f' || gender === 'm' ? gender : 'n';
+  const isTeen = stageId === 'teen_nextgen';
+  const isCampus = stageId === 'preteen_campus';
+  const isMature = isTeen || isCampus;
+
+  if (g === 'f') {
+    if (isTeen) {
+      return {
+        gender: 'f',
+        label: 'Rose Slate',
+        accentHex: '#e11d48',
+        accentSoftHex: 'rgba(244, 63, 94, 0.14)',
+        accentBgClass: 'bg-rose-600 text-white',
+        accentBgHoverClass: 'hover:bg-rose-500',
+        accentTextClass: 'text-rose-300',
+        accentSoftBgClass: 'bg-rose-500/12 text-rose-200 border-rose-400/25',
+        accentBorderClass: 'border-rose-400/35',
+        accentRingClass: 'ring-rose-400/50',
+        tabActiveClass: 'bg-rose-600 text-white shadow-xs',
+        badgeClass: 'bg-rose-500/15 text-rose-200 border border-rose-400/30',
+        headerGradientClass: 'from-slate-900 via-slate-900 to-rose-950/60',
+      };
+    }
+    if (isCampus) {
+      return {
+        gender: 'f',
+        label: 'Berry Indigo',
+        accentHex: '#db2777',
+        accentSoftHex: 'rgba(236, 72, 153, 0.16)',
+        accentBgClass: 'bg-pink-600 text-white',
+        accentBgHoverClass: 'hover:bg-pink-500',
+        accentTextClass: 'text-pink-300',
+        accentSoftBgClass: 'bg-pink-500/15 text-pink-200 border-pink-400/30',
+        accentBorderClass: 'border-pink-400/35',
+        accentRingClass: 'ring-pink-400/50',
+        tabActiveClass: 'bg-pink-600 text-white shadow-xs',
+        badgeClass: 'bg-pink-500/15 text-pink-200 border border-pink-400/30',
+        headerGradientClass: 'from-slate-900 via-slate-900 to-pink-950/70',
+      };
+    }
+    return {
+      gender: 'f',
+      label: isMature ? 'Rose' : 'Rosa Corallo',
+      accentHex: '#ec4899',
+      accentSoftHex: 'rgba(236, 72, 153, 0.14)',
+      accentBgClass: 'bg-gradient-to-b from-rose-400 to-pink-600 text-white',
+      accentBgHoverClass: 'hover:brightness-105',
+      accentTextClass: 'text-rose-700',
+      accentSoftBgClass: 'bg-rose-50 text-rose-800 border-rose-200',
+      accentBorderClass: 'border-rose-300',
+      accentRingClass: 'ring-rose-300',
+      tabActiveClass: 'bg-gradient-to-b from-rose-400 to-pink-600 text-white shadow-sm',
+      badgeClass: 'bg-rose-100 text-rose-800 border border-rose-200',
+      headerGradientClass: 'from-rose-500 via-pink-500 to-fuchsia-600',
+    };
+  }
+
+  if (g === 'm') {
+    if (isTeen) {
+      return {
+        gender: 'm',
+        label: 'Cobalt Slate',
+        accentHex: '#2563eb',
+        accentSoftHex: 'rgba(56, 189, 248, 0.14)',
+        accentBgClass: 'bg-sky-600 text-white',
+        accentBgHoverClass: 'hover:bg-sky-500',
+        accentTextClass: 'text-sky-300',
+        accentSoftBgClass: 'bg-sky-500/12 text-sky-200 border-sky-400/25',
+        accentBorderClass: 'border-sky-400/35',
+        accentRingClass: 'ring-sky-400/50',
+        tabActiveClass: 'bg-sky-600 text-white shadow-xs',
+        badgeClass: 'bg-sky-500/15 text-sky-200 border border-sky-400/30',
+        headerGradientClass: 'from-slate-900 via-slate-900 to-sky-950/60',
+      };
+    }
+    if (isCampus) {
+      return {
+        gender: 'm',
+        label: 'Ocean Cobalt',
+        accentHex: '#0284c7',
+        accentSoftHex: 'rgba(14, 165, 233, 0.16)',
+        accentBgClass: 'bg-blue-600 text-white',
+        accentBgHoverClass: 'hover:bg-blue-500',
+        accentTextClass: 'text-sky-300',
+        accentSoftBgClass: 'bg-blue-500/15 text-sky-200 border-sky-400/30',
+        accentBorderClass: 'border-sky-400/35',
+        accentRingClass: 'ring-sky-400/50',
+        tabActiveClass: 'bg-blue-600 text-white shadow-xs',
+        badgeClass: 'bg-sky-500/15 text-sky-200 border border-sky-400/30',
+        headerGradientClass: 'from-slate-900 via-slate-900 to-blue-950/70',
+      };
+    }
+    return {
+      gender: 'm',
+      label: 'Azzurro Oceano',
+      accentHex: '#0284c7',
+      accentSoftHex: 'rgba(2, 132, 199, 0.14)',
+      accentBgClass: 'bg-gradient-to-b from-sky-400 to-blue-600 text-white',
+      accentBgHoverClass: 'hover:brightness-105',
+      accentTextClass: 'text-sky-700',
+      accentSoftBgClass: 'bg-sky-50 text-sky-800 border-sky-200',
+      accentBorderClass: 'border-sky-300',
+      accentRingClass: 'ring-sky-300',
+      tabActiveClass: 'bg-gradient-to-b from-sky-400 to-blue-600 text-white shadow-sm',
+      badgeClass: 'bg-sky-100 text-sky-800 border border-sky-200',
+      headerGradientClass: 'from-sky-500 via-blue-600 to-indigo-600',
+    };
+  }
+
+  // Neutral ('n')
+  if (isTeen) {
+    return {
+      gender: 'n',
+      label: 'Sage Slate',
+      accentHex: '#0d9488',
+      accentSoftHex: 'rgba(20, 184, 166, 0.14)',
+      accentBgClass: 'bg-teal-600 text-white',
+      accentBgHoverClass: 'hover:bg-teal-500',
+      accentTextClass: 'text-teal-300',
+      accentSoftBgClass: 'bg-teal-500/12 text-teal-200 border-teal-400/25',
+      accentBorderClass: 'border-teal-400/35',
+      accentRingClass: 'ring-teal-400/50',
+      tabActiveClass: 'bg-teal-600 text-white shadow-xs',
+      badgeClass: 'bg-teal-500/15 text-teal-200 border border-teal-400/30',
+      headerGradientClass: 'from-slate-900 via-slate-900 to-teal-950/60',
+    };
+  }
+  if (isCampus) {
+    return {
+      gender: 'n',
+      label: 'Emerald Slate',
+      accentHex: '#059669',
+      accentSoftHex: 'rgba(16, 185, 129, 0.16)',
+      accentBgClass: 'bg-emerald-600 text-white',
+      accentBgHoverClass: 'hover:bg-emerald-500',
+      accentTextClass: 'text-emerald-300',
+      accentSoftBgClass: 'bg-emerald-500/15 text-emerald-200 border-emerald-400/30',
+      accentBorderClass: 'border-emerald-400/35',
+      accentRingClass: 'ring-emerald-400/50',
+      tabActiveClass: 'bg-emerald-600 text-white shadow-xs',
+      badgeClass: 'bg-emerald-500/15 text-emerald-200 border border-emerald-400/30',
+      headerGradientClass: 'from-slate-900 via-slate-900 to-emerald-950/70',
+    };
+  }
+  return {
+    gender: 'n',
+    label: 'Smeraldo Solare',
+    accentHex: '#10b981',
+    accentSoftHex: 'rgba(16, 185, 129, 0.14)',
+    accentBgClass: 'bg-gradient-to-b from-emerald-400 to-teal-600 text-white',
+    accentBgHoverClass: 'hover:brightness-105',
+    accentTextClass: 'text-emerald-700',
+    accentSoftBgClass: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    accentBorderClass: 'border-emerald-300',
+    accentRingClass: 'ring-emerald-300',
+    tabActiveClass: 'bg-gradient-to-b from-emerald-400 to-teal-600 text-white shadow-sm',
+    badgeClass: 'bg-emerald-100 text-emerald-800 border border-emerald-200',
+    headerGradientClass: 'from-emerald-500 via-teal-600 to-cyan-600',
+  };
+}
 
 export interface AgeVisualTheme {
   stageId: AgeVisualStageId;
   stageBadge: string;
   stageSubtitle: string;
   isMatureTheme: boolean;
+  isMinimalTheme: boolean;
   showAnimalMascotGuides: boolean;
   guideRolePrefix: string;
   fontHeadingClass: string;
@@ -1231,6 +1417,7 @@ export interface AgeVisualTheme {
   primaryCtaGradientClass: string;
   primaryCtaBorderClass: string;
   primaryCtaTextClass: string;
+  genderPalette: GenderSystemPalette;
   secondaryCardClasses: {
     chest: string;
     svago: string;
@@ -1256,94 +1443,90 @@ export interface AgeVisualTheme {
 /**
  * Gradually evolves the app's visual graphic design, typography, palette, and terminology
  * as the user grows from 2 to 14 years old — moving from a warm fairytale world (2-5)
- * to an Explorer Academy (6-8), a STEM & Logic Campus (9-11), and a sleek NextGen Lab (12-14).
+ * to a clean Explorer Academy (6-8), a sober STEM & Logic Campus (9-11), and an ultra-minimal
+ * monochrome NextGen Studio (12-14), while respecting the user's gender for system accent colors.
  */
 export function getAgeVisualTheme(
   ageYears: number,
-  childName?: string
+  childName?: string,
+  gender: ChildGender | undefined = 'n'
 ): AgeVisualTheme {
   const cleanName = childName?.trim() || '';
 
-  // STAGE 4: 12-14 ANNI (Scuola Media / Ragazzi — Sleek NextGen Reasoning & STEM Lab)
+  // STAGE 4: 12-14 ANNI (Ultra-Minimal & Sober NextGen Studio + Gender System Accent)
   if (ageYears >= 12) {
+    const genderPalette = getGenderSystemPalette(gender, 'teen_nextgen');
     return {
       stageId: 'teen_nextgen',
-      stageBadge: 'NextGen Lab · 12–14 Anni',
-      stageSubtitle: 'Reasoning, STEM & Cognitive Studio',
+      stageBadge: 'Studio · 12–14 Anni',
+      stageSubtitle: 'Logica, STEM & Problem Solving',
       isMatureTheme: true,
+      isMinimalTheme: true,
       showAnimalMascotGuides: false,
       guideRolePrefix: 'Coach Didattico',
       fontHeadingClass: 'font-fun tracking-tight',
       cardRadiusClass: 'rounded-xl',
       bgOverlayClass:
-        'bg-gradient-to-b from-slate-950/92 via-indigo-950/88 to-slate-950/95',
+        'bg-gradient-to-b from-slate-950/94 via-slate-950/92 to-slate-950/96',
       headerSurfaceClass:
-        'bg-slate-900/95 border border-indigo-400/35 shadow-[0_8px_30px_rgba(15,23,42,0.85)]',
+        `bg-slate-900/95 border ${genderPalette.accentBorderClass} shadow-sm`,
       headerTitleColorClass: 'text-slate-100',
-      headerAccentColorClass: 'text-cyan-400',
-      primaryCtaGradientClass:
-        'bg-gradient-to-r from-indigo-900 via-slate-900 to-cyan-950',
-      primaryCtaBorderClass:
-        'border-2 border-cyan-400/50 shadow-[0_8px_24px_rgba(6,182,212,0.22)]',
+      headerAccentColorClass: genderPalette.accentTextClass,
+      primaryCtaGradientClass: 'bg-slate-900',
+      primaryCtaBorderClass: `border ${genderPalette.accentBorderClass}`,
       primaryCtaTextClass: 'text-white',
+      genderPalette,
       secondaryCardClasses: {
-        chest:
-          'bg-slate-900/95 border border-amber-400/40 text-slate-100 shadow-lg',
-        svago:
-          'bg-slate-900/95 border border-emerald-400/40 text-slate-100 shadow-lg',
-        studio:
-          'bg-slate-900/95 border border-indigo-400/40 text-slate-100 shadow-lg',
-        zoo:
-          'bg-slate-900/95 border border-cyan-400/40 text-slate-100 shadow-lg',
+        chest: 'bg-slate-900/95 border border-white/10 text-slate-100',
+        svago: 'bg-slate-900/95 border border-white/10 text-slate-100',
+        studio: 'bg-slate-900/95 border border-white/10 text-slate-100',
+        zoo: 'bg-slate-900/95 border border-white/10 text-slate-100',
       },
       labels: {
-        worldPrefix: cleanName ? `Hub di ${cleanName}` : 'NextGen Learning Hub',
+        worldPrefix: cleanName ? `Workspace · ${cleanName}` : 'Learning Studio',
         playMainTitle: (lvl) => `Sessione #${lvl}`,
-        playMainSub: 'Logica, Problem Solving & STEM',
+        playMainSub: 'Logica, STEM & Ragionamento',
         dailyMissionTitle: 'Target Giornaliero (5 Moduli)',
-        chestTitle: 'Milestone & Badge',
-        chestSub: 'Traguardi & Riconoscimenti',
+        chestTitle: 'Traguardi & Badge',
+        chestSub: 'Progressi & Archivio',
         svagoTitle: 'Mind Games',
-        svagoSub: 'Labirinto, Differenze, Strategia',
-        studioTitle: 'Digital Sketchpad',
-        studioSub: 'Tavola Grafica & Design',
+        svagoSub: 'Labirinto · Analisi · Strategia',
+        studioTitle: 'Sketchpad',
+        studioSub: 'Tavola Grafica Minimal',
         zooTitle: 'Bio-Acustica',
-        zooSub: 'Archivio Suoni & Natura',
+        zooSub: 'Etologia & Suoni Natura',
       },
     };
   }
 
-  // STAGE 3: 9-11 ANNI (Primaria Superiore / Pre-Teen — Campus Scienze & Logica)
+  // STAGE 3: 9-11 ANNI (Sober & Clean Campus + Gender System Accent)
   if (ageYears >= 9) {
+    const genderPalette = getGenderSystemPalette(gender, 'preteen_campus');
     return {
       stageId: 'preteen_campus',
       stageBadge: 'Campus · 9–11 Anni',
       stageSubtitle: 'Logica, Scienze & Lingue',
       isMatureTheme: true,
+      isMinimalTheme: true,
       showAnimalMascotGuides: false,
       guideRolePrefix: 'Tutor del Campus',
       fontHeadingClass: 'font-fun tracking-tight',
       cardRadiusClass: 'rounded-2xl',
       bgOverlayClass:
-        'bg-gradient-to-b from-slate-950/80 via-indigo-950/75 to-slate-950/90',
+        'bg-gradient-to-b from-slate-950/86 via-slate-900/82 to-slate-950/92',
       headerSurfaceClass:
-        'bg-slate-900/92 border-2 border-sky-400/45 shadow-[0_8px_24px_rgba(14,165,233,0.2)]',
+        `bg-slate-900/94 border ${genderPalette.accentBorderClass} shadow-md`,
       headerTitleColorClass: 'text-white',
-      headerAccentColorClass: 'text-sky-300',
-      primaryCtaGradientClass:
-        'bg-gradient-to-r from-sky-900 via-indigo-900 to-violet-900',
-      primaryCtaBorderClass:
-        'border-2 border-sky-300/60 shadow-[0_6px_18px_rgba(56,189,248,0.25)]',
+      headerAccentColorClass: genderPalette.accentTextClass,
+      primaryCtaGradientClass: 'bg-slate-900',
+      primaryCtaBorderClass: `border ${genderPalette.accentBorderClass}`,
       primaryCtaTextClass: 'text-white',
+      genderPalette,
       secondaryCardClasses: {
-        chest:
-          'bg-slate-900/90 border-2 border-amber-400/50 text-white shadow-md',
-        svago:
-          'bg-slate-900/90 border-2 border-emerald-400/50 text-white shadow-md',
-        studio:
-          'bg-slate-900/90 border-2 border-violet-400/50 text-white shadow-md',
-        zoo:
-          'bg-slate-900/90 border-2 border-sky-400/50 text-white shadow-md',
+        chest: 'bg-slate-900/92 border border-white/12 text-white',
+        svago: 'bg-slate-900/92 border border-white/12 text-white',
+        studio: 'bg-slate-900/92 border border-white/12 text-white',
+        zoo: 'bg-slate-900/92 border border-white/12 text-white',
       },
       labels: {
         worldPrefix: cleanName ? `Campus di ${cleanName}` : 'Campus Educativo',
@@ -1353,46 +1536,43 @@ export function getAgeVisualTheme(
         chestTitle: 'Collezione & Premi',
         chestSub: 'Badge & Traguardi',
         svagoTitle: 'Brain Games',
-        svagoSub: 'Labirinto, Differenze, Tris',
+        svagoSub: 'Labirinto · Differenze · Tris',
         studioTitle: 'Studio Creativo',
-        studioSub: 'Illustrazione & Progetti',
+        studioSub: 'Disegno & Progetti',
         zooTitle: 'Atlante Natura',
-        zooSub: 'Suoni & Curiosità Animali',
+        zooSub: 'Specie, Suoni & Habitat',
       },
     };
   }
 
-  // STAGE 2: 6-8 ANNI (Scuola Primaria — Accademia degli Esploratori)
+  // STAGE 2: 6-8 ANNI (Clean Explorer Academy — Lighter, Structured & Gender-Tinted)
   if (ageYears >= 6) {
+    const genderPalette = getGenderSystemPalette(gender, 'primary_explorer');
     return {
       stageId: 'primary_explorer',
       stageBadge: 'Accademia · 6–8 Anni',
-      stageSubtitle: 'Scuola Primaria & Avventura',
+      stageSubtitle: 'Scuola Primaria & Scoperta',
       isMatureTheme: false,
+      isMinimalTheme: false,
       showAnimalMascotGuides: true,
       guideRolePrefix: 'Mentore Esploratore',
       fontHeadingClass: 'font-fun',
       cardRadiusClass: 'rounded-2xl',
       bgOverlayClass:
-        'bg-gradient-to-b from-indigo-950/35 via-slate-900/25 to-slate-950/60',
+        'bg-gradient-to-b from-slate-950/30 via-slate-900/20 to-slate-950/55',
       headerSurfaceClass:
-        'bg-white/95 border-2 border-sky-400 shadow-[0_5px_0_#0284c7]',
+        `bg-white/95 border-2 ${genderPalette.accentBorderClass} shadow-md`,
       headerTitleColorClass: 'text-slate-900',
-      headerAccentColorClass: 'text-sky-600',
-      primaryCtaGradientClass:
-        'bg-gradient-to-r from-sky-50 via-white to-emerald-50',
-      primaryCtaBorderClass:
-        'border-[3px] border-sky-400 shadow-[0_6px_0_#0284c7]',
+      headerAccentColorClass: genderPalette.accentTextClass,
+      primaryCtaGradientClass: 'bg-white',
+      primaryCtaBorderClass: `border-2 ${genderPalette.accentBorderClass}`,
       primaryCtaTextClass: 'text-slate-900',
+      genderPalette,
       secondaryCardClasses: {
-        chest:
-          'bg-gradient-to-b from-amber-50 to-orange-100/95 border-[3px] border-amber-400 shadow-[0_5px_0_#d97706] text-slate-900',
-        svago:
-          'bg-gradient-to-b from-emerald-50 to-teal-100/95 border-[3px] border-emerald-400 shadow-[0_5px_0_#059669] text-slate-900',
-        studio:
-          'bg-gradient-to-b from-violet-50 to-indigo-100/95 border-[3px] border-violet-400 shadow-[0_5px_0_#7c3aed] text-slate-900',
-        zoo:
-          'bg-gradient-to-b from-sky-50 to-cyan-100/95 border-[3px] border-sky-400 shadow-[0_5px_0_#0284c7] text-slate-900',
+        chest: 'bg-white/95 border-2 border-amber-300 text-slate-900',
+        svago: 'bg-white/95 border-2 border-emerald-300 text-slate-900',
+        studio: `bg-white/95 border-2 ${genderPalette.accentBorderClass} text-slate-900`,
+        zoo: 'bg-white/95 border-2 border-sky-300 text-slate-900',
       },
       labels: {
         worldPrefix: cleanName ? `Il Mondo di ${cleanName}` : 'Il Mio Mondo',
@@ -1402,45 +1582,47 @@ export function getAgeVisualTheme(
         chestTitle: 'Scrigno & Album',
         chestSub: 'Figurine & Tesori',
         svagoTitle: 'Giochi & Sfide',
-        svagoSub: 'Labirinto, Differenze, Tris',
+        svagoSub: 'Labirinto · Differenze · Tris',
         studioTitle: 'Laboratorio Arte',
         studioSub: 'Disegna e Crea',
         zooTitle: 'Mondo Animale',
-        zooSub: 'Voci e Suoni della Natura',
+        zooSub: 'Suoni e Curiosità',
       },
     };
   }
 
-  // STAGE 1: 2-5 ANNI (Prima Infanzia — Mondo Fiabesco)
+  // STAGE 1: 2-5 ANNI (Warm Storybook World + Gender-Tinted System Accents)
+  const genderPalette = getGenderSystemPalette(gender, 'early_childhood');
   return {
     stageId: 'early_childhood',
     stageBadge: 'Mondo Fiabesco · 2–5 Anni',
     stageSubtitle: 'Scoperta Guidata & Gioco',
     isMatureTheme: false,
+    isMinimalTheme: false,
     showAnimalMascotGuides: true,
     guideRolePrefix: 'Amico Guida',
     fontHeadingClass: 'font-kids',
-    cardRadiusClass: 'rounded-[22px] sm:rounded-[28px]',
+    cardRadiusClass: 'rounded-[22px] sm:rounded-[26px]',
     bgOverlayClass:
       'bg-gradient-to-b from-sky-950/20 via-transparent to-slate-950/45',
     headerSurfaceClass:
-      'bg-white/95 border-2 border-amber-300 shadow-[0_5px_0_#f59e0b]',
-    headerTitleColorClass: 'text-indigo-950',
-    headerAccentColorClass: 'text-pink-600',
+      `bg-white/95 border-2 ${genderPalette.accentBorderClass} shadow-md`,
+    headerTitleColorClass: 'text-slate-900',
+    headerAccentColorClass: genderPalette.accentTextClass,
     primaryCtaGradientClass:
-      'bg-gradient-to-r from-amber-50 via-white to-pink-50',
-    primaryCtaBorderClass:
-      'border-[3px] border-amber-300 shadow-[0_6px_0_#d97706]',
-    primaryCtaTextClass: 'text-indigo-950',
+      'bg-gradient-to-r from-amber-50 via-white to-rose-50',
+    primaryCtaBorderClass: `border-[3px] ${genderPalette.accentBorderClass}`,
+    primaryCtaTextClass: 'text-slate-900',
+    genderPalette,
     secondaryCardClasses: {
       chest:
-        'bg-gradient-to-b from-amber-50 to-orange-100/95 border-[3px] border-amber-300 shadow-[0_5px_0_#d97706] text-indigo-950',
+        'bg-gradient-to-b from-amber-50 to-orange-100/95 border-[3px] border-amber-300 text-slate-900',
       svago:
-        'bg-gradient-to-b from-emerald-50 to-teal-100/95 border-[3px] border-emerald-300 shadow-[0_5px_0_#059669] text-emerald-950',
+        'bg-gradient-to-b from-emerald-50 to-teal-100/95 border-[3px] border-emerald-300 text-emerald-950',
       studio:
-        'bg-gradient-to-b from-fuchsia-50 to-pink-100/95 border-[3px] border-pink-300 shadow-[0_5px_0_#db2777] text-fuchsia-950',
+        `bg-gradient-to-b from-white to-slate-50 border-[3px] ${genderPalette.accentBorderClass} text-slate-900`,
       zoo:
-        'bg-gradient-to-b from-orange-50 to-amber-100/95 border-[3px] border-orange-300 shadow-[0_5px_0_#ea580c] text-amber-950',
+        'bg-gradient-to-b from-orange-50 to-amber-100/95 border-[3px] border-orange-300 text-amber-950',
     },
     labels: {
       worldPrefix: cleanName ? `Il Mondo di ${cleanName}` : 'Il Mio Mondo',
@@ -1450,12 +1632,13 @@ export function getAgeVisualTheme(
       chestTitle: 'Scrigno Magico',
       chestSub: 'Figurine & Suoni',
       svagoTitle: 'Giochi di Svago',
-      svagoSub: 'Labirinto, Differenze, Tris',
+      svagoSub: 'Labirinto · Differenze · Tris',
       studioTitle: 'Colora & Disegna',
       studioSub: 'Pennelli & Adesivi',
       zooTitle: 'Zoo Parlante',
-      zooSub: 'Tocca e Ascolta i Versi!',
+      zooSub: 'Tocca e Ascolta i Versi',
     },
   };
 }
+
 
