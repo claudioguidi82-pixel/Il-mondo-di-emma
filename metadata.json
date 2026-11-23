@@ -1,6 +1,6 @@
 {
   "name": "Il Mondo di Emma",
-  "description": "Un gioco magico ed educativo per Emma (5 anni) con lettere, numeri, animali parlanti, guardaroba evolutivo, studio di disegno e diario digitale.",
+  "description": "Piattaforma educativa e di gioco adattiva per tutti i bambini e i ragazzi da 2 a 14 anni, con livelli progressivi personalizzati per fascia d'età, logica, matematica, lettere, scienze, arte, musica, inglese, giochi di svago e report pedagogico con Audio Overview per i genitori.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -49,7 +49,7 @@ export interface AgeEnglishEntry {
 // =========================================================================
 export const TODDLER_ANIMALS: AgeQuizEntry[] = [
   {
-    prompt: 'Chi fa "MIAO MIAO" e ama fare le fusa? 🐱',
+    prompt: 'Chi fa "MIAO MIAO" e ama fare le fusa? 🐾',
     speech: 'Ascolta bene: chi fa Miao Miao e ama le coccole?',
     correct: { label: 'Gattino', emoji: '🐱', sublabel: 'Fa Miao!' },
     distractors: [
@@ -59,7 +59,7 @@ export const TODDLER_ANIMALS: AgeQuizEntry[] = [
     explanation: 'Sì! Il dolce gattino fa Miao Miao!',
   },
   {
-    prompt: 'Chi fa "BAU BAU" e scodinzola felice? 🐶',
+    prompt: 'Chi fa "BAU BAU" e scodinzola felice? 🐾',
     speech: 'Chi è l\'amico che fa Bau Bau e muove la codina?',
     correct: { label: 'Cagnolino', emoji: '🐶', sublabel: 'Fa Bau Bau!' },
     distractors: [
@@ -69,7 +69,7 @@ export const TODDLER_ANIMALS: AgeQuizEntry[] = [
     explanation: 'Esatto! Il cagnolino fa Bau Bau!',
   },
   {
-    prompt: 'Chi fa "MUUU" nel prato verde? 🐄',
+    prompt: 'Chi fa "MUUU" nel prato verde? 🐾',
     speech: 'In fattoria, chi fa Muuu e ci dona il latte?',
     correct: { label: 'Mucca', emoji: '🐄', sublabel: 'Fa Muuu!' },
     distractors: [
@@ -79,7 +79,7 @@ export const TODDLER_ANIMALS: AgeQuizEntry[] = [
     explanation: 'Proprio la mucca! Fa Muuu sul prato verde!',
   },
   {
-    prompt: 'Chi fa "CIP CIP" volando nel cielo azzurro? 🐦',
+    prompt: 'Chi fa "CIP CIP" volando nel cielo azzurro? 🐾',
     speech: 'Guarda in alto sugli alberi: chi canta Cip Cip?',
     correct: { label: 'Uccellino', emoji: '🐦', sublabel: 'Fa Cip Cip!' },
     distractors: [
@@ -89,7 +89,7 @@ export const TODDLER_ANIMALS: AgeQuizEntry[] = [
     explanation: 'Sì! Il piccolo uccellino canta Cip Cip!',
   },
   {
-    prompt: 'Chi salta nello stagno e fa "CRA CRA"? 🐸',
+    prompt: 'Chi salta nello stagno e fa "CRA CRA"? 🐾',
     speech: 'Chi è tutta verde, salta sulle foglie e fa Cra Cra?',
     correct: { label: 'Ranocchia', emoji: '🐸', sublabel: 'Fa Cra Cra!' },
     distractors: [
@@ -99,7 +99,7 @@ export const TODDLER_ANIMALS: AgeQuizEntry[] = [
     explanation: 'Bravissimo! La ranocchia salta e fa Cra Cra!',
   },
   {
-    prompt: 'Chi ruggisce forte facendo "ROAAAR"? 🦁',
+    prompt: 'Chi ruggisce forte facendo "ROAAAR"? 🐾',
     speech: 'Nella savana chi ha la criniera e fa Roaaar?',
     correct: { label: 'Leone', emoji: '🦁', sublabel: 'Fa Roaaar!' },
     distractors: [
@@ -107,6 +107,46 @@ export const TODDLER_ANIMALS: AgeQuizEntry[] = [
       { label: 'Pesce', emoji: '🐠', sublabel: 'Sta nel mare' },
     ],
     explanation: 'Esatto! Il leone fa un ruggito Roaaar!',
+  },
+  {
+    prompt: 'Chi ha la proboscide lunga e fa "PAAAH"? 🐾',
+    speech: 'Ascolta questo grande amico: chi ha la proboscide lunga lunga?',
+    correct: { label: 'Elefante', emoji: '🐘', sublabel: 'Ha la proboscide!' },
+    distractors: [
+      { label: 'Gattino', emoji: '🐱', sublabel: 'È piccolino' },
+      { label: 'Banana', emoji: '🍌', sublabel: 'È un frutto' },
+    ],
+    explanation: 'Sì! Il grande elefante ha la proboscide!',
+  },
+  {
+    prompt: 'Chi galoppa veloce nel prato e nitrisce? 🐾',
+    speech: 'Chi corre allegro nel prato e fa un bel nitrito?',
+    correct: { label: 'Cavallo', emoji: '🐴', sublabel: 'Galoppa nel prato!' },
+    distractors: [
+      { label: 'Pesce', emoji: '🐟', sublabel: 'Nuota in acqua' },
+      { label: 'Palla', emoji: '⚽', sublabel: 'Rotola' },
+    ],
+    explanation: 'Bravissimo! Il cavallino galoppa nel prato!',
+  },
+  {
+    prompt: 'Chi ha il collo altissimo per mangiare le foglie? 🐾',
+    speech: 'Guarda che collo lungo lungo! Quale animale è la giraffa?',
+    correct: { label: 'Giraffa', emoji: '🦒', sublabel: 'Ha il collo lungo!' },
+    distractors: [
+      { label: 'Tartaruga', emoji: '🐢', sublabel: 'È bassina' },
+      { label: 'Mela', emoji: '🍎', sublabel: 'Si mangia' },
+    ],
+    explanation: 'Esatto! La giraffa ha un collo lunghissimo!',
+  },
+  {
+    prompt: 'Chi canta "CHICCHIRICHÌ" la mattina presto? 🐾',
+    speech: 'Quando spunta il sole, chi sveglia la fattoria facendo Chicchirichì?',
+    correct: { label: 'Gallo', emoji: '🐓', sublabel: 'Fa Chicchirichì!' },
+    distractors: [
+      { label: 'Balena', emoji: '🐳', sublabel: 'Sta nel mare' },
+      { label: 'Auto', emoji: '🚗', sublabel: 'Va su strada' },
+    ],
+    explanation: 'Proprio il gallo! Canta Chicchirichì al mattino!',
   },
 ];
 
@@ -171,11 +211,41 @@ export const TODDLER_COLORS_SHAPES: AgeQuizEntry[] = [
     ],
     explanation: 'Evviva! Hai riconosciuto subito la stellina!',
   },
+  {
+    prompt: 'Tocca il CUORE rosso pieno di coccole! ❤️',
+    speech: 'Dove si trova il cuoricino rosso? Tocca il cuore!',
+    correct: { label: 'Cuore', emoji: '❤️', sublabel: 'Un bel cuore rosso!', color: '#ef4444' },
+    distractors: [
+      { label: 'Quadrato', emoji: '🟦', sublabel: 'È un quadrato' },
+      { label: 'Triangolo', emoji: '🔺', sublabel: 'Ha 3 punte' },
+    ],
+    explanation: 'Bravissimo! Hai trovato il cuoricino rosso!',
+  },
+  {
+    prompt: 'Quale di questi è di colore ARANCIONE come l\'arancia? 🟠',
+    speech: 'Tocca il colore arancione brillante come una dolce arancia!',
+    correct: { label: 'Arancione', emoji: '🍊', sublabel: 'Colore Arancione!', color: '#f97316' },
+    distractors: [
+      { label: 'Blu', emoji: '🐳', sublabel: 'Colore Blu', color: '#3b82f6' },
+      { label: 'Verde', emoji: '🐸', sublabel: 'Colore Verde', color: '#10b981' },
+    ],
+    explanation: 'Sì! L\'arancia è tutta arancione!',
+  },
+  {
+    prompt: 'Quale di questi è di colore ROSA come un fiorellino? 🌸',
+    speech: 'Cerca il colore rosa dolce come il fiorellino!',
+    correct: { label: 'Rosa', emoji: '🌸', sublabel: 'Colore Rosa!', color: '#ec4899' },
+    distractors: [
+      { label: 'Giallo', emoji: '☀️', sublabel: 'Colore Giallo', color: '#eab308' },
+      { label: 'Blu', emoji: '🔵', sublabel: 'Colore Blu', color: '#3b82f6' },
+    ],
+    explanation: 'Bravissimo! Il fiorellino è proprio Rosa!',
+  },
 ];
 
 export const TODDLER_LOGIC: AgeQuizEntry[] = [
   {
-    prompt: 'Chi è più GRANDE tra l\'Elefante e la Formichina? 🐘',
+    prompt: 'Chi è più GRANDE tra l\'Elefante e la Formichina? 🔎',
     speech: 'Guarda bene: quale animale è grandissimo?',
     correct: { label: 'Elefante', emoji: '🐘', sublabel: 'È grandissimo!' },
     distractors: [
@@ -230,11 +300,66 @@ export const TODDLER_LOGIC: AgeQuizEntry[] = [
     explanation: 'Esatto! La macchinina è per giocare, non da mangiare!',
     iqParameterTag: 'Categorizzazione Base (Gf)',
   },
+  {
+    prompt: 'Chi vola alto alto nel cielo tra le nuvole? ☁️',
+    speech: 'Guarda su nel cielo! Quale mezzo vola tra le nuvole?',
+    correct: { label: 'Aereo', emoji: '✈️', sublabel: 'Vola nel cielo!' },
+    distractors: [
+      { label: 'Motoscafo', emoji: '🚤', sublabel: 'Va sul mare' },
+      { label: 'Treno', emoji: '🚂', sublabel: 'Va sui binari' },
+    ],
+    explanation: 'Sì! L\'aereo vola in alto nel cielo azzurro!',
+    iqParameterTag: 'Mezzi & Ambienti (Gc · Gv)',
+  },
+  {
+    prompt: 'Chi corre sulle onde del mare azzurro? 🌊',
+    speech: 'Guarda il mare blu! Quale mezzo naviga sull\'acqua?',
+    correct: { label: 'Motoscafo', emoji: '🚤', sublabel: 'Naviga sul mare!' },
+    distractors: [
+      { label: 'Aereo', emoji: '✈️', sublabel: 'Vola in cielo' },
+      { label: 'Bicicletta', emoji: '🚲', sublabel: 'Va su strada' },
+    ],
+    explanation: 'Bravissimo! Il motoscafo sfreccia sul mare!',
+    iqParameterTag: 'Mezzi & Ambienti (Gc · Gv)',
+  },
+  {
+    prompt: 'Quando dormiamo la notte, cosa splende in cielo? 🌙',
+    speech: 'Quando è buio e facciamo la nanna, cosa brilla nel cielo di notte?',
+    correct: { label: 'Luna', emoji: '🌙', sublabel: 'Splende di notte!' },
+    distractors: [
+      { label: 'Sole', emoji: '☀️', sublabel: 'Splende di giorno' },
+      { label: 'Ombrello', emoji: '☂️', sublabel: 'Serve con la pioggia' },
+    ],
+    explanation: 'Esatto! Di notte splende la dolce Luna!',
+    iqParameterTag: 'Giorno & Notte (Gc · Gf)',
+  },
+  {
+    prompt: 'Cosa usiamo quando piove per non bagnarci? 🌧️',
+    speech: 'Cadono le goccioline di pioggia! Cosa apriamo sopra la testa?',
+    correct: { label: 'Ombrello', emoji: '☂️', sublabel: 'Ripara dalla pioggia!' },
+    distractors: [
+      { label: 'Gelato', emoji: '🍦', sublabel: 'Si mangia d\'estate' },
+      { label: 'Pallone', emoji: '⚽', sublabel: 'È per giocare' },
+    ],
+    explanation: 'Proprio l\'ombrello! Così restiamo asciutti!',
+    iqParameterTag: 'Vita Quotidiana (Gc · Gf)',
+  },
+  {
+    prompt: 'Chi è più PICCOLINO tra la Coccinella e l\'Elefante? 🔎',
+    speech: 'Osserva bene: quale di questi due amici è piccolino piccolino?',
+    correct: { label: 'Coccinella', emoji: '🐞', sublabel: 'È piccolina!' },
+    distractors: [
+      { label: 'Elefante', emoji: '🐘', sublabel: 'È grandissimo' },
+      { label: 'Balena', emoji: '🐳', sublabel: 'È enorme' },
+    ],
+    explanation: 'Esatto! La coccinella è piccolina piccolina!',
+    iqParameterTag: 'Confronto Grandezze (Gv · Gf)',
+  },
 ];
 
 export const TODDLER_LETTERS: AgeQuizEntry[] = [
   {
-    prompt: 'Quale parolina inizia con la "A" come APE? 🐝',
+    prompt: 'Quale parolina inizia con la "A" come APE? 🔤',
     speech: 'Ascolta il suono Aaa! Tocca l\'Ape che inizia con la lettera A!',
     correct: { label: 'Ape 🐝', emoji: '🐝', sublabel: 'A di Ape!' },
     distractors: [
@@ -244,7 +369,7 @@ export const TODDLER_LETTERS: AgeQuizEntry[] = [
     explanation: 'Sì! A come Ape!',
   },
   {
-    prompt: 'Quale frutto inizia con la "M" come MELA? 🍎',
+    prompt: 'Quale frutto inizia con la "M" come MELA? 🔤',
     speech: 'Ascolta il suono Mmm! Tocca la Mela!',
     correct: { label: 'Mela 🍎', emoji: '🍎', sublabel: 'M di Mela!' },
     distractors: [
@@ -254,7 +379,7 @@ export const TODDLER_LETTERS: AgeQuizEntry[] = [
     explanation: 'Esatto! M come Mela!',
   },
   {
-    prompt: 'Quale figura splende in cielo e inizia con "S" come SOLE? ☀️',
+    prompt: 'Quale figura splende in cielo e inizia con "S" come SOLE? 🔤',
     speech: 'Ascolta il suono Sss! Tocca il Sole splendente!',
     correct: { label: 'Sole ☀️', emoji: '☀️', sublabel: 'S di Sole!' },
     distractors: [
@@ -264,7 +389,7 @@ export const TODDLER_LETTERS: AgeQuizEntry[] = [
     explanation: 'Proprio il Sole! Inizia con la lettera S!',
   },
   {
-    prompt: 'Quale animale inizia con la "O" come ORSO? 🐻',
+    prompt: 'Quale animale inizia con la "O" come ORSO? 🔤',
     speech: 'Ascolta la vocale Ooo! Quale animale inizia con O?',
     correct: { label: 'Orso 🐻', emoji: '🐻', sublabel: 'O di Orso!' },
     distractors: [
@@ -337,7 +462,7 @@ export const EARLY_PRIMARY_SCIENCE: AgeQuizEntry[] = [
     explanation: 'Esatto! Marte appare rosso perché il suo suolo è ricco di ossido di ferro!',
   },
   {
-    prompt: 'Quale parte della pianta assorbe l\'acqua e i sali minerali dal terreno? 🌱',
+    prompt: 'Quale parte della pianta assorbe l\'acqua e i sali minerali dal terreno? 🌿',
     speech: 'Scienze della natura: quale parte dell\'albero sta sotto terra e beve l\'acqua dalla pioggia?',
     correct: { label: 'Le Radici', emoji: '🌱', sublabel: 'Nutrono la pianta!' },
     distractors: [
@@ -347,7 +472,7 @@ export const EARLY_PRIMARY_SCIENCE: AgeQuizEntry[] = [
     explanation: 'Perfetto! Le radici ancorano la pianta al suolo e assorbono acqua e nutrienti!',
   },
   {
-    prompt: 'A quale temperatura (in gradi) l\'acqua liquida si trasforma in GHIACCIO solido? 🧊',
+    prompt: 'A quale temperatura (in gradi) l\'acqua liquida si trasforma in GHIACCIO solido? 🌡️',
     speech: 'Esperimento scientifico: quando fa tanto freddo, a quanti gradi l\'acqua congela e diventa ghiaccio?',
     correct: { label: '0 Gradi (0°C)', emoji: '🧊', sublabel: 'Punto di congelamento!' },
     distractors: [
@@ -357,7 +482,7 @@ export const EARLY_PRIMARY_SCIENCE: AgeQuizEntry[] = [
     explanation: 'Geniale! A 0 gradi centigradi l\'acqua ghiaccia, mentre a 100 gradi bolle!',
   },
   {
-    prompt: 'Quali animali sono MAMMIFERI anche se vivono sempre nell\'acqua dell\'oceano? 🐬',
+    prompt: 'Quali animali sono MAMMIFERI anche se vivono sempre nell\'acqua dell\'oceano? 🌊',
     speech: 'Sfida da scienziato: quale di questi abitanti del mare è un mammifero che respira aria?',
     correct: { label: 'Delfino e Balena', emoji: '🐬', sublabel: 'Mammiferi marini!' },
     distractors: [
@@ -367,19 +492,19 @@ export const EARLY_PRIMARY_SCIENCE: AgeQuizEntry[] = [
     explanation: 'Ottimo! Delfini e balene sono mammiferi e salgono in superficie per respirare!',
   },
   {
-    prompt: 'In quale stagione gli alberi perdono le foglie gialle e arancioni prima dell\'inverno? 🍂',
+    prompt: 'In quale stagione gli alberi perdono le foglie gialle e arancioni prima dell\'inverno? 🌳',
     speech: 'Quale delle quattro stagioni segue l\'estate e colora i boschi di foglie dorate?',
-    correct: { label: 'Autunno 🍂', emoji: '🍂', sublabel: 'Tra Estate e Inverno!' },
+    correct: { label: 'Autunno', emoji: '🍂', sublabel: 'Tra Estate e Inverno!' },
     distractors: [
-      { label: 'Primavera 🌸', emoji: '🌸', sublabel: 'Sbocciano i fiori' },
-      { label: 'Estate ☀️', emoji: '☀️', sublabel: 'Fa molto caldo' },
+      { label: 'Primavera', emoji: '🌸', sublabel: 'Sbocciano i fiori' },
+      { label: 'Estate', emoji: '☀️', sublabel: 'Fa molto caldo' },
     ],
     explanation: 'Esatto! In autunno le foglie cambiano colore e cadono per preparare l\'albero all\'inverno!',
   },
   {
-    prompt: 'Quale organo del nostro corpo pompa il sangue senza fermarsi mai, giorno e notte? ❤️',
+    prompt: 'Quale organo del nostro corpo pompa il sangue senza fermarsi mai, giorno e notte? 🩺',
     speech: 'Corpo umano: quale muscolo speciale batte nel petto e fa circolare il sangue?',
-    correct: { label: 'Il Cuore ❤️', emoji: '❤️', sublabel: 'Motore del corpo!' },
+    correct: { label: 'Il Cuore', emoji: '❤️', sublabel: 'Motore del corpo!' },
     distractors: [
       { label: 'Lo Stomaco', emoji: '🍎', sublabel: 'Digerisce il cibo' },
       { label: 'L\'Orecchio', emoji: '👂', sublabel: 'Ascolta i suoni' },
@@ -390,12 +515,12 @@ export const EARLY_PRIMARY_SCIENCE: AgeQuizEntry[] = [
 
 export const EARLY_PRIMARY_LANGUAGE: AgeQuizEntry[] = [
   {
-    prompt: 'Ortografia: Quale parola è scritta nel modo CORRETTO con la doppia consonante?',
+    prompt: 'Ortografia: Quale parola è scritta nel modo CORRETTO con la doppia consonante? ✍️',
     speech: 'Sfida di prima elementare: quale di queste parole è scritta correttamente?',
-    correct: { label: 'PALLA ⚽', emoji: '⚽', sublabel: 'Con due L: PAL-LA!' },
+    correct: { label: 'PALLA', emoji: '⚽', sublabel: 'Con due L: PAL-LA!' },
     distractors: [
-      { label: 'PALA (per giocare a calcio)', emoji: '🥄', sublabel: 'Pala serve per scavare' },
-      { label: 'PLLA', emoji: '❌', sublabel: 'Manca la vocale A' },
+      { label: 'PALA (per il calcio)', emoji: '⚽', sublabel: 'Pala serve per scavare' },
+      { label: 'PLLA', emoji: '⚽', sublabel: 'Manca la vocale A' },
     ],
     explanation: 'Esatto! PALLA si scrive con due L, altrimenti diventa PALA!',
   },
@@ -412,30 +537,30 @@ export const EARLY_PRIMARY_LANGUAGE: AgeQuizEntry[] = [
   {
     prompt: 'Contrari: Qual è il CONTRARIO della parola "VELOCE" 🐆?',
     speech: 'Trova la parola dal significato opposto: qual è il contrario di Veloce?',
-    correct: { label: 'LENTO 🐢', emoji: '🐢', sublabel: 'Opposto di Veloce!' },
+    correct: { label: 'LENTO', emoji: '🐢', sublabel: 'Opposto di Veloce!' },
     distractors: [
-      { label: 'RAPIDO 🚀', emoji: '🚀', sublabel: 'È un sinonimo' },
-      { label: 'ALTO 🦒', emoji: '🦒', sublabel: 'Opposto di Basso' },
+      { label: 'RAPIDO', emoji: '🚀', sublabel: 'È un sinonimo' },
+      { label: 'ALTO', emoji: '🦒', sublabel: 'Opposto di Basso' },
     ],
     explanation: 'Bravissimo! Lento è esattamente il contrario di Veloce!',
   },
   {
-    prompt: 'Singolare e Plurale: Se un fiore diventa tanti FIORI, un "AMICO" al plurale diventa...?',
+    prompt: 'Singolare e Plurale: Se un fiore diventa tanti FIORI, un "AMICO" al plurale diventa...? ✍️',
     speech: 'Grammatica: uno è un amico, e quando sono in tanti sono tanti...?',
-    correct: { label: 'AMICI 👫', emoji: '👫', sublabel: 'Plurale corretto!' },
+    correct: { label: 'AMICI', emoji: '👫', sublabel: 'Plurale corretto!' },
     distractors: [
-      { label: 'AMICHI', emoji: '❌', sublabel: 'Senza la H!' },
+      { label: 'AMICHI', emoji: '👫', sublabel: 'Senza la H!' },
       { label: 'AMICA', emoji: '👤', sublabel: 'È singolare femminile' },
     ],
     explanation: 'Esatto! Il plurale di amico è AMICI, senza la lettera H!',
   },
   {
-    prompt: 'Lettere Ponte (MP/MB): Come si scrive correttamente la parola con il suono della pioggia? ☂️',
+    prompt: 'Lettere Ponte (MP/MB): Come si scrive correttamente la parola che ci ripara dalla pioggia? 🌧️',
     speech: 'Regola d\'oro dell\'ortografia: davanti a P e B ci vuole sempre la M! Qual è scritta bene?',
-    correct: { label: 'OMBRELLO ☂️', emoji: '☂️', sublabel: 'M prima di B!' },
+    correct: { label: 'OMBRELLO', emoji: '☂️', sublabel: 'M prima di B!' },
     distractors: [
-      { label: 'ONBRELLO', emoji: '❌', sublabel: 'N prima di B è errore' },
-      { label: 'OBRELLO', emoji: '❌', sublabel: 'Manca la M' },
+      { label: 'ONBRELLO', emoji: '☂️', sublabel: 'N prima di B è errore' },
+      { label: 'OBRELLO', emoji: '☂️', sublabel: 'Manca la M' },
     ],
     explanation: 'Fantastico! Prima di B e P si scrive sempre la M: oMbrello, caMpana, baMbino!',
   },
@@ -485,10 +610,10 @@ export const EARLY_PRIMARY_GEOMETRY: AgeQuizEntry[] = [
   {
     prompt: 'Simmetria: Quale lettera maiuscola è SIMMETRICA se la tagliamo a metà in verticale? ✂️',
     speech: 'Immagina uno specchio al centro: quale di queste lettere ha il lato sinistro uguale al destro?',
-    correct: { label: 'Lettera A', emoji: '🅰️', sublabel: 'Perfettamente simmetrica!' },
+    correct: { label: 'Lettera A', emoji: 'A', sublabel: 'Perfettamente simmetrica!' },
     distractors: [
-      { label: 'Lettera F', emoji: '🇫', sublabel: 'Non è simmetrica' },
-      { label: 'Lettera L', emoji: '🇱', sublabel: 'Non è simmetrica' },
+      { label: 'Lettera F', emoji: 'F', sublabel: 'Non è simmetrica' },
+      { label: 'Lettera L', emoji: 'L', sublabel: 'Non è simmetrica' },
     ],
     explanation: 'Grande occhio geometrico! La lettera A ha un perfetto asse di simmetria verticale!',
   },
@@ -780,10 +905,10 @@ export const PRIMARY_ADV_LANGUAGE: AgeQuizEntry[] = [
   {
     prompt: 'Ortografia: Quale di queste frasi usa l\'apostrofo/accento nel modo CORRETTO?',
     speech: 'Attenzione agli accenti e all\'apostrofo: quale frase è scritta senza errori?',
-    correct: { label: 'Un po\' di acqua 💧', emoji: '✅', sublabel: 'Troncamento di "poco"!' },
+    correct: { label: 'Un po\' di acqua', emoji: '💧', sublabel: 'Troncamento di "poco"!' },
     distractors: [
-      { label: 'Un pò di acqua', emoji: '❌', sublabel: 'Ci vuole l\'apostrofo, non l\'accento' },
-      { label: 'Un po di acqua', emoji: '❌', sublabel: 'Manca l\'apostrofo' },
+      { label: 'Un pò di acqua', emoji: '💧', sublabel: 'Ci vuole l\'apostrofo, non l\'accento' },
+      { label: 'Un po di acqua', emoji: '💧', sublabel: 'Manca l\'apostrofo' },
     ],
     explanation: 'Da vero scrittore! "Po\'" deriva da "poco" quindi vuole sempre l\'apostrofo, mai l\'accento!',
   },
@@ -831,9 +956,9 @@ export const PRIMARY_ADV_GEOMETRY: AgeQuizEntry[] = [
     explanation: 'Esatto! Un angolo retto misura esattamente 90 gradi!',
   },
   {
-    prompt: 'Poligoni: Quale cartello stradale di STOP 🛑 ha esattamente 8 LATI?',
+    prompt: 'Poligoni: Il cartello stradale di STOP ha esattamente 8 LATI. Come si chiama questo poligono? 📐',
     speech: 'Il cartello rosso dello Stop ha otto lati uguali: come si chiama questo poligono?',
-    correct: { label: 'Ottagono 🛑', emoji: '🛑', sublabel: 'Otto lati!' },
+    correct: { label: 'Ottagono', emoji: '🛑', sublabel: 'Otto lati!' },
     distractors: [
       { label: 'Esagono', emoji: '⬢', sublabel: 'Ha 6 lati' },
       { label: 'Rombo', emoji: '🔷', sublabel: 'Ha 4 lati' },
@@ -1098,9 +1223,9 @@ export const PRETEEN_SCIENCE_HISTORY: AgeQuizEntry[] = [
     iqParameterTag: 'Storia & Educazione Civica (Gc)',
   },
   {
-    prompt: 'Astronomia: Qual è il pianeta più grande del Sistema Solare, famoso per la sua Grande Macchia Rossa? 🪐',
+    prompt: 'Astronomia: Qual è il pianeta più grande del Sistema Solare, famoso per la sua Grande Macchia Rossa? 🌌',
     speech: 'Astronomia: tra tutti i pianeti del Sistema Solare, qual è il gigante gassoso più grande di tutti?',
-    correct: { label: 'Giove 🟠', emoji: '🪐', sublabel: 'Più grande di tutti gli altri messi insieme!' },
+    correct: { label: 'Giove', emoji: '🟠', sublabel: 'Più grande di tutti gli altri messi insieme!' },
     distractors: [
       { label: 'Saturno 🪐', emoji: '🪐', sublabel: 'È il secondo per grandezza, celebre per gli anelli' },
       { label: 'Marte 🔴', emoji: '🔴', sublabel: 'È il pianeta rosso, più piccolo della Terra' },
@@ -1147,10 +1272,10 @@ export const PRETEEN_LANGUAGE_LOGIC: AgeQuizEntry[] = [
   {
     prompt: 'Ortografia Avanzata: Quale forma è GRAMMATICALMENTE CORRETTA in italiano? ✍️',
     speech: 'Sfida di ortografia da scuola media: quale di queste tre forme è scritta senza alcun errore?',
-    correct: { label: 'Qual è il tuo libro? ✅', emoji: '✅', sublabel: '"Qual è" NON vuole mai l’apostrofo!' },
+    correct: { label: 'Qual è il tuo libro?', emoji: '✍️', sublabel: '"Qual è" NON vuole mai l’apostrofo!' },
     distractors: [
-      { label: 'Qual’è il tuo libro?', emoji: '❌', sublabel: 'Errore comune: niente apostrofo!' },
-      { label: 'Quale è’ il tuo libro?', emoji: '❌', sublabel: 'Forma errata' },
+      { label: 'Qual’è il tuo libro?', emoji: '✍️', sublabel: 'Errore comune: niente apostrofo!' },
+      { label: 'Quale è’ il tuo libro?', emoji: '✍️', sublabel: 'Forma errata' },
     ],
     explanation: 'Impeccabile! "Qual è" è un troncamento, non un’elisione: non vuole mai l’apostrofo!',
     iqParameterTag: 'Ortografia & Padronanza Linguistica (Gc)',
@@ -1279,10 +1404,10 @@ export const PRETEEN_LOGIC_CODING: AgeQuizEntry[] = [
   {
     prompt: 'Sillogismo Logico: "Tutti i quadrati sono rettangoli. La figura A è un quadrato." Cosa puoi dedurre con certezza? 🧠',
     speech: 'Logica deduttiva: se tutti i quadrati sono rettangoli e la figura A è un quadrato, cosa è sicuramente vero?',
-    correct: { label: 'La figura A è anche un rettangolo ✅', emoji: '🧠', sublabel: 'Deduzione certa!' },
+    correct: { label: 'La figura A è anche un rettangolo', emoji: '🧠', sublabel: 'Deduzione certa!' },
     distractors: [
-      { label: 'Tutti i rettangoli sono quadrati ❌', emoji: '❌', sublabel: 'Falso: esistono rettangoli allungati' },
-      { label: 'La figura A è un triangolo ❌', emoji: '❌', sublabel: 'Ha 4 lati, non 3' },
+      { label: 'Tutti i rettangoli sono quadrati', emoji: '📐', sublabel: 'Falso: esistono rettangoli allungati' },
+      { label: 'La figura A è un triangolo', emoji: '🔺', sublabel: 'Ha 4 lati, non 3' },
     ],
     explanation: 'Logica impeccabile! Ogni quadrato possiede 4 angoli retti, quindi rientra sempre nella famiglia dei rettangoli!',
     iqParameterTag: 'Sillogismo & Logica Formale (Gf)',
@@ -1349,9 +1474,9 @@ export const PRETEEN_ENGLISH_A2: AgeEnglishEntry[] = [
     wordInfo: { en: 'WENT', it: 'Andò / Sono andato', phoneticHint: 'Uènt', emoji: '🚀', categoryLabel: 'English A2 · Past Simple' },
     prompt: 'English A2 · Past Simple: Qual è il passato (Past Simple) corretto del verbo irregolare "TO GO" (andare)? 🇬🇧',
     speech: 'Grammatica inglese: "Yesterday I ... to school". Qual è il passato irregolare del verbo To Go?',
-    correct: { label: 'WENT ✅', emoji: '🚀', sublabel: '🇬🇧 Go ➔ Went!' },
+    correct: { label: 'WENT', emoji: '🇬🇧', sublabel: '🇬🇧 Go ➔ Went!' },
     distractors: [
-      { label: 'GOED', emoji: '❌', sublabel: 'Non è regolare' },
+      { label: 'GOED', emoji: '🇬🇧', sublabel: 'Non è regolare' },
       { label: 'GOING', emoji: '⏳', sublabel: 'È la forma -ing' },
     ],
     explanation: 'Spot on! "To go" è irregolare: Yesterday I WENT to school!',
@@ -1384,8 +1509,8 @@ export const PRETEEN_ENGLISH_A2: AgeEnglishEntry[] = [
     speech: 'In inglese Good è irregolare: come si dice "più buono" oppure "migliore"?',
     correct: { label: 'BETTER 🏆', emoji: '🏆', sublabel: '🇬🇧 Good ➔ Better ➔ Best!' },
     distractors: [
-      { label: 'GOODER', emoji: '❌', sublabel: 'Forma non corretta' },
-      { label: 'MORE GOOD', emoji: '❌', sublabel: 'Forma non corretta' },
+      { label: 'GOODER', emoji: '🇬🇧', sublabel: 'Forma non corretta' },
+      { label: 'MORE GOOD', emoji: '🇬🇧', sublabel: 'Forma non corretta' },
     ],
     explanation: 'Brilliant! Good → Better (migliore) → The Best (il migliore)!',
   },
@@ -1534,7 +1659,7 @@ export const NATURE_ECOLOGY_CATALOG: AgeQuizEntry[] = [
     correct: { label: 'Evapora e sale in cielo ☁️', emoji: '☁️', sublabel: 'Diventa vapore acqueo' },
     distractors: [
       { label: 'Diventa sabbia', emoji: '🏖️', sublabel: 'La sabbia resta a riva' },
-      { label: 'Scompare per sempre', emoji: '❌', sublabel: 'L’acqua non si distrugge' },
+      { label: 'Scompare per sempre', emoji: '💨', sublabel: 'L’acqua non si distrugge' },
     ],
     explanation: 'Bravissimo! Il Sole fa evaporare l’acqua, che forma le nuvole e poi ritorna come pioggia!',
     iqParameterTag: 'Cicli Naturali & Ragionamento Causale (Gc · Gf)',
@@ -1583,7 +1708,7 @@ export const FINANCIAL_TIME_CATALOG: AgeQuizEntry[] = [
 // 5. ASTRONOMIA & UNIVERSO (6–12 anni)
 export const ASTRONOMY_SPACE_CATALOG: AgeQuizEntry[] = [
   {
-    prompt: 'Astronomia: Quale pianeta del Sistema Solare è celebre per i suoi grandi ANELLI luminosi di ghiaccio e roccia? 🪐',
+    prompt: 'Astronomia: Quale pianeta del Sistema Solare è celebre per i suoi grandi ANELLI luminosi di ghiaccio e roccia? 🌌',
     speech: 'Viaggio nello spazio: quale pianeta gigante è famoso in tutto il cielo per i suoi spettacolari anelli?',
     correct: { label: 'Saturno 🪐', emoji: '🪐', sublabel: 'Il signore degli anelli!' },
     distractors: [
@@ -1722,7 +1847,7 @@ export const PHILOSOPHY_CRITICAL_CATALOG: AgeQuizEntry[] = [
     correct: { label: 'Restare curiosi e fare domande 🦉', emoji: '🦉', sublabel: 'La curiosità apre la mente' },
     distractors: [
       { label: 'Non serve mai studiare', emoji: '📕', sublabel: 'Anzi, l’opposto!' },
-      { label: 'Non bisogna mai sbagliare', emoji: '❌', sublabel: 'Dagli errori si impara' },
+      { label: 'Non bisogna mai sbagliare', emoji: '🤔', sublabel: 'Dagli errori si impara' },
     ],
     explanation: 'Meraviglioso! Chi riconosce di avere sempre qualcosa da scoprire continua a crescere per tutta la vita!',
     iqParameterTag: 'Filosofia, Metacognizione & Pensiero Critico (Gf · Gc)',
@@ -1947,9 +2072,9 @@ export const TEEN_ENGLISH_B1: AgeEnglishEntry[] = [
     wordInfo: { en: 'IF IT RAINS, WE WILL STAY HOME', it: 'First Conditional (Ipotesi reale)', phoneticHint: 'If it rèinz, ui uil stèi hòum', emoji: '☔', categoryLabel: 'English B1 · Conditionals' },
     prompt: 'English B1 (First Conditional): Completa «If you study hard, you ___ pass the exam!» 🇬🇧',
     speech: 'Sfida di inglese livello B1 sul First Conditional: completa "If you study hard, you... pass the exam". Quale ausiliare futuro serve?',
-    correct: { label: 'WILL (you will pass) ✨', emoji: '✅', sublabel: 'If + Present Simple ➔ WILL + base' },
+    correct: { label: 'WILL (you will pass)', emoji: '🇬🇧', sublabel: 'If + Present Simple ➔ WILL + base' },
     distractors: [
-      { label: 'WERE', emoji: '❌', sublabel: 'Passato del verbo essere' },
+      { label: 'WERE', emoji: '🇬🇧', sublabel: 'Passato del verbo essere' },
       { label: 'DID', emoji: '⏳', sublabel: 'Ausiliare del passato' },
     ],
     explanation: 'Spot on! Nel First Conditional usiamo "If + Present Simple" seguito da "will + verbo base"!',
@@ -1983,9 +2108,9 @@ export const TEEN_LOGIC_ALGORITHMS: AgeQuizEntry[] = [
     prompt: 'Logica Booleana & Informatica: Se A = VERO e B = FALSO, qual è il risultato dell’espressione (A AND B) OR A? 💻',
     speech: 'Sfida di logica booleana: se A è vero e B è falso, quanto vale l’espressione "A e B, oppure A"?',
     patternItems: ['A=VERO', 'B=FALSO', '➔', '(A AND B) OR A', '= ?'],
-    correct: { label: 'VERO (TRUE) ✅', emoji: '💻', sublabel: '(VERO AND FALSO)=FALSO · FALSO OR VERO = VERO' },
+    correct: { label: 'VERO (TRUE)', emoji: '💻', sublabel: '(VERO AND FALSO)=FALSO · FALSO OR VERO = VERO' },
     distractors: [
-      { label: 'FALSO (FALSE)', emoji: '❌', sublabel: 'OR è vero se almeno uno è vero' },
+      { label: 'FALSO (FALSE)', emoji: '💻', sublabel: 'OR è vero se almeno uno è vero' },
       { label: 'ERRORE', emoji: '⚠️', sublabel: 'L’espressione è sempre valutabile' },
     ],
     explanation: 'Da vero programmatore! (VERO AND FALSO) dà FALSO, ma poi FALSO OR VERO restituisce VERO!',
@@ -2018,7 +2143,7 @@ export const TEEN_LOGIC_ALGORITHMS: AgeQuizEntry[] = [
   {
     prompt: 'Logica Proposizionale: Se «Tutti i quadrati sono rettangoli» e «Questa figura NON è un rettangolo», cosa possiamo dedurre con certezza? 🧠',
     speech: 'Deduzione rigorosa: se tutti i quadrati sono rettangoli, e sappiamo che una figura non è un rettangolo, cosa possiamo concludere con certezza?',
-    correct: { label: 'NON è un quadrato ✅', emoji: '🧠', sublabel: 'Modus Tollens (deduzione sicura)' },
+    correct: { label: 'NON è un quadrato', emoji: '🧠', sublabel: 'Modus Tollens (deduzione sicura)' },
     distractors: [
       { label: 'È sicuramente un cerchio', emoji: '🔴', sublabel: 'Potrebbe essere un triangolo o pentagono' },
       { label: 'Potrebbe essere un quadrato', emoji: '🟦', sublabel: 'Contraddice la premessa!' },

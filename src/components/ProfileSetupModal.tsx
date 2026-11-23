@@ -27,6 +27,7 @@ interface ProfileSetupModalProps {
   isFirstSetup: boolean;
   onSave: (profile: ChildProfile) => void;
   onClose?: () => void;
+  onOpenPrivacy?: () => void;
 }
 
 export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
@@ -34,6 +35,7 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
   isFirstSetup,
   onSave,
   onClose,
+  onOpenPrivacy,
 }) => {
   const [name, setName] = useState(initialProfile.name || '');
   const [surname, setSurname] = useState(initialProfile.surname || '');
@@ -127,7 +129,7 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2.5 sm:p-5 bg-slate-950/65 backdrop-blur-md overflow-y-auto">
+    <div className="safe-modal-overlay fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-slate-950/65 backdrop-blur-md overflow-y-auto">
       <div className="relative w-full max-w-5xl max-h-[94dvh] my-auto overflow-y-auto rounded-[28px] sm:rounded-[32px] bg-[#fffdf8] text-slate-800 shadow-[0_32px_80px_-20px_rgba(15,23,42,0.65)] border border-amber-200/70">
         {!isFirstSetup && onClose && (
           <button
@@ -239,13 +241,8 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
           {/* =============================================================== */}
           <form onSubmit={handleSubmit} className="p-5 sm:p-7 flex flex-col justify-between gap-5">
             <div className="space-y-5">
-              {/* Top Greeting Strip */}
-              <div className="flex items-center gap-3 pr-10">
-                <img
-                  src="/pwa-192x192.png"
-                  alt="Icona Il Mio Mondo"
-                  className="w-12 h-12 rounded-2xl border-2 border-amber-200 shadow-sm shrink-0 object-cover"
-                />
+              {/* Top Greeting Strip (no opening app logo) */}
+              <div className="pr-10">
                 <div className="min-w-0">
                   <h3 className="text-xl sm:text-2xl font-fun font-extrabold text-slate-900 truncate leading-tight">
                     {titlePreview}
@@ -505,10 +502,14 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
 
             {/* Footer Privacy + Dominant Primary CTA */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200/80">
-              <div className="flex items-center gap-1.5 text-xs text-slate-500">
+              <button
+                type="button"
+                onClick={() => onOpenPrivacy?.()}
+                className="flex items-center gap-1.5 text-xs text-emerald-700 hover:text-emerald-900 font-bold underline decoration-emerald-400/70 underline-offset-2 transition cursor-pointer"
+              >
                 <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>100% privato in locale · Modificabile sempre</span>
-              </div>
+                <span>100% Locale · Norme Privacy &amp; GDPR</span>
+              </button>
 
               <div className="flex items-center gap-2.5 w-full sm:w-auto">
                 {!isFirstSetup && onClose && (

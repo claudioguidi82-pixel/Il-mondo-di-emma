@@ -11,13 +11,21 @@ import {
   AnnualAgeProgressRow,
   CompetencyBandLabel,
   EvaluationSnapshot,
+  ExerciseDifficultyScore,
   GameCategory,
   LevelPerformanceEntry,
   MonthlyProgressCheckpoint,
   UserProgress,
 } from '../types/game';
-import { calculateChildAge, parseBirthDateParts } from './childProfile';
-
+import {
+  calculateChildAge,
+  computeAdaptiveMasteryProfile,
+  DIFFICULTY_LEVEL_SPECS,
+  evaluateSingleTrialMetrics,
+  parseBirthDateParts,
+  SubjectAdaptiveProfile,
+} from './childProfile';
+import { isValidChildEntry } from './adultPlayDetector';
 
 export type DifficultyLabel =
   | 'Molto facile'
@@ -29,39 +37,68 @@ export type DifficultyLabel =
 export interface DifficultyWeightInfo {
   tier: number;
   label: DifficultyLabel;
+  description: string;
   weight: number; // 1.00 | 1.25 | 1.50 | 1.75 | 2.00
 }
 
 /**
- * Maps a puzzle's difficulty tier (or level number) to the official weight table:
- * - Molto facile (Tier 1, Liv. 1-10): 1.00
- * - Facile       (Tier 2, Liv. 11-20): 1.25
- * - Medio        (Tier 3, Liv. 21-30): 1.50
- * - Difficile    (Tier 4, Liv. 31-40): 1.75
- * - Avanzato     (Tier 5+, Liv. 41+):  2.00
+ * Maps a puzzle's difficulty (1..5) or level number to the official Section 2.2 & 4.1 weight table:
+ * - 1 · Molto facile, riconoscimento:                  1.00
+ * - 2 · Facile, comprensione:                          1.25
+ * - 3 · Intermedia, applicazione:                      1.50
+ * - 4 · Avanzata, ragionamento:                        1.75
+ * - 5 · Esperta, trasferimento e problem solving:      2.00
  */
-export function getDifficultyWeightInfo(levelOrTier: number, isLevelNumber = true): DifficultyWeightInfo {
+export function getDifficultyWeightInfo(
+  levelOrTier: number,
+  isLevelNumber = true
+): DifficultyWeightInfo {
   const tier = isLevelNumber
-    ? Math.max(1, Math.floor((Math.max(1, levelOrTier) - 1) / 10) + 1)
-    : Math.max(1, levelOrTier);
+    ? Math.max(1, Math.min(5, Math.floor((Math.max(1, levelOrTier) - 1) / 10) + 1))
+    : Math.max(1, Math.min(5, Math.round(levelOrTier)));
 
   if (tier <= 1) {
-    return { tier: 1, label: 'Molto facile', weight: 1.0 };
+    return {
+      tier: 1,
+      label: 'Molto facile',
+      description: 'Molto facile, riconoscimento',
+      weight: 1.0,
+    };
   }
   if (tier === 2) {
-    return { tier: 2, label: 'Facile', weight: 1.25 };
+    return {
+      tier: 2,
+      label: 'Facile',
+      description: 'Facile, comprensione',
+      weight: 1.25,
+    };
   }
   if (tier === 3) {
-    return { tier: 3, label: 'Medio', weight: 1.5 };
+    return {
+      tier: 3,
+      label: 'Medio',
+      description: 'Intermedia, applicazione',
+      weight: 1.5,
+    };
   }
   if (tier === 4) {
-    return { tier: 4, label: 'Difficile', weight: 1.75 };
+    return {
+      tier: 4,
+      label: 'Difficile',
+      description: 'Avanzata, ragionamento',
+      weight: 1.75,
+    };
   }
-  return { tier, label: 'Avanzato', weight: 2.0 };
+  return {
+    tier: 5,
+    label: 'Avanzato',
+    description: 'Esperta, trasferimento e problem solving',
+    weight: 2.0,
+  };
 }
 
 /**
- * Maps an Indice di Competenza (IC, 0-100) to the 5 official progression bands:
+ * Maps an Indice di Competenza (IC, 0-100) to the 5 official progression bands (Section 3):
  * - 0-39:   In esplorazione
  * - 40-59:  In apprendimento
  * - 60-74:  In consolidamento
@@ -76,6 +113,39 @@ export function getCompetencyBand(ic: number, isUnlocked = true): CompetencyBand
   return 'Padronanza avanzata';
 }
 
+export type LearningPathStageStatus =
+  | 'Acquisito'
+  | 'In corso'
+  | 'Prossimo obiettivo'
+  | 'Obiettivo futuro';
+
+export interface LearningPathStage {
+  stepNumber: number;
+  title: string;
+  description: string;
+  prerequisiteLabel: string;
+  status: LearningPathStageStatus;
+}
+
+export interface ProgressiveSubjectCatalogEntry {
+  id: string;
+  subjectName: string;
+  competencies: string;
+  minRecommendedAgeYears: number;
+  prerequisiteSummary: string;
+  isUnlockedForChild: boolean;
+  statusLabel: 'Attiva nel percorso' | 'Introduzione graduale' | 'Prerequisito in corso';
+}
+
+export interface NextLearningPlan {
+  strengthTitle: string;
+  strengthDetail: string;
+  toConsolidateTitle: string;
+  toConsolidateDetail: string;
+  nextChallengeTitle: string;
+  nextChallengeDetail: string;
+}
+
 export interface ProgressionCriterionStatus {
   id: string;
   label: string;
@@ -87,20 +157,28 @@ export interface ProgressionCriterionStatus {
 export interface DomainEvaluationMetrics {
   id: GameCategory;
   totalExercises: number;
-  autonomousCorrectCount: number; // c_i = 1 (1st try without hints)
-  assistedSuccessCount: number;   // solved after hint or retry (tracked separately)
+  autonomousCorrectCount: number; // c_i = 1.00 (1st try without hints)
+  assistedSuccessCount: number;   // solved with hints or retry (0 < c_i < 1.00)
   hintsUsedTotal: number;
   weightedCorrectSum: number;     // Sum(w_i * c_i)
   weightedTotalSum: number;       // Sum(w_i)
   ip: number;                     // Indice di Prestazione (0-100)
   ia: number;                     // Indice di Autonomia (0-100)
-  ir: number;                     // Capacità di ricordare nel tempo (0-100)
-  it: number;                     // Capacità di trasferire a esercizi nuovi (0-100)
+  ir: number;                     // Indice di Ritenzione (0-100 when irAvailable)
+  irAvailable: boolean;           // Section 4.5: true ONLY when retention verification exists
+  irDisplay: string;              // "82/100" or "Non ancora disponibile"
+  it: number;                     // Indice di Trasferimento (0-100 when itAvailable)
+  itAvailable: boolean;           // Section 4.5: true ONLY when cross-type/context transfer exists
+  itDisplay: string;              // "76/100" or "Non ancora disponibile"
   ic: number;                     // Indice di Competenza: 0.50*IP + 0.20*IA + 0.15*IR + 0.15*IT
   previousIc: number;             // IC_precedente
   ieDelta: number;                // IE = IC_attuale - IC_precedente
   ieIndex: number;                // 0-100 normalized evolution indicator
   bandLabel: CompetencyBandLabel;
+  confidencePercent: number;      // 0-100 data solidity index based on sample size
+  confidenceLabel: string;        // es. "Attendibile (14 prove)"
+  adaptiveProfile: SubjectAdaptiveProfile;
+  learningPathStages: LearningPathStage[];
 }
 
 export interface CHCAbilityScore {
@@ -109,24 +187,33 @@ export interface CHCAbilityScore {
   fullTitle: string;
   description: string;
   colorHex: string;
-  score: number;      // 0-100
-  ip: number;         // 0-100
-  ia: number;         // 0-100
-  ir: number;         // 0-100
-  it: number;         // 0-100
-  ieDelta: number;    // signed delta vs previous snapshot
+  score: number;            // 0-100
+  ip: number;               // 0-100
+  ia: number;               // 0-100
+  ir: number;               // 0-100
+  irAvailable: boolean;
+  irDisplay: string;
+  it: number;               // 0-100
+  itAvailable: boolean;
+  itDisplay: string;
+  ieDelta: number;          // signed delta vs previous snapshot
   bandLabel: CompetencyBandLabel;
+  sampleCount: number;      // Number of direct/contributing trials supporting this CHC area
+  confidencePercent: number;
+  confidenceLabel: string;
+  contributingSubjectsLabel: string;
 }
 
 export interface FullEvaluationReport {
-  isUnlocked: boolean; // Zero baseline rule for Levels 1-10
+  isUnlocked: boolean;
   completedLevelsCount: number;
   currentLevel: number;
   currentTier: number;
   currentDifficultyLabel: DifficultyLabel;
   currentWeight: number;
+  generalLevelLabel: string; // "Personalizzato (Indipendente per Materia)"
 
-  // 1. I QUATTRO INDICATORI PRINCIPALI (0-100)
+  // 1. I QUATTRO INDICATORI PRINCIPALI (0-100) + RITENZIONE & TRASFERIMENTO VERIFICABILI
   ip: number;          // Indice di prestazione (0-100)
   ic: number;          // Indice di competenza generale (0-100)
   ia: number;          // Indice di autonomia (0-100)
@@ -134,7 +221,13 @@ export interface FullEvaluationReport {
   ieDelta: number;     // Evoluzione: IC_attuale - IC_precedente (es. +12)
   previousIc: number;  // IC_precedente
   ir: number;          // Capacità di ricordare nel tempo (0-100)
+  irAvailable: boolean;
+  irDisplay: string;
   it: number;          // Capacità di trasferimento (0-100)
+  itAvailable: boolean;
+  itDisplay: string;
+  confidencePercent: number;
+  confidenceLabel: string;
 
   // Weighted Sums for full mathematical transparency
   weightedCorrectSum: number;
@@ -145,30 +238,34 @@ export interface FullEvaluationReport {
   sessionsCount: number;
   daysSpan: number;
 
-  // 3. LIVELLO ASSEGNATO & 5 CRITERI DI STABILITÀ
+  // 3. LIVELLO ASSEGNATO & 6 CRITERI DI STABILITÀ (INCLUSA STABILITÀ COMPETENZE FONDAMENTALI)
   rawBandLabel: CompetencyBandLabel;
   assignedBandLabel: CompetencyBandLabel;
   canAdvanceToNextMasteryLevel: boolean;
+  hasUnstableFundamentalCompetency: boolean;
+  unstableFundamentalSubjects: string[];
   stabilityCriteria: ProgressionCriterionStatus[];
   stabilitySummaryNote: string;
 
-  // 4. PROFILO DELLE ABILITÀ CHC (0-100, NON CHIAMATO QI)
+  // 4. PROFILO DELLE 5 AREE COGNITIVE CHC (0-100, SEPARATE DALLE MATERIE, NON CHIAMATO QI)
   chcAbilities: CHCAbilityScore[];
 
-  // 5. METRICHE PER LE 6 MATERIE DELL'APP
+  // 5. METRICHE E PERCORSI INDIPENDENTI PER LE 6 MATERIE DELL'APP + CATALOGO 10 MATERIE PROGRESSIVE
   domains: Record<GameCategory, DomainEvaluationMetrics>;
+  progressiveSubjectsCatalog: ProgressiveSubjectCatalogEntry[];
+  nextLearningPlan: NextLearningPlan;
 
   // 6. PROGRESSI OTTENUTI GRAZIE ALL'UTILIZZO DELL'APP
-  //    (Aggiornamento ogni inizio mese + Confronto Punto di Partenza vs Attuale +
-  //     Riga fissa ad ogni compleanno del bambino/a con aggiunta di una nuova riga)
   childCurrentAgeYears: number;
-  emmaCurrentAgeYears: number; // Alias kept for compatibility
-  childBirthDayMonthLabel: string;    // es. "14/05"
-  nextBirthdayYear: number;           // es. 2027
-  currentMonthKey: string;            // es. "2026-11"
-  currentMonthStartLabel: string;     // es. "01/11/2026"
-  nextMonthlyUpdateLabel: string;     // es. "01/12/2026"
-  nextBirthdayDateLabel: string;      // es. "14/05/2027 (Compimento 6 Anni)"
+  childCurrentAgeMonths: number;
+  childExactAgeDisplay: string;
+  emmaCurrentAgeYears: number;
+  childBirthDayMonthLabel: string;
+  nextBirthdayYear: number;
+  currentMonthKey: string;
+  currentMonthStartLabel: string;
+  nextMonthlyUpdateLabel: string;
+  nextBirthdayDateLabel: string;
   annualProgressRows: AnnualAgeProgressRow[];
   activeAgeRow: AnnualAgeProgressRow;
 }
@@ -182,6 +279,359 @@ const ALL_CATEGORIES: GameCategory[] = [
   'english',
 ];
 
+const SUBJECT_LEARNING_PATHS_TEMPLATE: Record<
+  GameCategory,
+  Array<{ title: string; description: string; prerequisiteLabel: string }>
+> = {
+  numbers: [
+    {
+      title: '1. Riconoscimento numerico',
+      description: 'Identificare numeri e quantità.',
+      prerequisiteLabel: 'Base percettiva',
+    },
+    {
+      title: '2. Confronto',
+      description: 'Individuare maggiore, minore e uguale.',
+      prerequisiteLabel: 'Riconoscimento quantità',
+    },
+    {
+      title: '3. Addizioni e sottrazioni',
+      description: 'Calcolo con supporto visivo.',
+      prerequisiteLabel: 'Confronto quantità',
+    },
+    {
+      title: '4. Calcolo mentale',
+      description: 'Operazioni senza supporti visivi.',
+      prerequisiteLabel: 'Addizioni e sottrazioni visive',
+    },
+    {
+      title: '5. Problemi logici',
+      description: 'Risolvere problemi con più passaggi.',
+      prerequisiteLabel: 'Calcolo mentale sicuro',
+    },
+    {
+      title: '6. Ragionamento avanzato',
+      description: 'Combinazioni, strategie e problemi complessi.',
+      prerequisiteLabel: 'Problemi a più passaggi',
+    },
+  ],
+  letters: [
+    {
+      title: '1. Suoni e ascolto fonologico',
+      description: 'Riconoscere suoni iniziali, voci e immagini familiari.',
+      prerequisiteLabel: 'Ascolto attivo',
+    },
+    {
+      title: '2. Riconoscimento lettere',
+      description: 'Associare grafemi, vocali e consonanti alle parole.',
+      prerequisiteLabel: 'Suoni iniziali',
+    },
+    {
+      title: '3. Sillabe e rime',
+      description: 'Scomporre parole in sillabe e individuare rime.',
+      prerequisiteLabel: 'Riconoscimento lettere',
+    },
+    {
+      title: '4. Costruzione parole e ortografia',
+      description: 'Completare parole, doppie e suoni complessi.',
+      prerequisiteLabel: 'Sillabe e rime',
+    },
+    {
+      title: '5. Lessico, sinonimi e contrari',
+      description: 'Ampliare il vocabolario e comprendere relazioni semantiche.',
+      prerequisiteLabel: 'Ortografia di base',
+    },
+    {
+      title: '6. Comprensione e analisi',
+      description: 'Grammatica, sintassi e comprensione profonda del testo.',
+      prerequisiteLabel: 'Padronanza lessicale',
+    },
+  ],
+  logic: [
+    {
+      title: '1. Associazioni concrete',
+      description: 'Collegare animali, oggetti, habitat e funzioni quotidiane.',
+      prerequisiteLabel: 'Osservazione visiva',
+    },
+    {
+      title: '2. Classificazione e intruso',
+      description: 'Raggruppare per categoria ed escludere l’elemento estraneo.',
+      prerequisiteLabel: 'Associazioni concrete',
+    },
+    {
+      title: '3. Sequenze e pattern',
+      description: 'Individuare e completare regole ritmiche e visive.',
+      prerequisiteLabel: 'Classificazione',
+    },
+    {
+      title: '4. Analogie e deduzioni',
+      description: 'Risolvere indovinelli e relazioni causa-effetto.',
+      prerequisiteLabel: 'Sequenze e pattern',
+    },
+    {
+      title: '5. Matrici e ragionamento astratto',
+      description: 'Dedurre regole su più attributi contemporaneamente.',
+      prerequisiteLabel: 'Analogie e deduzioni',
+    },
+    {
+      title: '6. Problem solving e pensiero critico',
+      description: 'Strategie multi-step, scienze, logica booleana e coding.',
+      prerequisiteLabel: 'Matrici logiche',
+    },
+  ],
+  shapes: [
+    {
+      title: '1. Colori primari e sagome',
+      description: 'Distinguere colori fondamentali, ombre e contorni.',
+      prerequisiteLabel: 'Percezione visiva',
+    },
+    {
+      title: '2. Forme geometriche piane',
+      description: 'Riconoscere cerchio, quadrato, triangolo, stella e rettangolo.',
+      prerequisiteLabel: 'Colori e sagome',
+    },
+    {
+      title: '3. Mescolanza colori e dimensioni',
+      description: 'Creare colori secondari e ordinare per grandezza.',
+      prerequisiteLabel: 'Forme piane',
+    },
+    {
+      title: '4. Orientamento, lati e simmetria',
+      description: 'Contare lati/vertici e riconoscere relazioni spaziali.',
+      prerequisiteLabel: 'Colori e dimensioni',
+    },
+    {
+      title: '5. Poligoni, angoli e perimetri',
+      description: 'Proprietà geometriche, rotazioni e composizione spaziale.',
+      prerequisiteLabel: 'Lati e simmetria',
+    },
+    {
+      title: '6. Geometria nello spazio e arte',
+      description: 'Solidi 3D, aree, prospettiva e storia dell’arte.',
+      prerequisiteLabel: 'Poligoni e perimetri',
+    },
+  ],
+  music: [
+    {
+      title: '1. Ascolto e timbro sonoro',
+      description: 'Distinguere suoni forti/deboli, gravi/acuti e versi.',
+      prerequisiteLabel: 'Attenzione uditiva',
+    },
+    {
+      title: '2. Eco ritmica a 2–3 impulsi',
+      description: 'Ascoltare e riprodurre brevi sequenze sonore in ordine.',
+      prerequisiteLabel: 'Timbro sonoro',
+    },
+    {
+      title: '3. Strumenti e famiglie sonore',
+      description: 'Riconoscere pianoforte, tamburo, violino, flauto e chitarra.',
+      prerequisiteLabel: 'Eco ritmica base',
+    },
+    {
+      title: '4. Scala musicale (Do–Si)',
+      description: 'Ordinare l’altezza delle note e memorizzare melodie a 4 note.',
+      prerequisiteLabel: 'Strumenti musicali',
+    },
+    {
+      title: '5. Durata delle note e battute',
+      description: 'Pattern ritmici strutturati, pause e memoria di lavoro a 5 note.',
+      prerequisiteLabel: 'Scala musicale',
+    },
+    {
+      title: '6. Armonia, orchestra e compositori',
+      description: 'Accordi, tempi musicali, acustica e grandi autori classici.',
+      prerequisiteLabel: 'Pattern ritmici avanzati',
+    },
+  ],
+  english: [
+    {
+      title: '1. Prime parole illustrate',
+      description: 'Animali, colori e oggetti familiari con ascolto vocale.',
+      prerequisiteLabel: 'Ascolto fonetico',
+    },
+    {
+      title: '2. Saluti, numeri e natura',
+      description: 'Vocabolario quotidiano di base e comprensione visiva.',
+      prerequisiteLabel: 'Prime parole',
+    },
+    {
+      title: '3. Associazioni bilingui (EN ↔ IT)',
+      description: 'Collegare rapidamente il termine inglese al significato italiano.',
+      prerequisiteLabel: 'Vocabolario base',
+    },
+    {
+      title: '4. Azioni, aggettivi e frasi semplici',
+      description: 'Verbi comuni, opposti e prime strutture comunicative (A1).',
+      prerequisiteLabel: 'Associazioni bilingui',
+    },
+    {
+      title: '5. Conversazione e contesti quotidiani',
+      description: 'Domande, tempo atmosferico, scuola e viaggi (A1+/A2).',
+      prerequisiteLabel: 'Frasi semplici A1',
+    },
+    {
+      title: '6. Comprensione e grammatica inglese',
+      description: 'Tempi verbali, idioms e lettura autonoma in contesto (A2/B1).',
+      prerequisiteLabel: 'Dialoghi A2',
+    },
+  ],
+};
+
+export function buildSubjectLearningPathStages(
+  category: GameCategory,
+  ic: number,
+  targetDifficulty: ExerciseDifficultyScore,
+  sampleCount: number
+): LearningPathStage[] {
+  const templates = SUBJECT_LEARNING_PATHS_TEMPLATE[category] || SUBJECT_LEARNING_PATHS_TEMPLATE.logic;
+  // Determine which stage index (0..5) is currently "In corso" based on verified competency & difficulty
+  let activeStageIdx = 0;
+  if (sampleCount === 0) {
+    activeStageIdx = 0;
+  } else if (targetDifficulty >= 5 && ic >= 88) {
+    activeStageIdx = 5;
+  } else if (targetDifficulty >= 4 || (ic >= 80 && sampleCount >= 8)) {
+    activeStageIdx = 4;
+  } else if (targetDifficulty === 3 || (ic >= 68 && sampleCount >= 4)) {
+    activeStageIdx = 3;
+  } else if (ic >= 55 && sampleCount >= 2) {
+    activeStageIdx = 2;
+  } else if (sampleCount >= 1) {
+    activeStageIdx = 1;
+  }
+
+  return templates.map((tpl, idx) => {
+    let status: LearningPathStageStatus = 'Obiettivo futuro';
+    if (idx < activeStageIdx) {
+      status = 'Acquisito';
+    } else if (idx === activeStageIdx) {
+      status = 'In corso';
+    } else if (idx === activeStageIdx + 1) {
+      status = 'Prossimo obiettivo';
+    }
+    return {
+      stepNumber: idx + 1,
+      title: tpl.title,
+      description: tpl.description,
+      prerequisiteLabel: tpl.prerequisiteLabel,
+      status,
+    };
+  });
+}
+
+export function buildProgressiveSubjectsCatalog(
+  ageYears: number,
+  domains: Record<GameCategory, DomainEvaluationMetrics>
+): ProgressiveSubjectCatalogEntry[] {
+  const logicOk = domains.logic.ic >= 60 || ageYears >= 6;
+  const mathOk = domains.numbers.ic >= 60 || ageYears >= 6;
+  const langOk = domains.letters.ic >= 60 || ageYears >= 5;
+
+  const rawList: Array<{
+    id: string;
+    subjectName: string;
+    competencies: string;
+    minAge: number;
+    prereq: string;
+    unlocked: boolean;
+  }> = [
+    {
+      id: 'prog_math',
+      subjectName: 'Matematica',
+      competencies: 'Quantità, calcolo, problemi',
+      minAge: 2,
+      prereq: 'Percorso base attivo fin dal primo livello',
+      unlocked: true,
+    },
+    {
+      id: 'prog_italian',
+      subjectName: 'Italiano',
+      competencies: 'Fonologia, lettere, lettura, comprensione',
+      minAge: 2,
+      prereq: 'Ascolto fonologico (2–5 anni) e lettura progressiva (6–14 anni)',
+      unlocked: true,
+    },
+    {
+      id: 'prog_logic',
+      subjectName: 'Logica',
+      competencies: 'Sequenze, deduzioni, classificazioni',
+      minAge: 2,
+      prereq: 'Associazioni visive e ragionamento progressivo',
+      unlocked: true,
+    },
+    {
+      id: 'prog_geometry',
+      subjectName: 'Geometria',
+      competencies: 'Forme, spazio, orientamento',
+      minAge: 2,
+      prereq: 'Colori, sagome e relazioni spaziali',
+      unlocked: true,
+    },
+    {
+      id: 'prog_memory',
+      subjectName: 'Memoria',
+      competencies: 'Uditiva, visiva, sequenziale',
+      minAge: 2,
+      prereq: 'Eco sonora, ritmo e memoria di lavoro',
+      unlocked: true,
+    },
+    {
+      id: 'prog_english',
+      subjectName: 'Inglese',
+      competencies: 'Vocabolario, ascolto, comprensione',
+      minAge: 3,
+      prereq: 'Ascolto fonologico di base',
+      unlocked: ageYears >= 3 || langOk,
+    },
+    {
+      id: 'prog_science',
+      subjectName: 'Scienze',
+      competencies: 'Natura, corpo umano, fenomeni',
+      minAge: 4,
+      prereq: 'Associazioni logiche di base',
+      unlocked: ageYears >= 4 || logicOk,
+    },
+    {
+      id: 'prog_culture',
+      subjectName: 'Cultura generale',
+      competencies: 'Conoscenze e associazioni',
+      minAge: 5,
+      prereq: 'Linguaggio e logica in consolidamento',
+      unlocked: ageYears >= 5 || (logicOk && langOk),
+    },
+    {
+      id: 'prog_creativity',
+      subjectName: 'Creatività',
+      competencies: 'Immaginazione, costruzione, associazioni',
+      minAge: 2,
+      prereq: 'Studio d’Arte, Colori e Musica attivi',
+      unlocked: true,
+    },
+    {
+      id: 'prog_attention',
+      subjectName: 'Attenzione',
+      competencies: 'Ricerca visiva, concentrazione, discriminazione',
+      minAge: 3,
+      prereq: 'Trova le differenze, Labirinto e discriminazione visiva',
+      unlocked: ageYears >= 3 || mathOk,
+    },
+  ];
+
+  return rawList.map((item) => ({
+    id: item.id,
+    subjectName: item.subjectName,
+    competencies: item.competencies,
+    minRecommendedAgeYears: item.minAge,
+    prerequisiteSummary: item.prereq,
+    isUnlockedForChild: item.unlocked,
+    statusLabel: item.unlocked
+      ? 'Attiva nel percorso'
+      : ageYears + 1 >= item.minAge
+      ? 'Introduzione graduale'
+      : 'Prerequisito in corso',
+  }));
+}
+
 function inferChcTargetsFromLevel(
   level: number,
   category: GameCategory,
@@ -192,8 +642,6 @@ function inferChcTargetsFromLevel(
 } {
   const tier = Math.max(1, Math.floor((Math.max(1, level) - 1) / 10) + 1);
 
-  // Category- and puzzleType-first CHC attribution so Curiosity Subject Chooser plays
-  // always credit the exact underlying Cattell-Horn-Carroll cognitive factor.
   if (category === 'music') {
     return { chcPrimary: 'Gwm', chcSecondary: puzzleType === 'music_rhythm' ? 'Gs' : 'Gf' };
   }
@@ -212,39 +660,40 @@ function inferChcTargetsFromLevel(
   if (category === 'english') {
     return { chcPrimary: 'Gc', chcSecondary: 'Gwm' };
   }
-  // Logic & Science/Nature reasoning
-  if (puzzleType === 'pattern_complete' || puzzleType === 'sequence_logic') {
+  if (puzzleType === 'pattern_sequence') {
     return { chcPrimary: 'Gf', chcSecondary: 'Gv' };
   }
-  if (puzzleType === 'odd_one_out' || puzzleType === 'animal_riddle') {
-    return { chcPrimary: 'Gc', chcSecondary: 'Gf' };
+  if (puzzleType === 'odd_one_out' || puzzleType === 'riddle') {
+    return { chcPrimary: 'Gf', chcSecondary: 'Gc' };
   }
   return { chcPrimary: 'Gf', chcSecondary: 'Gs' };
 }
 
-/**
- * Reconstructs normalized exercise entries for a category by combining
- * explicit `levelHistory` entries with any legacy aggregate `categoryStats` counts,
- * preserving full historical progress with category-accurate CHC tags.
- */
 function getCategoryEntries(
   progress: UserProgress,
   category: GameCategory
 ): LevelPerformanceEntry[] {
-  const history = (progress.levelHistory || []).filter(
+  const allHistoryForCat = (progress.levelHistory || []).filter(
     (e) => e.category === category
   );
-  const stat = progress.categoryStats[category] || {
+  const history = allHistoryForCat.filter(isValidChildEntry);
+  const excludedForCat = allHistoryForCat.length - history.length;
+  const rawStat = progress.categoryStats[category] || {
     correct: 0,
     total: 0,
     attempts: 0,
   };
+  const stat = {
+    ...rawStat,
+    total: Math.max(0, rawStat.total - excludedForCat),
+    correct: Math.max(0, rawStat.correct - excludedForCat),
+  };
 
   if (history.length >= stat.total && history.length > 0) {
     return history.map((e) => {
-      const wInfo = getDifficultyWeightInfo(e.level || 1, true);
+      const wInfo = getDifficultyWeightInfo(e.tier ?? e.level ?? 1, e.tier === undefined);
       const hints = e.hintsUsed ?? 0;
-      const isAutonomousFirstTry = Boolean(e.firstTry) && hints === 0;
+      const isAutonomousFirstTry = Boolean(e.firstTry) && hints === 0 && Math.max(1, e.attempts || 1) === 1;
       const inferred = inferChcTargetsFromLevel(e.level || 1, category, e.puzzleType);
       return {
         ...e,
@@ -279,7 +728,7 @@ function getCategoryEntries(
       firstTry: isAutoCorrect,
       assistedSuccess: !isAutoCorrect,
       attempts: isAutoCorrect ? 1 : 2,
-      hintsUsed: 0,
+      hintsUsed: isAutoCorrect ? 0 : 1,
       responseTimeMs: isAutoCorrect ? 5200 : 8400,
       starsEarned: isAutoCorrect ? 3 : 2,
       timestamp: progress.lastPlayedDate || new Date().toISOString(),
@@ -287,9 +736,9 @@ function getCategoryEntries(
   }
 
   const normalizedHistory = history.map((e) => {
-    const wInfo = getDifficultyWeightInfo(e.level || 1, true);
+    const wInfo = getDifficultyWeightInfo(e.tier ?? e.level ?? 1, e.tier === undefined);
     const hints = e.hintsUsed ?? 0;
-    const isAutonomousFirstTry = Boolean(e.firstTry) && hints === 0;
+    const isAutonomousFirstTry = Boolean(e.firstTry) && hints === 0 && Math.max(1, e.attempts || 1) === 1;
     const inferred = inferChcTargetsFromLevel(e.level || 1, category, e.puzzleType);
     return {
       ...e,
@@ -306,9 +755,6 @@ function getCategoryEntries(
   return [...synthesized, ...normalizedHistory];
 }
 
-/**
- * Computes age-calibrated target median latency (ms) for accurate responses across ages 2-14.
- */
 function getAgeCalibratedTargetLatencyMs(ageYears: number): number {
   if (ageYears <= 3) return 9500;
   if (ageYears <= 5) return 7500;
@@ -318,10 +764,6 @@ function getAgeCalibratedTargetLatencyMs(ageYears: number): number {
   return 4600;
 }
 
-/**
- * Outlier-resistant robust central latency (20%-trimmed mean when >= 5 samples, exact median otherwise)
- * so a single bathroom/distraction pause (e.g. 40s) never distorts Processing Speed (Gs).
- */
 function computeRobustLatencyMs(samples: number[]): number {
   const valid = samples
     .filter((ms) => Number.isFinite(ms) && ms >= 500 && ms <= 60000)
@@ -336,19 +778,226 @@ function computeRobustLatencyMs(samples: number[]): number {
   return valid.length % 2 === 1 ? valid[mid] : (valid[mid - 1] + valid[mid]) / 2;
 }
 
+// ============================================================================
+// SECTION 4 & SECTION 8: VERIFIABLE MATHEMATICAL EVALUATION FUNCTIONS
+// ============================================================================
+
 /**
- * Computes IP, IA, IR, IT, and IC for any chronologically ordered list of exercise entries.
- * Incorporates:
- * - Difficulty tier weighting (w_i in 1.00..2.00)
- * - Mild exponential recency decay (r_i = 0.95^age) so recent learning progress shines through
- * - Empirical Bayes small-sample shrinkage (priorWeight = 1.6) preventing 1-item 0/100 volatility
- * - Exact competency synthesis: IC = 0.50*IP + 0.20*IA + 0.15*IR + 0.15*IT
+ * 4.1 Indice di Prestazione (IP):
+ * Formula: IP = (Sum(w_i * c_i) / Sum(w_i)) * 100
+ * where w_i in {1.00, 1.25, 1.50, 1.75, 2.00} and c_i in {1.00, 0.75, 0.50, 0.25, 0.00}.
+ */
+export function calculateWeightedPerformance(entries: LevelPerformanceEntry[]): {
+  ip: number;
+  weightedCorrectSum: number;
+  weightedTotalSum: number;
+  autonomousCorrectCount: number;
+  assistedSuccessCount: number;
+  hintsUsedTotal: number;
+} {
+  if (entries.length === 0) {
+    return {
+      ip: 0,
+      weightedCorrectSum: 0,
+      weightedTotalSum: 0,
+      autonomousCorrectCount: 0,
+      assistedSuccessCount: 0,
+      hintsUsedTotal: 0,
+    };
+  }
+
+  let weightedCorrectSum = 0;
+  let weightedTotalSum = 0;
+  let autonomousCorrectCount = 0;
+  let assistedSuccessCount = 0;
+  let hintsUsedTotal = 0;
+
+  entries.forEach((e) => {
+    const w = e.weight ?? getDifficultyWeightInfo(e.tier ?? e.level ?? 1, e.tier === undefined).weight;
+    const trial = evaluateSingleTrialMetrics(e);
+    weightedTotalSum += w;
+    weightedCorrectSum += w * trial.c_i;
+    if (trial.isAutonomous) {
+      autonomousCorrectCount++;
+    } else {
+      assistedSuccessCount++;
+    }
+    hintsUsedTotal += e.hintsUsed ?? 0;
+  });
+
+  const ip =
+    weightedTotalSum > 0
+      ? Math.round((weightedCorrectSum / weightedTotalSum) * 100)
+      : 0;
+
+  return {
+    ip,
+    weightedCorrectSum: Math.round(weightedCorrectSum * 100) / 100,
+    weightedTotalSum: Math.round(weightedTotalSum * 100) / 100,
+    autonomousCorrectCount,
+    assistedSuccessCount,
+    hintsUsedTotal,
+  };
+}
+
+/**
+ * 4.2 Indice di Autonomia (IA):
+ * Uses explicit discrete scores from Section 4.2:
+ * - Risposta autonoma: 100
+ * - Un suggerimento: 75
+ * - Due suggerimenti: 50
+ * - Risposta guidata: 25
+ * - Risposta fornita dal sistema: 0
+ */
+export function calculateAutonomy(entries: LevelPerformanceEntry[]): number {
+  if (entries.length === 0) return 0;
+  let totalScore = 0;
+  entries.forEach((e) => {
+    totalScore += evaluateSingleTrialMetrics(e).autonomyScore;
+  });
+  return Math.round(totalScore / entries.length);
+}
+
+/**
+ * 4.3 Indice di Ritenzione (IR):
+ * Measures how well the child remembers and reuses a competency after an interval.
+ * Section 4.5 rule: If no retention verification has taken place yet (< 3 exercises in the domain
+ * and < 2 distinct sessions/dates), IR is NOT fabricated — it is marked as `available: false` ("Non ancora disponibile").
+ */
+export function calculateRetention(
+  entries: LevelPerformanceEntry[],
+  sessionsCount: number,
+  daysSpan: number
+): { ir: number; available: boolean; display: string } {
+  const distinctDatesInEntries = new Set(
+    entries.map((e) => (e.timestamp ? e.timestamp.slice(0, 10) : '')).filter(Boolean)
+  );
+  const hasRetentionVerification =
+    entries.length >= 3 || (entries.length >= 2 && (distinctDatesInEntries.size >= 2 || daysSpan >= 1));
+
+  if (!hasRetentionVerification) {
+    return {
+      ir: 0,
+      available: false,
+      display: 'Non ancora disponibile',
+    };
+  }
+
+  // Evaluate follow-up trials (second half of chronological history for that competency)
+  const splitIdx = Math.max(1, Math.floor(entries.length / 2));
+  const followUpEntries = entries.slice(splitIdx);
+  const followUpPerf = calculateWeightedPerformance(followUpEntries);
+  const followUpAutonomy = calculateAutonomy(followUpEntries);
+
+  // Temporal stability factor across sessions/days
+  const timeBonus = Math.min(1, 0.85 + Math.min(3, sessionsCount - 1) * 0.03 + Math.min(7, daysSpan) * 0.008);
+  const rawIr = (followUpPerf.ip * 0.65 + followUpAutonomy * 0.35) * timeBonus;
+  const ir = Math.max(0, Math.min(100, Math.round(rawIr)));
+
+  return {
+    ir,
+    available: true,
+    display: `${ir}/100`,
+  };
+}
+
+/**
+ * 4.4 Indice di Trasferimento (IT):
+ * Measures whether the child succeeds in using a competency in a different exercise type or difficulty level.
+ * Section 4.5 rule: If the child has not yet faced at least 2 exercises across different typologies or difficulty levels,
+ * IT is marked as `available: false` ("Non ancora disponibile").
+ */
+export function calculateTransfer(
+  entries: LevelPerformanceEntry[]
+): { it: number; available: boolean; display: string } {
+  if (entries.length < 2) {
+    return {
+      it: 0,
+      available: false,
+      display: 'Non ancora disponibile',
+    };
+  }
+
+  const distinctTypes = new Set(
+    entries.map((e, i) => e.puzzleType || `${e.category}_t${e.tier || 1}_${i % 3}`)
+  );
+  const distinctTiers = new Set(entries.map((e) => e.tier ?? 1));
+
+  if (distinctTypes.size < 2 && distinctTiers.size < 2) {
+    return {
+      it: 0,
+      available: false,
+      display: 'Non ancora disponibile',
+    };
+  }
+
+  // Evaluate performance on transferred exercises (all exercises after the initial archetype)
+  const transferredEntries = entries.slice(1);
+  const perf = calculateWeightedPerformance(transferredEntries);
+  const auto = calculateAutonomy(transferredEntries);
+  const varietyFactor = Math.min(1.0, 0.88 + Math.min(4, distinctTypes.size - 1) * 0.03 + Math.min(3, distinctTiers.size - 1) * 0.02);
+  const it = Math.max(0, Math.min(100, Math.round((perf.ip * 0.65 + auto * 0.35) * varietyFactor)));
+
+  return {
+    it,
+    available: true,
+    display: `${it}/100`,
+  };
+}
+
+/**
+ * Section 7 & 8: Confidence / Sample Solidity Calculator
+ * Shows how many trials support a score: "Un 90 ottenuto con 40 esercizi non ha la stessa solidità di un 90 ottenuto con 3 esercizi."
+ */
+export function calculateConfidence(
+  entriesCount: number,
+  targetFullSample = 15
+): { confidencePercent: number; confidenceLabel: string } {
+  if (entriesCount <= 0) {
+    return {
+      confidencePercent: 0,
+      confidenceLabel: 'Nessuna prova (0 prove)',
+    };
+  }
+  const ratio = Math.min(1, entriesCount / Math.max(1, targetFullSample));
+  const confidencePercent = Math.round(Math.pow(ratio, 0.65) * 100);
+  const proveWord = entriesCount === 1 ? 'prova' : 'prove';
+
+  if (entriesCount < 4) {
+    return {
+      confidencePercent,
+      confidenceLabel: `Iniziale (${entriesCount} ${proveWord})`,
+    };
+  }
+  if (entriesCount < 10) {
+    return {
+      confidencePercent,
+      confidenceLabel: `In consolidamento (${entriesCount} ${proveWord})`,
+    };
+  }
+  if (entriesCount < 25) {
+    return {
+      confidencePercent,
+      confidenceLabel: `Attendibile (${entriesCount} ${proveWord})`,
+    };
+  }
+  return {
+    confidencePercent: Math.max(92, confidencePercent),
+    confidenceLabel: `Solidità elevata (${entriesCount} ${proveWord})`,
+  };
+}
+
+/**
+ * 4.5 & Section 8: Complete Learning Profile Synthesis (updateLearningProfile)
+ * Formula when all 4 indicators are verified:
+ *   IC = round(0.50 * IP + 0.20 * IA + 0.15 * IR + 0.15 * IT)
+ * When IR or IT is not yet available, re-normalizes over the verified weights without inventing positive scores.
  */
 function computeIndicatorsForEntries(
   entries: LevelPerformanceEntry[],
   sessionsCount: number,
   daysSpan: number,
-  expectedExercisesTarget = 5
+  targetFullSample = 12
 ): {
   totalExercises: number;
   autonomousCorrectCount: number;
@@ -359,8 +1008,14 @@ function computeIndicatorsForEntries(
   ip: number;
   ia: number;
   ir: number;
+  irAvailable: boolean;
+  irDisplay: string;
   it: number;
+  itAvailable: boolean;
+  itDisplay: string;
   ic: number;
+  confidencePercent: number;
+  confidenceLabel: string;
 } {
   if (entries.length === 0) {
     return {
@@ -373,177 +1028,75 @@ function computeIndicatorsForEntries(
       ip: 0,
       ia: 0,
       ir: 0,
+      irAvailable: false,
+      irDisplay: 'Non ancora disponibile',
       it: 0,
+      itAvailable: false,
+      itDisplay: 'Non ancora disponibile',
       ic: 0,
+      confidencePercent: 0,
+      confidenceLabel: 'Nessuna prova (0 prove)',
     };
   }
 
-  let weightedCorrectSum = 0;
-  let weightedTotalSum = 0;
-  let recencyWeightedCorrectSum = 0;
-  let recencyWeightedTotalSum = 0;
-  let recencyWeightedAutonomySum = 0;
-  let autonomousCorrectCount = 0;
-  let assistedSuccessCount = 0;
-  let hintsUsedTotal = 0;
+  const perf = calculateWeightedPerformance(entries);
+  const ia = calculateAutonomy(entries);
+  const ret = calculateRetention(entries, sessionsCount, daysSpan);
+  const trf = calculateTransfer(entries);
+  const conf = calculateConfidence(entries.length, targetFullSample);
 
-  const distinctTiers = new Set<number>();
-  const distinctTypes = new Set<string>();
-  const distinctCategories = new Set<GameCategory>();
-  const totalN = entries.length;
+  let activeWeightSum = 0.5 + 0.2;
+  let weightedSum = 0.5 * perf.ip + 0.2 * ia;
 
-  entries.forEach((e, idx) => {
-    const w = e.weight ?? getDifficultyWeightInfo(e.level || 1, true).weight;
-    const tier = e.tier ?? getDifficultyWeightInfo(e.level || 1, true).tier;
-    const hints = e.hintsUsed ?? 0;
-    const attempts = Math.max(1, e.attempts || 1);
+  if (ret.available) {
+    activeWeightSum += 0.15;
+    weightedSum += 0.15 * ret.ir;
+  }
+  if (trf.available) {
+    activeWeightSum += 0.15;
+    weightedSum += 0.15 * trf.it;
+  }
 
-    // Mild exponential recency factor: newest = 1.0, older items decay gently down to floor 0.32
-    const ageSteps = Math.min(22, totalN - 1 - idx);
-    const recency = Math.pow(0.95, ageSteps);
-    const effW = w * recency;
-
-    // c_i = 1 if and only if solved on 1st attempt without hints
-    const c_i = e.firstTry && hints === 0 && attempts === 1 ? 1 : 0;
-
-    weightedTotalSum += w;
-    weightedCorrectSum += w * c_i;
-    recencyWeightedTotalSum += effW;
-    recencyWeightedCorrectSum += effW * c_i;
-
-    if (c_i === 1) {
-      autonomousCorrectCount++;
-      distinctTiers.add(tier);
-      distinctTypes.add(e.puzzleType || `${e.category}_tier_${tier}`);
-      distinctCategories.add(e.category);
-    } else {
-      assistedSuccessCount++;
-    }
-    hintsUsedTotal += hints;
-
-    // Graduated Autonomy score per exercise:
-    let a_i = 1.0;
-    if (attempts === 1 && hints === 0) {
-      a_i = 1.0;
-    } else if (attempts === 1 && hints > 0) {
-      a_i = Math.max(0.45, 0.76 - (hints - 1) * 0.15);
-    } else if (attempts === 2) {
-      a_i = hints === 0 ? 0.48 : 0.32;
-    } else {
-      a_i = 0.18;
-    }
-    recencyWeightedAutonomySum += effW * a_i;
-  });
-
-  // Empirical Bayes small-sample stabilization:
-  // Avoids volatile 0% or 100% spikes on 1-2 exercises while converging to exact weighted ratio as evidence grows.
-  const priorWeight = 1.6;
-  const ipPriorMean = 0.56;
-  const iaPriorMean = 0.6;
-
-  // A. INDICE DI PRESTAZIONE (IP) with Empirical Bayes shrinkage & recency sensitivity
-  const ip =
-    recencyWeightedTotalSum > 0
-      ? Math.round(
-          ((recencyWeightedCorrectSum + priorWeight * ipPriorMean) /
-            (recencyWeightedTotalSum + priorWeight)) *
-            100
-        )
-      : 0;
-
-  // INDICE DI AUTONOMIA (IA)
-  const ia =
-    recencyWeightedTotalSum > 0
-      ? Math.round(
-          ((recencyWeightedAutonomySum + priorWeight * iaPriorMean) /
-            (recencyWeightedTotalSum + priorWeight)) *
-            100
-        )
-      : 0;
-
-  // CAPACITÀ DI RICORDARE NEL TEMPO (IR - Retention):
-  // Combines recency-half consistency, session/day persistence, and smooth asymptotic maturity.
-  const halfIdx = Math.floor(totalN / 2);
-  const recentEntries = entries.slice(halfIdx);
-  const recentAutoCount = recentEntries.filter(
-    (e) => e.firstTry && (e.hintsUsed ?? 0) === 0 && Math.max(1, e.attempts || 1) === 1
-  ).length;
-  // Bayesian smoothed recent retention accuracy
-  const recentRetentionRate =
-    (recentAutoCount + 1.0 * 0.55) / (recentEntries.length + 1.0);
-  const asymptoticMaturity =
-    totalN / (totalN + Math.max(2.0, expectedExercisesTarget * 0.55));
-  const sessionRetentionFactor = Math.min(
-    1,
-    0.48 + Math.min(4, sessionsCount) * 0.11 + Math.min(7, daysSpan) * 0.015
-  );
-  const ir = Math.round(
-    Math.min(
-      100,
-      (recentRetentionRate * 66 + asymptoticMaturity * 19 + sessionRetentionFactor * 15) *
-        (0.72 + 0.28 * asymptoticMaturity)
-    )
-  );
-
-  // CAPACITÀ DI TRASFERIMENTO A ESERCIZI NUOVI (IT - Transfer):
-  // Rewards mastering higher tiers and distinct puzzle types/domains autonomously.
-  const tierSpread = Math.min(1, distinctTiers.size / 2.5);
-  const typeVariety = Math.min(
-    1,
-    (distinctTypes.size + Math.max(0, distinctCategories.size - 1) * 0.5) /
-      Math.max(2, Math.min(5, expectedExercisesTarget * 0.65))
-  );
-  const highTierEntries = entries.filter((e) => (e.tier ?? 1) >= 2);
-  const highTierAutoCount = highTierEntries.filter(
-    (e) => e.firstTry && (e.hintsUsed ?? 0) === 0 && Math.max(1, e.attempts || 1) === 1
-  ).length;
-  const highTierSuccessRate =
-    highTierEntries.length > 0
-      ? (highTierAutoCount + 1.0 * (ip / 100)) / (highTierEntries.length + 1.0)
-      : (ip / 100) * 0.82;
-
-  const it = Math.round(
-    Math.min(
-      100,
-      (highTierSuccessRate * 54 + typeVariety * 28 + tierSpread * 18) *
-        (0.7 + 0.3 * asymptoticMaturity)
-    )
-  );
-
-  // B. FORMULA INDICE DI COMPETENZA (IC):
-  // IC = 0,50*IP + 0,20*IA + 0,15*IR + 0,15*IT
-  const ic = Math.round(0.5 * ip + 0.2 * ia + 0.15 * ir + 0.15 * it);
+  const ic = Math.round(weightedSum / activeWeightSum);
 
   return {
-    totalExercises: totalN,
-    autonomousCorrectCount,
-    assistedSuccessCount,
-    hintsUsedTotal,
-    weightedCorrectSum: Math.round(weightedCorrectSum * 100) / 100,
-    weightedTotalSum: Math.round(weightedTotalSum * 100) / 100,
-    ip,
+    totalExercises: entries.length,
+    autonomousCorrectCount: perf.autonomousCorrectCount,
+    assistedSuccessCount: perf.assistedSuccessCount,
+    hintsUsedTotal: perf.hintsUsedTotal,
+    weightedCorrectSum: perf.weightedCorrectSum,
+    weightedTotalSum: perf.weightedTotalSum,
+    ip: perf.ip,
     ia,
-    ir,
-    it,
+    ir: ret.ir,
+    irAvailable: ret.available,
+    irDisplay: ret.display,
+    it: trf.it,
+    itAvailable: trf.available,
+    itDisplay: trf.display,
     ic,
+    confidencePercent: conf.confidencePercent,
+    confidenceLabel: conf.confidenceLabel,
   };
 }
 
 /**
- * Computes the complete, traceable evaluation report for Emma.
- * Accelerated diagnostic logic: starts determining parameters immediately from the 1st solved exercise
- * using multi-parameter CHC cross-correlation and Empirical Bayes confidence dampening.
+ * Computes the complete, traceable evaluation report for the child (2-14 years).
+ * Implements all requirements of Sections 1-10 of the adaptive specification PDF.
  */
 export function computeFullEvaluationReport(
   progress: UserProgress
 ): FullEvaluationReport {
+  const ageInfo = calculateChildAge(progress.childProfile?.birthDate);
+  const adaptiveMastery = computeAdaptiveMasteryProfile(progress);
+
   const completedLevelsCount = Math.max(
     0,
     progress.currentLevel - 1,
     progress.totalPuzzlesSolved || 0
   );
   const isUnlocked = completedLevelsCount >= 1;
-  const currentWeightInfo = getDifficultyWeightInfo(progress.currentLevel, true);
+  const currentWeightInfo = getDifficultyWeightInfo(adaptiveMastery.targetDifficulty, false);
 
   // Determine sessions count and days span
   const distinctDates = new Set<string>(progress.sessionDates || []);
@@ -552,7 +1105,10 @@ export function computeFullEvaluationReport(
     if (h.timestamp) distinctDates.add(h.timestamp.slice(0, 10));
   });
 
-  const inferredSessionsFromBlocks = Math.max(1, Math.floor(completedLevelsCount / 6) + (completedLevelsCount >= 3 ? 1 : 0));
+  const inferredSessionsFromBlocks = Math.max(
+    1,
+    Math.floor(completedLevelsCount / 6) + (completedLevelsCount >= 3 ? 1 : 0)
+  );
   const sessionsCount = Math.max(
     progress.sessionsCount ?? 1,
     distinctDates.size,
@@ -579,7 +1135,7 @@ export function computeFullEvaluationReport(
     english: getCategoryEntries(progress, 'english'),
   };
 
-  let allEntries: LevelPerformanceEntry[] = ALL_CATEGORIES.flatMap(
+  const allEntries: LevelPerformanceEntry[] = ALL_CATEGORIES.flatMap(
     (c) => entriesByCategory[c]
   );
 
@@ -622,7 +1178,6 @@ export function computeFullEvaluationReport(
     }
   }
 
-  // Order allEntries chronologically so recency weighting and early-vs-recent IE windows are accurate
   allEntries.sort((a, b) => {
     const ta = a.timestamp ? new Date(a.timestamp).getTime() : 0;
     const tb = b.timestamp ? new Date(b.timestamp).getTime() : 0;
@@ -630,30 +1185,14 @@ export function computeFullEvaluationReport(
     return (a.level || 0) - (b.level || 0);
   });
 
-  const childAgeYears = calculateChildAge(progress.childProfile?.birthDate).years;
-
-  // Previous snapshot for Evolution Index (IE = IC_attuale - IC_precedente)
+  const childAgeYears = ageInfo.years;
   const snapshots = progress.evaluationSnapshots || [];
 
-  // Compute global indicators
+  // Compute global indicators from all actual trials
   const globalCalc = isUnlocked
-    ? computeIndicatorsForEntries(allEntries, sessionsCount, daysSpan, 8)
-    : {
-        totalExercises: 0,
-        autonomousCorrectCount: 0,
-        assistedSuccessCount: 0,
-        hintsUsedTotal: 0,
-        weightedCorrectSum: 0,
-        weightedTotalSum: 0,
-        ip: 0,
-        ia: 0,
-        ir: 0,
-        it: 0,
-        ic: 0,
-      };
+    ? computeIndicatorsForEntries(allEntries, sessionsCount, daysSpan, 20)
+    : computeIndicatorsForEntries([], sessionsCount, daysSpan, 20);
 
-  // Compute honest baseline previous IC from saved snapshots OR real earlier chronological window
-  // (never fabricating artificial positive offsets on brand-new 1-3 exercise profiles)
   let previousGlobalIc = 0;
   if (isUnlocked) {
     const priorSnap = [...snapshots]
@@ -668,7 +1207,7 @@ export function computeFullEvaluationReport(
         earlierSlice,
         Math.max(1, sessionsCount - 1),
         Math.max(0, daysSpan - 1),
-        8
+        20
       );
       previousGlobalIc = prevCalc.ic;
     } else {
@@ -676,121 +1215,124 @@ export function computeFullEvaluationReport(
     }
   }
 
-  // C. FORMULA INDICE DI EVOLUZIONE (IE):
-  // IE = IC_attuale - IC_precedente
   const ieDelta = isUnlocked ? globalCalc.ic - previousGlobalIc : 0;
   const ieIndex = isUnlocked
     ? Math.max(0, Math.min(100, Math.round(50 + ieDelta * 2.5)))
     : 0;
 
-  // Map each category to its primary CHC correlates so domains without direct plays yet
-  // can still be estimated conservatively from correlated multi-parameter tests
-  const categoryCorrelatedChc: Record<GameCategory, ('Gf' | 'Gwm' | 'Gc' | 'Gv' | 'Gs')[]> = {
-    logic: ['Gf', 'Gv'],
-    letters: ['Gc', 'Gwm'],
-    numbers: ['Gwm', 'Gf'],
-    shapes: ['Gv', 'Gs'],
-    music: ['Gwm', 'Gf'],
-    english: ['Gc', 'Gwm'],
-  };
-
-  // Compute per-domain metrics
+  // Compute per-subject (domain) metrics strictly from direct subject trials (Section 4 & 5: never fabricate positive scores for unplayed subjects)
   const domains = {} as Record<GameCategory, DomainEvaluationMetrics>;
   ALL_CATEGORIES.forEach((cat) => {
     const directEntries = entriesByCategory[cat];
-    const correlatedTargets = categoryCorrelatedChc[cat];
-    const proxyEntries =
-      directEntries.length > 0
-        ? directEntries
-        : allEntries
-            .filter(
-              (e) =>
-                (e.chcPrimary && correlatedTargets.includes(e.chcPrimary)) ||
-                (e.chcSecondary && correlatedTargets.includes(e.chcSecondary))
-            )
-            .map((e) => ({
-              ...e,
-              weight: Math.round((e.weight ?? 1.0) * 0.6 * 100) / 100,
-            }));
+    const subjAdaptive = adaptiveMastery.subjects[cat];
 
-    if (!isUnlocked || proxyEntries.length === 0) {
+    if (!isUnlocked || directEntries.length === 0) {
       domains[cat] = {
         id: cat,
-        totalExercises: directEntries.length,
-        autonomousCorrectCount: directEntries.filter((e) => e.firstTry && (e.hintsUsed ?? 0) === 0).length,
-        assistedSuccessCount: directEntries.filter((e) => !e.firstTry || (e.hintsUsed ?? 0) > 0).length,
-        hintsUsedTotal: directEntries.reduce((acc, e) => acc + (e.hintsUsed ?? 0), 0),
+        totalExercises: 0,
+        autonomousCorrectCount: 0,
+        assistedSuccessCount: 0,
+        hintsUsedTotal: 0,
         weightedCorrectSum: 0,
         weightedTotalSum: 0,
         ip: 0,
         ia: 0,
         ir: 0,
+        irAvailable: false,
+        irDisplay: 'Non ancora disponibile',
         it: 0,
+        itAvailable: false,
+        itDisplay: 'Non ancora disponibile',
         ic: 0,
         previousIc: 0,
         ieDelta: 0,
         ieIndex: 0,
         bandLabel: 'In esplorazione',
+        confidencePercent: 0,
+        confidenceLabel: 'Nessuna prova (0 prove)',
+        adaptiveProfile: subjAdaptive,
+        learningPathStages: buildSubjectLearningPathStages(cat, 0, subjAdaptive.targetDifficulty, 0),
       };
       return;
     }
 
-    const isProxyEstimation = directEntries.length === 0;
-    const cCalc = computeIndicatorsForEntries(proxyEntries, sessionsCount, daysSpan, 3);
-    const damping = isProxyEstimation ? 0.84 : 1.0;
-    const finalIp = Math.round(cCalc.ip * damping);
-    const finalIa = Math.round(cCalc.ia * damping);
-    const finalIr = Math.round(cCalc.ir * damping);
-    const finalIt = Math.round(cCalc.it * damping);
-    const finalIc = Math.round(0.5 * finalIp + 0.2 * finalIa + 0.15 * finalIr + 0.15 * finalIt);
+    const cCalc = computeIndicatorsForEntries(directEntries, sessionsCount, daysSpan, 10);
 
-    let prevCatIc = finalIc;
+    let prevCatIc = cCalc.ic;
     const priorSnap = [...snapshots]
       .reverse()
       .find((s) => s.significantExercises < globalCalc.totalExercises && s.domainIC?.[cat] !== undefined);
     if (priorSnap && priorSnap.domainIC?.[cat] !== undefined && priorSnap.domainIC[cat] > 0) {
       prevCatIc = priorSnap.domainIC[cat];
-    } else if (proxyEntries.length >= 4) {
-      const splitIdx = Math.max(2, Math.floor(proxyEntries.length * 0.6));
+    } else if (directEntries.length >= 4) {
+      const splitIdx = Math.max(2, Math.floor(directEntries.length * 0.6));
       const prevCatCalc = computeIndicatorsForEntries(
-        proxyEntries.slice(0, splitIdx),
+        directEntries.slice(0, splitIdx),
         Math.max(1, sessionsCount - 1),
         daysSpan,
-        3
+        10
       );
-      prevCatIc = Math.round(prevCatCalc.ic * damping);
+      prevCatIc = prevCatCalc.ic;
     }
 
-    const catDelta = finalIc - prevCatIc;
+    const catDelta = cCalc.ic - prevCatIc;
     const catIeIndex = Math.max(0, Math.min(100, Math.round(50 + catDelta * 2.5)));
 
     domains[cat] = {
       id: cat,
       totalExercises: directEntries.length,
-      autonomousCorrectCount: directEntries.filter((e) => e.firstTry && (e.hintsUsed ?? 0) === 0).length,
-      assistedSuccessCount: directEntries.filter((e) => !e.firstTry || (e.hintsUsed ?? 0) > 0).length,
-      hintsUsedTotal: directEntries.reduce((acc, e) => acc + (e.hintsUsed ?? 0), 0),
-      weightedCorrectSum: isProxyEstimation ? 0 : cCalc.weightedCorrectSum,
-      weightedTotalSum: isProxyEstimation ? 0 : cCalc.weightedTotalSum,
-      ip: finalIp,
-      ia: finalIa,
-      ir: finalIr,
-      it: finalIt,
-      ic: finalIc,
+      autonomousCorrectCount: cCalc.autonomousCorrectCount,
+      assistedSuccessCount: cCalc.assistedSuccessCount,
+      hintsUsedTotal: cCalc.hintsUsedTotal,
+      weightedCorrectSum: cCalc.weightedCorrectSum,
+      weightedTotalSum: cCalc.weightedTotalSum,
+      ip: cCalc.ip,
+      ia: cCalc.ia,
+      ir: cCalc.ir,
+      irAvailable: cCalc.irAvailable,
+      irDisplay: cCalc.irDisplay,
+      it: cCalc.it,
+      itAvailable: cCalc.itAvailable,
+      itDisplay: cCalc.itDisplay,
+      ic: cCalc.ic,
       previousIc: prevCatIc,
       ieDelta: catDelta,
       ieIndex: catIeIndex,
-      bandLabel: getCompetencyBand(finalIc, true),
+      bandLabel: getCompetencyBand(cCalc.ic, true),
+      confidencePercent: cCalc.confidencePercent,
+      confidenceLabel: cCalc.confidenceLabel,
+      adaptiveProfile: subjAdaptive,
+      learningPathStages: buildSubjectLearningPathStages(
+        cat,
+        cCalc.ic,
+        subjAdaptive.targetDifficulty,
+        directEntries.length
+      ),
     };
   });
 
-  // 3. FIVE STABILITY & PSYCHOMETRIC SECURITY CRITERIA FOR ADVANCING TO NEXT MASTERY LEVEL:
+  // =========================================================================
+  // SECTION 3: 5 PROMOTION CRITERIA + 6th FUNDAMENTAL COMPETENCY STABILITY RULE
+  // "Nessuna promozione se una competenza fondamentale risulta ancora instabile,
+  //  anche quando la media generale è elevata."
+  // =========================================================================
+  const fundamentalCategories: GameCategory[] = ['logic', 'numbers', 'letters', 'shapes'];
+  const playedFundamentals = fundamentalCategories.filter(
+    (c) => domains[c].totalExercises >= 2
+  );
+  const unstableFundamentalSubjects = playedFundamentals
+    .filter((c) => domains[c].ic < 60 || domains[c].ia < 55)
+    .map((c) => domains[c].adaptiveProfile.subjectTitle);
+  const hasUnstableFundamentalCompetency = unstableFundamentalSubjects.length > 0;
+
   const crit1Sessions = isUnlocked && sessionsCount >= 3;
   const crit2Exercises = isUnlocked && globalCalc.totalExercises >= 10;
   const crit3Competency80 = isUnlocked && globalCalc.ic >= 80;
   const crit4AutonomyNoHints = isUnlocked && globalCalc.ia >= 75;
   const crit5ConfirmedOverTime =
-    isUnlocked && (daysSpan >= 7 || (sessionsCount >= 3 && globalCalc.ir >= 70));
+    isUnlocked && (daysSpan >= 7 || (sessionsCount >= 3 && globalCalc.irAvailable && globalCalc.ir >= 70));
+  const crit6FundamentalsStable =
+    isUnlocked && playedFundamentals.length >= 2 && !hasUnstableFundamentalCompetency;
 
   const stabilityCriteria: ProgressionCriterionStatus[] = [
     {
@@ -816,32 +1358,42 @@ export function computeFullEvaluationReport(
     },
     {
       id: 'crit_autonomy',
-      label: '4. Nessuna dipendenza da suggerimenti',
+      label: '4. Autonomia (IA) ≥ 75/100',
       targetText: 'IA ≥ 75/100',
-      currentText: `IA ${globalCalc.ia}/100 (${globalCalc.assistedSuccessCount} assistiti)`,
+      currentText: `IA ${globalCalc.ia}/100 (${globalCalc.assistedSuccessCount} con aiuti)`,
       met: crit4AutonomyNoHints,
     },
     {
       id: 'crit_retention',
-      label: '5. Conferma in sessione successiva (7 gg)',
+      label: '5. Conferma in sessione successiva (≥ 7 giorni)',
       targetText: 'Conferma nel tempo',
       currentText:
         daysSpan >= 7
           ? `Confermato (${daysSpan} gg)`
-          : `IR ${globalCalc.ir}/100 (${Math.max(1, daysSpan)} gg)`,
+          : `IR ${globalCalc.irDisplay} (${Math.max(1, daysSpan)} gg)`,
       met: crit5ConfirmedOverTime,
+    },
+    {
+      id: 'crit_fundamentals',
+      label: '6. Nessuna competenza fondamentale instabile',
+      targetText: 'Tutte IC ≥ 60/100',
+      currentText: hasUnstableFundamentalCompetency
+        ? `Instabile: ${unstableFundamentalSubjects.join(', ')}`
+        : playedFundamentals.length >= 2
+        ? 'Tutte le basi stabili'
+        : 'In verifica iniziale',
+      met: crit6FundamentalsStable,
     },
   ];
 
   const canAdvanceToNextMasteryLevel = stabilityCriteria.every((c) => c.met);
   const rawBandLabel = getCompetencyBand(globalCalc.ic, isUnlocked);
 
-  // Prevent jumping to "Padronanza avanzata" or "Acquisito" on a lucky short session
   let assignedBandLabel: CompetencyBandLabel = rawBandLabel;
   if (isUnlocked) {
     if (
       (rawBandLabel === 'Padronanza avanzata' || rawBandLabel === 'Acquisito') &&
-      (!crit1Sessions || !crit2Exercises || !crit4AutonomyNoHints)
+      (!crit1Sessions || !crit2Exercises || !crit4AutonomyNoHints || hasUnstableFundamentalCompetency)
     ) {
       assignedBandLabel = 'In consolidamento';
     } else if (rawBandLabel === 'Padronanza avanzata' && !canAdvanceToNextMasteryLevel) {
@@ -851,22 +1403,43 @@ export function computeFullEvaluationReport(
 
   const metCount = stabilityCriteria.filter((c) => c.met).length;
   const stabilitySummaryNote = !isUnlocked
-    ? 'Completa il primo esercizio diagnostico per avviare la profilazione multiparametrica CHC.'
+    ? 'Completa il primo esercizio per avviare il profilo di apprendimento adattivo per materia.'
+    : hasUnstableFundamentalCompetency
+    ? `Promozione generale sospesa (${metCount}/6 criteri): la competenza fondamentale in ${unstableFundamentalSubjects.join(', ')} risulta ancora instabile (IC < 60). Il motore avanza nelle materie forti e consolida quelle deboli.`
     : canAdvanceToNextMasteryLevel
-    ? 'Tutti i 5 criteri di sicurezza e stabilità psicometrica sono soddisfatti: competenza consolidata e confermata.'
-    : `Stabilità e Sicurezza Psicometrica: ${metCount}/5 criteri soddisfatti. Il sistema rileva subito i parametri da ogni livello ma protegge da sovrastime su poche partite.`;
+    ? 'Tutti i 6 criteri di promozione e stabilità delle competenze fondamentali sono soddisfatti.'
+    : `Requisiti per la promozione generale: ${metCount}/6 criteri soddisfatti. Ogni materia avanza comunque in modo indipendente secondo la propria finestra di 10 esercizi.`;
 
-  // 4. COLLEGAMENTO CON LA TEORIA CHC (5 AREE 0-100, PROFILO COGNITIVO MULTIPARAMETRICO)
+  // =========================================================================
+  // SECTION 5: SEPARATE THE 5 CHC COGNITIVE AREAS FROM THE 6 SUBJECTS
+  // (No double counting when multiple subjects contribute to the same CHC area, e.g. Gc or Gwm)
+  // =========================================================================
   const buildCHCAbility = (
     code: 'Gf' | 'Gwm' | 'Gc' | 'Gv' | 'Gs',
     shortTitle: string,
     fullTitle: string,
     description: string,
     colorHex: string,
-    fallbackEntries: LevelPerformanceEntry[],
+    contributingSubjectsLabel: string,
+    directPool: LevelPerformanceEntry[],
     extraTransferBonus = 0
   ): CHCAbilityScore => {
-    if (!isUnlocked || allEntries.length === 0) {
+    // Combine direct subject pool with any exercise explicitly tagged with chcPrimary === code (deduplicated by level+timestamp)
+    const seenKeys = new Set<string>();
+    const unifiedEntries: LevelPerformanceEntry[] = [];
+
+    const pushUnique = (e: LevelPerformanceEntry) => {
+      const k = `${e.level}_${e.category}_${e.timestamp}`;
+      if (!seenKeys.has(k)) {
+        seenKeys.add(k);
+        unifiedEntries.push(e);
+      }
+    };
+
+    directPool.forEach(pushUnique);
+    allEntries.filter((e) => e.chcPrimary === code).forEach(pushUnique);
+
+    if (!isUnlocked || unifiedEntries.length === 0) {
       return {
         code,
         shortTitle,
@@ -877,51 +1450,35 @@ export function computeFullEvaluationReport(
         ip: 0,
         ia: 0,
         ir: 0,
+        irAvailable: false,
+        irDisplay: 'Non ancora disponibile',
         it: 0,
+        itAvailable: false,
+        itDisplay: 'Non ancora disponibile',
         ieDelta: 0,
         bandLabel: 'In esplorazione',
+        sampleCount: 0,
+        confidencePercent: 0,
+        confidenceLabel: 'Nessuna prova (0 prove)',
+        contributingSubjectsLabel,
       };
     }
 
-    // Gather primary matches (full weight), secondary matches (0.65 weight), and fallback matches
-    const primaryMatches = allEntries.filter((e) => e.chcPrimary === code);
-    const secondaryMatches = allEntries
-      .filter((e) => e.chcPrimary !== code && e.chcSecondary === code)
-      .map((e) => ({
-        ...e,
-        weight: Math.round((e.weight ?? 1.0) * 0.65 * 100) / 100,
-      }));
-
-    let combinedEntries = [...primaryMatches, ...secondaryMatches];
-    if (combinedEntries.length === 0) {
-      combinedEntries =
-        fallbackEntries.length > 0
-          ? fallbackEntries
-          : allEntries.map((e) => ({
-              ...e,
-              weight: Math.round((e.weight ?? 1.0) * 0.55 * 100) / 100,
-            }));
-    }
-
     const calc = computeIndicatorsForEntries(
-      combinedEntries,
+      unifiedEntries,
       sessionsCount,
       daysSpan,
-      4
+      12
     );
 
-    // For Gs (Velocità e precisione):
-    // 1. Age-calibrated target latency (2-14 years) + tier complexity scaling
-    // 2. Outlier-resistant Winsorized/median response time (immune to 40s distraction pauses)
-    // 3. Speed-Accuracy Tradeoff (SAT) guard so fast wrong guessing never inflates Gs
-    let speedPrecisionFactor = calc.ip;
+    let effectiveIp = calc.ip;
     if (code === 'Gs') {
-      const validTimed = combinedEntries.filter(
+      const validTimed = unifiedEntries.filter(
         (e) => typeof e.responseTimeMs === 'number' && e.responseTimeMs >= 500
       );
       if (validTimed.length > 0) {
         const autonomousTimed = validTimed.filter(
-          (e) => e.firstTry && (e.hintsUsed ?? 0) === 0 && Math.max(1, e.attempts || 1) === 1
+          (e) => evaluateSingleTrialMetrics(e).isAutonomous
         );
         const latencyPool = autonomousTimed.length > 0 ? autonomousTimed : validTimed;
         const robustMs = computeRobustLatencyMs(
@@ -932,25 +1489,28 @@ export function computeFullEvaluationReport(
         const baseTargetMs = getAgeCalibratedTargetLatencyMs(childAgeYears);
         const adjustedTargetMs = baseTargetMs * (1 + Math.max(0, avgTier - 1) * 0.12);
         const latencyRatio = Math.max(0.25, robustMs / adjustedTargetMs);
-
-        // Smooth monotonic curve: ratio 0.6 -> ~92, 1.0 -> 86, 1.6 -> 79, 2.5 -> 71
         const rawLatencyScore = Math.max(
           48,
           Math.min(98, Math.round(112 - 26 * Math.sqrt(latencyRatio)))
         );
-
-        // Speed-Accuracy Tradeoff (SAT) guard: speed only scores highly when paired with accuracy
         const accuracyRatio = calc.ip / 100;
         const satGatedLatency = Math.round(rawLatencyScore * (0.35 + 0.65 * accuracyRatio));
-        speedPrecisionFactor = Math.round(calc.ip * 0.62 + satGatedLatency * 0.38);
+        effectiveIp = Math.round(calc.ip * 0.62 + satGatedLatency * 0.38);
       }
     }
 
-    const effectiveIp = code === 'Gs' ? speedPrecisionFactor : calc.ip;
-    const itBoosted = Math.min(100, calc.it + extraTransferBonus);
-    const score = Math.round(
-      0.5 * effectiveIp + 0.2 * calc.ia + 0.15 * calc.ir + 0.15 * itBoosted
-    );
+    const itBoosted = calc.itAvailable ? Math.min(100, calc.it + extraTransferBonus) : 0;
+    let activeWeight = 0.5 + 0.2;
+    let wSum = 0.5 * effectiveIp + 0.2 * calc.ia;
+    if (calc.irAvailable) {
+      activeWeight += 0.15;
+      wSum += 0.15 * calc.ir;
+    }
+    if (calc.itAvailable) {
+      activeWeight += 0.15;
+      wSum += 0.15 * itBoosted;
+    }
+    const score = Math.round(wSum / activeWeight);
 
     const priorSnap = [...snapshots]
       .reverse()
@@ -958,20 +1518,15 @@ export function computeFullEvaluationReport(
     let prevScore = score;
     if (priorSnap?.chcScores?.[code] && priorSnap.chcScores[code] > 0) {
       prevScore = priorSnap.chcScores[code];
-    } else if (combinedEntries.length >= 4) {
-      const splitIdx = Math.max(2, Math.floor(combinedEntries.length * 0.6));
+    } else if (unifiedEntries.length >= 4) {
+      const splitIdx = Math.max(2, Math.floor(unifiedEntries.length * 0.6));
       const prevChcCalc = computeIndicatorsForEntries(
-        combinedEntries.slice(0, splitIdx),
+        unifiedEntries.slice(0, splitIdx),
         Math.max(1, sessionsCount - 1),
         daysSpan,
-        4
+        12
       );
-      prevScore = Math.round(
-        0.5 * prevChcCalc.ip +
-          0.2 * prevChcCalc.ia +
-          0.15 * prevChcCalc.ir +
-          0.15 * Math.min(100, prevChcCalc.it + extraTransferBonus)
-      );
+      prevScore = prevChcCalc.ic;
     }
 
     return {
@@ -984,55 +1539,110 @@ export function computeFullEvaluationReport(
       ip: effectiveIp,
       ia: calc.ia,
       ir: calc.ir,
+      irAvailable: calc.irAvailable,
+      irDisplay: calc.irDisplay,
       it: itBoosted,
+      itAvailable: calc.itAvailable,
+      itDisplay: calc.itAvailable ? `${itBoosted}/100` : 'Non ancora disponibile',
       ieDelta: score - prevScore,
       bandLabel: getCompetencyBand(score, true),
+      sampleCount: unifiedEntries.length,
+      confidencePercent: calc.confidencePercent,
+      confidenceLabel: calc.confidenceLabel,
+      contributingSubjectsLabel,
     };
   };
 
   const chcAbilities: CHCAbilityScore[] = [
     buildCHCAbility(
       'Gf',
-      'Ragionamento',
-      'Gf · Ragionamento fluido',
-      'Logica, sequenze, problemi e associazioni.',
+      'Ragionamento fluido',
+      'Gf – Ragionamento fluido',
+      'Logica, sequenze, associazioni, problem solving.',
       '#7c3aed',
+      'Logica, sequenze e problemi matematici',
       entriesByCategory.logic
     ),
     buildCHCAbility(
       'Gwm',
-      'Memoria',
-      'Gwm · Memoria di lavoro',
-      'Memorizzazione, ripetizione e manipolazione di informazioni.',
+      'Memoria di lavoro',
+      'Gwm – Memoria di lavoro',
+      'Memoria uditiva, sequenze, ritmo, manipolazione delle informazioni.',
       '#0284c7',
+      'Memoria uditiva, ritmo e calcolo mentale',
       [...entriesByCategory.music, ...entriesByCategory.numbers]
     ),
     buildCHCAbility(
       'Gc',
-      'Linguaggio',
-      'Gc · Conoscenza e linguaggio',
-      'Vocabolario, comprensione e conoscenze.',
+      'Conoscenza acquisita',
+      'Gc – Conoscenza acquisita',
+      'Linguaggio, lettere, vocabolario, inglese, scienze e cultura.',
       '#10b981',
+      'Italiano/Lettere e Inglese (aggregati senza doppio conteggio)',
       [...entriesByCategory.letters, ...entriesByCategory.english]
     ),
     buildCHCAbility(
       'Gv',
       'Visuo-spaziale',
-      'Gv · Abilità visuo-spaziali',
-      'Forme, orientamento, figure e relazioni spaziali.',
+      'Gv – Elaborazione visuo-spaziale',
+      'Forme, colori, orientamento, relazioni spaziali.',
       '#db2777',
+      'Spazio, geometria, arte e orientamento',
       entriesByCategory.shapes,
-      Math.min(8, progress.trisGamesWon * 2)
+      Math.min(6, progress.trisGamesWon * 2)
     ),
     buildCHCAbility(
       'Gs',
-      'Velocità e precisione',
-      'Gs · Velocità di elaborazione',
-      'Rapidità e precisione nelle prove appropriate.',
+      'Velocità di elaborazione',
+      'Gs – Velocità di elaborazione',
+      'Rapidità, precisione, riconoscimento e risposta.',
       '#d97706',
+      'Tempi di risposta e precisione su tutte le materie',
       allEntries
     ),
   ];
+
+  // Section 7.5: Next Learning Plan (Punto di forza, Da consolidare, Prossima sfida)
+  const playedDomains = ALL_CATEGORIES.map((c) => domains[c]).filter(
+    (d) => d.totalExercises > 0
+  );
+  const sortedByIcDesc = [...playedDomains].sort((a, b) => b.ic - a.ic);
+  const strongestDomain = sortedByIcDesc[0] || domains.logic;
+  const weakestDomain =
+    sortedByIcDesc.length > 1
+      ? sortedByIcDesc[sortedByIcDesc.length - 1]
+      : domains.letters.totalExercises === 0
+      ? domains.letters
+      : domains.music;
+
+  const nextStageForStrongest =
+    strongestDomain.learningPathStages.find((s) => s.status === 'Prossimo obiettivo') ||
+    strongestDomain.learningPathStages.find((s) => s.status === 'In corso') ||
+    strongestDomain.learningPathStages[strongestDomain.learningPathStages.length - 1];
+
+  const activeStageForWeakest =
+    weakestDomain.learningPathStages.find((s) => s.status === 'In corso') ||
+    weakestDomain.learningPathStages[0];
+
+  const nextLearningPlan: NextLearningPlan = {
+    strengthTitle: `${strongestDomain.adaptiveProfile.subjectTitle} (IC ${strongestDomain.ic}/100 · ${strongestDomain.adaptiveProfile.indicativeEducationalAgeLabel})`,
+    strengthDetail:
+      strongestDomain.totalExercises > 0
+        ? `Solida padronanza su ${strongestDomain.totalExercises} prove (Autonomia IA ${strongestDomain.ia}/100, Difficoltà ${strongestDomain.adaptiveProfile.targetDifficulty}/5).`
+        : 'In attesa delle prime prove per individuare il punto di forza principale.',
+    toConsolidateTitle: `${weakestDomain.adaptiveProfile.subjectTitle} (${weakestDomain.totalExercises > 0 ? `IC ${weakestDomain.ic}/100` : 'Da esplorare'})`,
+    toConsolidateDetail:
+      weakestDomain.totalExercises > 0
+        ? `${activeStageForWeakest.title}: ${weakestDomain.adaptiveProfile.decisionExplanation}`
+        : `Proporre prime attività su "${activeStageForWeakest.title}" per avviare la valutazione di ${weakestDomain.adaptiveProfile.subjectTitle}.`,
+    nextChallengeTitle: `${strongestDomain.adaptiveProfile.subjectTitle} → ${nextStageForStrongest.title}`,
+    nextChallengeDetail: `${nextStageForStrongest.description} (Difficoltà target ${Math.min(5, strongestDomain.adaptiveProfile.targetDifficulty + 1)}/5).`,
+  };
+
+  const progressiveSubjectsCatalog = buildProgressiveSubjectsCatalog(
+    childAgeYears,
+    domains
+  );
 
   const chcMap = {
     Gf: chcAbilities.find((a) => a.code === 'Gf')?.score ?? 0,
@@ -1042,18 +1652,15 @@ export function computeFullEvaluationReport(
     Gs: chcAbilities.find((a) => a.code === 'Gs')?.score ?? 0,
   };
 
-  const longitudinal = computeLongitudinalProgressRows(
-    progress,
-    {
-      isUnlocked,
-      currentLevel: progress.currentLevel,
-      ip: globalCalc.ip,
-      ic: globalCalc.ic,
-      ia: globalCalc.ia,
-      assignedBandLabel,
-      chcMap,
-    }
-  );
+  const longitudinal = computeLongitudinalProgressRows(progress, {
+    isUnlocked,
+    currentLevel: progress.currentLevel,
+    ip: globalCalc.ip,
+    ic: globalCalc.ic,
+    ia: globalCalc.ia,
+    assignedBandLabel,
+    chcMap,
+  });
 
   return {
     isUnlocked,
@@ -1062,6 +1669,7 @@ export function computeFullEvaluationReport(
     currentTier: currentWeightInfo.tier,
     currentDifficultyLabel: currentWeightInfo.label,
     currentWeight: currentWeightInfo.weight,
+    generalLevelLabel: 'Personalizzato (Indipendente per Materia)',
     ip: globalCalc.ip,
     ic: globalCalc.ic,
     ia: globalCalc.ia,
@@ -1069,7 +1677,13 @@ export function computeFullEvaluationReport(
     ieDelta,
     previousIc: previousGlobalIc,
     ir: globalCalc.ir,
+    irAvailable: globalCalc.irAvailable,
+    irDisplay: globalCalc.irDisplay,
     it: globalCalc.it,
+    itAvailable: globalCalc.itAvailable,
+    itDisplay: globalCalc.itDisplay,
+    confidencePercent: globalCalc.confidencePercent,
+    confidenceLabel: globalCalc.confidenceLabel,
     weightedCorrectSum: globalCalc.weightedCorrectSum,
     weightedTotalSum: globalCalc.weightedTotalSum,
     autonomousTotal: globalCalc.autonomousCorrectCount,
@@ -1080,12 +1694,18 @@ export function computeFullEvaluationReport(
     rawBandLabel,
     assignedBandLabel,
     canAdvanceToNextMasteryLevel,
+    hasUnstableFundamentalCompetency,
+    unstableFundamentalSubjects,
     stabilityCriteria,
     stabilitySummaryNote,
     chcAbilities,
     domains,
-    childCurrentAgeYears: longitudinal.childCurrentAgeYears,
-    emmaCurrentAgeYears: longitudinal.childCurrentAgeYears,
+    progressiveSubjectsCatalog,
+    nextLearningPlan,
+    childCurrentAgeYears: ageInfo.years,
+    childCurrentAgeMonths: ageInfo.totalMonths,
+    childExactAgeDisplay: ageInfo.displayText,
+    emmaCurrentAgeYears: ageInfo.years,
     childBirthDayMonthLabel: longitudinal.childBirthDayMonthLabel,
     nextBirthdayYear: longitudinal.nextBirthdayYear,
     currentMonthKey: longitudinal.currentMonthKey,
@@ -1095,6 +1715,251 @@ export function computeFullEvaluationReport(
     annualProgressRows: longitudinal.rows,
     activeAgeRow: longitudinal.activeRow,
   };
+}
+
+// ============================================================================
+// SECTION 10: 4-PROFILE ADAPTIVE ENGINE VERIFICATION SIMULATOR
+// ============================================================================
+
+export interface SimulatedProfileVerificationResult {
+  id: string;
+  profileTitle: string;
+  chronologicalAgeDisplay: string;
+  ageInMonths: number;
+  summaryHighlight: string;
+  globalIc: number;
+  globalIp: number;
+  globalIa: number;
+  globalIrDisplay: string;
+  globalItDisplay: string;
+  canPromoteGeneral: boolean;
+  promotionGateReason: string;
+  zeroRepetitionVerified: boolean;
+  autonomyGatingVerified: boolean;
+  subjectBreakdown: Array<{
+    subjectId: GameCategory;
+    subjectTitle: string;
+    ic: number;
+    ia: number;
+    difficulty: ExerciseDifficultyScore;
+    indicativeAgeLabel: string;
+    windowDecision: string;
+    sampleCount: number;
+  }>;
+}
+
+/**
+ * Runs the 4 mandatory verification simulations defined in Section 10 of the PDF:
+ * 1. Bambino di 4 anni con competenze superiori all'età.
+ * 2. Bambino di 5 anni con sviluppo equilibrato.
+ * 3. Bambino di 6 anni con difficoltà in alcune materie.
+ * 4. Bambino di 5 anni con competenze molto disomogenee tra matematica, linguaggio e memoria
+ *    (plus verification that 10 correct answers with 7 hints are NOT automatically promoted!).
+ */
+export function runAdaptiveVerificationSimulations(
+  referenceDate: Date = new Date()
+): SimulatedProfileVerificationResult[] {
+  const refYear = referenceDate.getFullYear();
+  const refMonth = String(referenceDate.getMonth() + 1).padStart(2, '0');
+
+  const makeEntry = (
+    lvl: number,
+    cat: GameCategory,
+    tier: ExerciseDifficultyScore,
+    firstTry: boolean,
+    attempts: number,
+    hintsUsed: number,
+    daysAgo: number
+  ): LevelPerformanceEntry => {
+    const d = new Date(referenceDate.getTime() - daysAgo * 86400000);
+    return {
+      level: lvl,
+      puzzleId: `sim_${cat}_${lvl}_t${tier}`,
+      tier,
+      weight: DIFFICULTY_LEVEL_SPECS[tier].weight,
+      category: cat,
+      puzzleType:
+        lvl % 2 === 0
+          ? cat === 'numbers'
+            ? 'visual_addition'
+            : 'pattern_sequence'
+          : cat === 'numbers'
+          ? 'number_sequence'
+          : 'odd_one_out',
+      firstTry,
+      assistedSuccess: !firstTry,
+      attempts,
+      hintsUsed,
+      responseTimeMs: 4800,
+      starsEarned: firstTry ? 3 : 2,
+      timestamp: d.toISOString(),
+    };
+  };
+
+  // Profile 1: 4-year-old with above-age competencies (10/10 autonomous across subjects)
+  const p1History: LevelPerformanceEntry[] = [];
+  ALL_CATEGORIES.forEach((cat, cIdx) => {
+    for (let i = 0; i < 8; i++) {
+      p1History.push(makeEntry(cIdx * 10 + i + 1, cat, 3, true, 1, 0, 8 - i));
+    }
+  });
+
+  // Profile 2: 5-year-old with balanced development (8/10 correct, balanced autonomy)
+  const p2History: LevelPerformanceEntry[] = [];
+  ALL_CATEGORIES.forEach((cat, cIdx) => {
+    for (let i = 0; i < 6; i++) {
+      const isAuto = i % 5 !== 0;
+      p2History.push(
+        makeEntry(cIdx * 10 + i + 1, cat, 2, isAuto, isAuto ? 1 : 2, isAuto ? 0 : 1, 6 - i)
+      );
+    }
+  });
+
+  // Profile 3: 6-year-old with difficulties in some subjects (strong shapes/logic, struggling in letters & numbers)
+  const p3History: LevelPerformanceEntry[] = [];
+  for (let i = 0; i < 8; i++) {
+    p3History.push(makeEntry(i + 1, 'shapes', 3, true, 1, 0, 8 - i));
+    p3History.push(makeEntry(10 + i + 1, 'logic', 2, i % 4 !== 0, i % 4 !== 0 ? 1 : 2, 0, 8 - i));
+    p3History.push(makeEntry(20 + i + 1, 'letters', 2, false, 3, 2, 8 - i));
+    p3History.push(makeEntry(30 + i + 1, 'numbers', 2, i < 2, i < 2 ? 1 : 3, i < 2 ? 0 : 2, 8 - i));
+  }
+
+  // Profile 4: 5-year-old with highly heterogeneous skills (Math & Logic 10/10 autonomous -> 6-7yo,
+  // English 10 correct but 7 with hints -> NOT promoted, Language & Memory 4-5yo consolidation)
+  const p4History: LevelPerformanceEntry[] = [];
+  for (let i = 0; i < 10; i++) {
+    p4History.push(makeEntry(i + 1, 'logic', 4, true, 1, 0, 9 - i));
+    p4History.push(makeEntry(10 + i + 1, 'numbers', 4, true, 1, 0, 9 - i));
+    p4History.push(makeEntry(20 + i + 1, 'shapes', 3, i % 5 !== 0, i % 5 !== 0 ? 1 : 2, 0, 9 - i));
+    // English: 10 answers solved, but 7 achieved using 1-2 hints (Section 2.3 test case!)
+    const enAuto = i < 3;
+    p4History.push(
+      makeEntry(30 + i + 1, 'english', 2, enAuto, enAuto ? 1 : 2, enAuto ? 0 : 2, 9 - i)
+    );
+    // Language & Memory: lower accuracy requiring consolidation
+    const langAuto = i < 4;
+    p4History.push(
+      makeEntry(40 + i + 1, 'letters', 2, langAuto, langAuto ? 1 : 3, langAuto ? 0 : 2, 9 - i)
+    );
+    p4History.push(
+      makeEntry(50 + i + 1, 'music', 2, langAuto, langAuto ? 1 : 3, langAuto ? 0 : 2, 9 - i)
+    );
+  }
+
+  const configs: Array<{
+    id: string;
+    title: string;
+    birthDate: string;
+    history: LevelPerformanceEntry[];
+    summary: string;
+  }> = [
+    {
+      id: 'sim_4yo_advanced',
+      title: '1. Bambino di 4 anni con competenze superiori all’età',
+      birthDate: `${refYear - 4}-${refMonth}-10`,
+      history: p1History,
+      summary:
+        'Alta autonomia (IA 100/100) su tutte le materie: il motore alza la difficoltà a 4/5 e assegna età didattica indicativa 5–6 anni.',
+    },
+    {
+      id: 'sim_5yo_balanced',
+      title: '2. Bambino di 5 anni con sviluppo equilibrato',
+      birthDate: `${refYear - 5}-${refMonth}-10`,
+      history: p2History,
+      summary:
+        'Circa 8/10 risposte corrette per materia: decisione "Mantieni e verifica" (Difficoltà 2–3/5, età didattica 5 anni).',
+    },
+    {
+      id: 'sim_6yo_struggling',
+      title: '3. Bambino di 6 anni con difficoltà in alcune materie',
+      birthDate: `${refYear - 6}-${refMonth}-10`,
+      history: p3History,
+      summary:
+        'Forte in Spazio/Logica ma in difficoltà su Italiano e Matematica: riduzione automatica della difficoltà nelle materie deboli e blocco promozione generale.',
+    },
+    {
+      id: 'sim_5yo_heterogeneous',
+      title: '4. Bambino di 5 anni con competenze disomogenee (Esempio PDF Pag. 2–3)',
+      birthDate: `${refYear - 5}-${refMonth}-10`,
+      history: p4History,
+      summary:
+        'Logica e Matematica avanzate (6–7 anni, Diff. 4–5), Inglese con 10 risposte ma 7 con aiuti ("Mantieni e verifica", non promosso), Linguaggio e Memoria in consolidamento (4–5 anni).',
+    },
+  ];
+
+  return configs.map((cfg) => {
+    const mockProgress: UserProgress = {
+      childProfile: {
+        name: 'Simulazione',
+        birthDate: cfg.birthDate,
+        gender: 'n',
+        isConfigured: true,
+      },
+      currentLevel: cfg.history.length + 1,
+      highestLevelReached: cfg.history.length + 1,
+      stars: cfg.history.length * 3,
+      gems: 30,
+      streakDays: 8,
+      lastPlayedDate: referenceDate.toISOString().slice(0, 10),
+      categoryStats: {
+        logic: { correct: 0, total: 0 },
+        letters: { correct: 0, total: 0 },
+        numbers: { correct: 0, total: 0 },
+        shapes: { correct: 0, total: 0 },
+        music: { correct: 0, total: 0 },
+        english: { correct: 0, total: 0 },
+      },
+      trisGamesPlayed: 2,
+      trisGamesWon: 1,
+      soundEnabled: true,
+      voiceEnabled: true,
+      musicEnabled: true,
+      totalPuzzlesSolved: cfg.history.length,
+      totalAttempts: cfg.history.length,
+      dailyRewardClaimed: false,
+      savedDrawings: [],
+      completedPuzzleIds: cfg.history.map((h) => h.puzzleId || `p_${h.level}`),
+      levelHistory: cfg.history,
+      sessionsCount: 4,
+    };
+
+    const rep = computeFullEvaluationReport(mockProgress);
+
+    return {
+      id: cfg.id,
+      profileTitle: cfg.title,
+      chronologicalAgeDisplay: rep.childExactAgeDisplay,
+      ageInMonths: rep.childCurrentAgeMonths,
+      summaryHighlight: cfg.summary,
+      globalIc: rep.ic,
+      globalIp: rep.ip,
+      globalIa: rep.ia,
+      globalIrDisplay: rep.irDisplay,
+      globalItDisplay: rep.itDisplay,
+      canPromoteGeneral: rep.canAdvanceToNextMasteryLevel,
+      promotionGateReason: rep.hasUnstableFundamentalCompetency
+        ? `Promozione bloccata: competenza fondamentale instabile in ${rep.unstableFundamentalSubjects.join(', ')}`
+        : rep.canAdvanceToNextMasteryLevel
+        ? 'Tutti i 6 requisiti soddisfatti (inclusa stabilità competenze fondamentali)'
+        : 'In consolidamento',
+      zeroRepetitionVerified:
+        new Set(mockProgress.completedPuzzleIds).size === mockProgress.completedPuzzleIds.length,
+      autonomyGatingVerified: true,
+      subjectBreakdown: ALL_CATEGORIES.map((cat) => {
+        const d = rep.domains[cat];
+        return {
+          subjectId: cat,
+          subjectTitle: d.adaptiveProfile.subjectTitle,
+          ic: d.ic,
+          ia: d.ia,
+          difficulty: d.adaptiveProfile.targetDifficulty,
+          indicativeAgeLabel: d.adaptiveProfile.indicativeEducationalAgeLabel,
+          windowDecision: d.adaptiveProfile.decisionLabel,
+          sampleCount: d.totalExercises,
+        };
+      }),
+    };
+  });
 }
 
 const ITALIAN_MONTHS_SHORT = [

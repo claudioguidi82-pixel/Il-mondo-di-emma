@@ -140,7 +140,7 @@ export const TreasureAlbumModal: React.FC<TreasureAlbumModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-slate-950/65 backdrop-blur-md flex items-start sm:items-center justify-center p-2.5 sm:p-4 overflow-y-auto"
+      className="safe-modal-overlay fixed inset-0 z-50 bg-slate-950/65 backdrop-blur-md flex items-start sm:items-center justify-center overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-label="Album dei Tesori e Curiosità"
@@ -194,7 +194,7 @@ export const TreasureAlbumModal: React.FC<TreasureAlbumModalProps> = ({
               }`}
             >
               <Gift className="w-4 h-4 shrink-0" />
-              <span className="truncate">Scrigno & Adesivi</span>
+              <span className="whitespace-nowrap">Adesivi</span>
             </button>
 
             <button
@@ -203,14 +203,14 @@ export const TreasureAlbumModal: React.FC<TreasureAlbumModalProps> = ({
                 soundManager.playPop();
                 setActiveTab('trophies');
               }}
-              className={`min-h-[44px] rounded-xl px-2.5 py-2 font-fun font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              className={`min-h-[44px] rounded-xl px-2 py-2 font-fun font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 activeTab === 'trophies'
                   ? 'bg-white text-amber-700 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <Trophy className="w-4 h-4 shrink-0" />
-              <span className="truncate">Trofei & Ritmo</span>
+              <span className="whitespace-nowrap">Trofei</span>
             </button>
 
             <button
@@ -219,14 +219,14 @@ export const TreasureAlbumModal: React.FC<TreasureAlbumModalProps> = ({
                 soundManager.playPop();
                 setActiveTab('drawings');
               }}
-              className={`min-h-[44px] rounded-xl px-2.5 py-2 font-fun font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              className={`min-h-[44px] rounded-xl px-2 py-2 font-fun font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 activeTab === 'drawings'
                   ? 'bg-white text-fuchsia-700 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <Palette className="w-4 h-4 shrink-0" />
-              <span className="truncate">Disegni ({(progress.savedDrawings || []).length})</span>
+              <span className="whitespace-nowrap">Disegni ({(progress.savedDrawings || []).length})</span>
             </button>
           </div>
         </nav>
@@ -315,7 +315,7 @@ export const TreasureAlbumModal: React.FC<TreasureAlbumModalProps> = ({
                 </div>
 
                 {/* Theme Filter Bar */}
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
                   {STICKER_THEMES.map((theme) => (
                     <button
                       key={theme}

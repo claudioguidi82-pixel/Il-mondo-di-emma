@@ -1,4 +1,13 @@
-import { AgeBandId, ChildGender, ChildProfile, UserProgress } from '../types/game';
+import {
+  AgeBandId,
+  ChildGender,
+  ChildProfile,
+  ExerciseDifficultyScore,
+  GameCategory,
+  LevelPerformanceEntry,
+  UserProgress,
+} from '../types/game';
+import { isValidChildEntry } from './adultPlayDetector';
 
 export const AGE_BAND_ORDER: AgeBandId[] = [
   'toddler_2_3',
@@ -34,12 +43,12 @@ export const AGE_CURRICULUM_ROADMAP: AgeRoadmapStage[] = [
     ageRangeLabel: '2–3 Anni',
     schoolLabel: 'Nido & Prima Infanzia',
     newlyAddedSubjects: [
-      'Animali & Natura',
+      'Animali, Versi & Oggetti',
       'Artistica: Colori Primari & Forme',
-      'Primi Numeri (1–5)',
+      'Conteggio Tattile (1–3 / 1–5)',
       'Musica & Senso del Ritmo Base',
     ],
-    coreFocus: 'Esplorazione sensoriale, ritmi battuti, colori primari e prime associazioni logiche.',
+    coreFocus: '100% visivo e sonoro: versi degli animali, colori primari, forme, grande/piccolo e tocco tattile 1–5 (zero lettura, zero calcoli).',
   },
   {
     band: 'preschool_4_5',
@@ -124,28 +133,52 @@ export interface ChildAgeInfo {
   difficultyBadge: string;
 }
 
+export function normalizeBirthDateString(dateStr?: string): string | null {
+  if (!dateStr || typeof dateStr !== 'string') return null;
+  const trimmed = dateStr.trim();
+  // Format 1: YYYY-MM-DD or YYYY/MM/DD
+  const isoMatch = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/.exec(trimmed);
+  if (isoMatch) {
+    const y = Number(isoMatch[1]);
+    const m = Number(isoMatch[2]);
+    const d = Number(isoMatch[3]);
+    const currentYear = new Date().getFullYear();
+    if (y >= currentYear - 18 && y <= currentYear && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      const check = new Date(y, m - 1, d);
+      if (check.getFullYear() === y && check.getMonth() === m - 1 && check.getDate() === d) {
+        return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      }
+    }
+  }
+  // Format 2: DD/MM/YYYY or DD-MM-YYYY
+  const itMatch = /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/.exec(trimmed);
+  if (itMatch) {
+    const d = Number(itMatch[1]);
+    const m = Number(itMatch[2]);
+    const y = Number(itMatch[3]);
+    const currentYear = new Date().getFullYear();
+    if (y >= currentYear - 18 && y <= currentYear && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      const check = new Date(y, m - 1, d);
+      if (check.getFullYear() === y && check.getMonth() === m - 1 && check.getDate() === d) {
+        return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      }
+    }
+  }
+  return null;
+}
+
 export function isValidIsoDate(dateStr?: string): boolean {
-  if (!dateStr || typeof dateStr !== 'string') return false;
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr.trim());
-  if (!match) return false;
-  const y = Number(match[1]);
-  const m = Number(match[2]);
-  const d = Number(match[3]);
-  const currentYear = new Date().getFullYear();
-  if (y < currentYear - 16 || y > currentYear) return false;
-  if (m < 1 || m > 12 || d < 1 || d > 31) return false;
-  const check = new Date(y, m - 1, d);
-  return check.getFullYear() === y && check.getMonth() === m - 1 && check.getDate() === d;
+  return normalizeBirthDateString(dateStr) !== null;
 }
 
 export function parseBirthDateParts(birthDate?: string): { year: number; month: number; day: number; iso: string } {
-  const safeIso = isValidIsoDate(birthDate) ? birthDate!.trim() : DEFAULT_BIRTH_DATE;
-  const [yStr, mStr, dStr] = safeIso.split('-');
+  const normalized = normalizeBirthDateString(birthDate) || DEFAULT_BIRTH_DATE;
+  const [yStr, mStr, dStr] = normalized.split('-');
   return {
     year: Number(yStr),
     month: Number(mStr),
     day: Number(dStr),
-    iso: safeIso,
+    iso: normalized,
   };
 }
 
@@ -211,25 +244,32 @@ export function calculateChildAge(
 
   if (years <= 3) {
     ageBand = 'toddler_2_3';
-    ageBandTitle = '2–3 Anni · Prima Infanzia';
+    ageBandTitle = years === 2 ? '2 Anni · Primi Passi Sensoriali' : '3 Anni · Prima Infanzia';
     developmentalStage =
-      'Percorso 2–3 Anni (Animali & Versi, Artistica Colori Primari, Primi Numeri 1–5 & Senso del Ritmo)';
+      years === 2
+        ? 'Percorso 2 Anni (100% Visivo e Sonoro: Animali & Versi, Colori Primari, Ritmo & Tocco 1–3 · Zero Matematica/Lettura)'
+        : 'Percorso 3 Anni (100% Visivo e Sonoro: Animali & Versi, Colori & Forme, Conteggio Tattile 1–5 & Logica Concreta)';
     curriculumSummary =
-      'Colori primari e forme semplici, versi degli animali, conteggio guidato 1–5, grande/piccolo e giochi sonori sul senso del ritmo (con prime vocali ai livelli avanzati).';
+      years === 2
+        ? 'Solo giochi sensoriali concreti: versi degli animali, colori primari, forme semplici, grande/piccolo, suoni ritmati e tocco tattile 1–3 (nessuna matematica o lettura).'
+        : 'Versi degli animali, colori e forme, conteggio tattile guidato 1–5, grande/piccolo, associazioni visive e senso del ritmo (zero lettura richiesta).';
     subjectsHighlight = [
       'Animali, Versi & Associazioni',
       'Artistica: Colori Primari & Forme',
-      'Primi Numeri (1–5)',
+      years === 2 ? 'Tocco & Conta (1–3)' : 'Conteggio Tattile (1–5)',
       'Musica & Senso del Ritmo Base',
     ];
     newlyAddedSubjects = [
       'Versi & Associazioni',
       'Colori Primari',
-      'Conteggio 1–5',
+      years === 2 ? 'Tocco 1–3' : 'Conteggio Tattile 1–5',
       'Senso del Ritmo',
     ];
     unlockedSubjectsCount = 4;
-    difficultyBadge = 'Fascia 1/6 · Primi Passi (2–3 anni)';
+    difficultyBadge =
+      years === 2
+        ? 'Fascia 1/6 · Primi Passi (2 anni)'
+        : 'Fascia 1/6 · Prima Infanzia (3 anni)';
   } else if (years >= 6 && years <= 7) {
     ageBand = 'early_primary_6_7';
     ageBandTitle = '6–7 Anni · 1ª–2ª Primaria';
@@ -346,81 +386,522 @@ export function calculateChildAge(
   };
 }
 
+export type AdaptiveWindowDecisionCode =
+  | 'increase_difficulty'
+  | 'maintain_verify'
+  | 'targeted_reinforcement'
+  | 'reduce_slightly'
+  | 'return_prerequisite';
+
+export interface SubjectDifficultySpec {
+  difficulty: ExerciseDifficultyScore;
+  shortLabel: string;
+  description: string;
+  weight: number;
+}
+
+export const DIFFICULTY_LEVEL_SPECS: Record<ExerciseDifficultyScore, SubjectDifficultySpec> = {
+  1: {
+    difficulty: 1,
+    shortLabel: 'Molto facile',
+    description: 'Molto facile, riconoscimento',
+    weight: 1.0,
+  },
+  2: {
+    difficulty: 2,
+    shortLabel: 'Facile',
+    description: 'Facile, comprensione',
+    weight: 1.25,
+  },
+  3: {
+    difficulty: 3,
+    shortLabel: 'Intermedia',
+    description: 'Intermedia, applicazione',
+    weight: 1.5,
+  },
+  4: {
+    difficulty: 4,
+    shortLabel: 'Avanzata',
+    description: 'Avanzata, ragionamento',
+    weight: 1.75,
+  },
+  5: {
+    difficulty: 5,
+    shortLabel: 'Esperta',
+    description: 'Esperta, trasferimento e problem solving',
+    weight: 2.0,
+  },
+};
+
+/**
+ * Evaluates a single exercise attempt according to Section 4.1 & 4.2 of the adaptive specification:
+ * - Risposta autonoma (1st try, 0 hints): autonomy = 100, c_i = 1.00
+ * - Un suggerimento (or 2nd try with 0 hints): autonomy = 75, c_i = 0.75
+ * - Due suggerimenti (or 2nd try + 1 hint, or 3rd try): autonomy = 50, c_i = 0.50
+ * - Risposta guidata (3+ hints or 4th try): autonomy = 25, c_i = 0.25
+ * - Risposta fornita dal sistema (5+ attempts): autonomy = 0, c_i = 0.00
+ */
+export function evaluateSingleTrialMetrics(entry: {
+  firstTry?: boolean;
+  attempts?: number;
+  hintsUsed?: number;
+}): {
+  c_i: number;
+  autonomyScore: 100 | 75 | 50 | 25 | 0;
+  responseModeLabel: string;
+  isAutonomous: boolean;
+} {
+  const attempts = Math.max(1, entry.attempts || 1);
+  const hints = Math.max(0, entry.hintsUsed || 0);
+  const isAutonomous = Boolean(entry.firstTry) && attempts === 1 && hints === 0;
+
+  if (isAutonomous) {
+    return {
+      c_i: 1.0,
+      autonomyScore: 100,
+      responseModeLabel: 'Risposta autonoma',
+      isAutonomous: true,
+    };
+  }
+  if ((attempts === 1 && hints === 1) || (attempts === 2 && hints === 0)) {
+    return {
+      c_i: 0.75,
+      autonomyScore: 75,
+      responseModeLabel: 'Un suggerimento',
+      isAutonomous: false,
+    };
+  }
+  if (
+    (attempts === 1 && hints === 2) ||
+    (attempts === 2 && hints === 1) ||
+    (attempts === 3 && hints <= 1)
+  ) {
+    return {
+      c_i: 0.5,
+      autonomyScore: 50,
+      responseModeLabel: 'Due suggerimenti',
+      isAutonomous: false,
+    };
+  }
+  if (attempts >= 5 || hints >= 4) {
+    return {
+      c_i: 0.0,
+      autonomyScore: 0,
+      responseModeLabel: 'Risposta fornita dal sistema',
+      isAutonomous: false,
+    };
+  }
+  return {
+    c_i: 0.25,
+    autonomyScore: 25,
+    responseModeLabel: 'Risposta guidata',
+    isAutonomous: false,
+  };
+}
+
+export interface SubjectAdaptiveProfile {
+  subjectId: GameCategory;
+  subjectTitle: string;
+  chcArea: 'Gf' | 'Gwm' | 'Gc' | 'Gv' | 'Gs';
+  ageInMonths: number;
+  chronologicalBand: AgeBandId;
+  effectiveBand: AgeBandId;
+  indicativeEducationalAgeLabel: string; // es. "6–7 anni", "6 anni", "5–6 anni", "5 anni", "4–5 anni"
+  educationalAgeOffsetYears: number;     // -1 .. +1.5 relative to chronological age
+  targetDifficulty: ExerciseDifficultyScore; // 1..5
+  difficultyLabel: string;
+  difficultyDescription: string;
+  difficultyWeight: number;
+  effectiveTier: 1 | 2 | 3;
+  adaptiveStatus: 'downgrade' | 'standard' | 'upgrade';
+  supportLevel: 'guided' | 'balanced' | 'independent';
+  maxOptions: 2 | 3 | 4;
+  sampleCount: number;
+  window10Count: number;
+  window10EquivalentCorrect: number; // 0..10
+  window10AutonomousCount: number;
+  window10AssistedCount: number;
+  window10AutonomyScore: number;     // 0..100
+  decisionCode: AdaptiveWindowDecisionCode;
+  decisionLabel: string;
+  decisionExplanation: string;
+}
+
 export interface AdaptiveMasteryProfile {
   chronologicalBand: AgeBandId;
   effectiveBand: AgeBandId;
-  boostLevel: 0 | 1 | 2 | 3; // 0 = Età standard, 1 = Sblocco graduale +1, 2 = Avanzamento +1 completo, 3 = Eccellenza +2
+  adaptiveStatus: 'downgrade' | 'standard' | 'upgrade';
+  effectiveTier: 1 | 2 | 3;
+  targetDifficulty: ExerciseDifficultyScore;
+  supportLevel: 'guided' | 'balanced' | 'independent';
+  maxOptions: 2 | 3;
+  boostLevel: 0 | 1 | 2 | 3;
   boostLabel: string;
-  earlyUnlockRatio: number; // 0..0.65 proportion of puzzles drawn from advanced/enrichment subjects
+  statusExplanation: string;
+  earlyUnlockRatio: number;
   unlockedBonusSubjects: string[];
   nextThresholdHint: string;
   progressPercentToNext: number;
   solvedCount: number;
   accuracyPercent: number;
   autonomyPercent: number;
+  recentAccuracyPercent: number;
+  recentAutonomyPercent: number;
+  consecutiveAutonomous: number;
+  recentErrorCount: number;
+  subjects: Record<GameCategory, SubjectAdaptiveProfile>;
 }
 
 const BONUS_SUBJECTS_BY_STEP: Record<AgeBandId, string[]> = {
-  toddler_2_3: ['Educazione Emotiva & Empatia', 'Memoria Visiva', 'Artistica: Mescolanza Colori'],
-  preschool_4_5: ['Ecologia & Ambiente', 'Orologio & Tempo', 'Artistica: Colori Caldi/Freddi', 'Prime Tabelline'],
-  early_primary_6_7: ['Astronomia & Universo', 'Geografia del Mondo', 'Educazione Finanziaria', 'Tabelline & Divisioni'],
-  upper_primary_8_9: ['Invenzioni & Tecnologia', 'Pensiero Critico & Filosofia', 'Pre-Algebra & Potenze', 'Coding & Probabilità'],
-  preteen_10_12: ['Chimica & Leggi di Newton', 'Algebra & Radici Quadrate', 'Algoritmi & Logica Booleana', 'Inglese B1'],
+  toddler_2_3: ['Educazione Emotiva & Empatia', 'Memoria Visiva', 'Sequenze di Colori'],
+  preschool_4_5: ['Educazione Emotiva & Empatia', 'Memoria Visiva', 'Ecologia & Ambiente', 'Artistica: Mescolanza Colori'],
+  early_primary_6_7: ['Ecologia & Ambiente', 'Orologio & Tempo', 'Artistica: Colori Caldi/Freddi', 'Prime Tabelline'],
+  upper_primary_8_9: ['Astronomia & Universo', 'Geografia del Mondo', 'Educazione Finanziaria', 'Tabelline & Divisioni'],
+  preteen_10_12: ['Invenzioni & Tecnologia', 'Pensiero Critico & Filosofia', 'Pre-Algebra & Potenze', 'Coding & Probabilità'],
   teen_13_14: ['Pensiero Critico & Filosofia', 'Astronomia Avanzata', 'Invenzioni & Codice Binario', 'Educazione Finanziaria'],
 };
 
+const SUBJECT_META: Record<
+  GameCategory,
+  { title: string; chcArea: 'Gf' | 'Gwm' | 'Gc' | 'Gv' | 'Gs' }
+> = {
+  logic: { title: 'Logica e ragionamento', chcArea: 'Gf' },
+  numbers: { title: 'Matematica', chcArea: 'Gwm' },
+  shapes: { title: 'Spazio e geometria', chcArea: 'Gv' },
+  english: { title: 'Inglese', chcArea: 'Gc' },
+  letters: { title: 'Linguaggio e italiano', chcArea: 'Gc' },
+  music: { title: 'Memoria uditiva e ritmo', chcArea: 'Gwm' },
+};
+
+function formatIndicativeEducationalAge(baseYears: number, offset: number): string {
+  const clampY = (y: number) => Math.max(2, Math.min(14, y));
+  if (offset >= 1.25) {
+    const low = clampY(baseYears + 1);
+    const high = clampY(baseYears + 2);
+    return low === high ? `${low} anni` : `${low}–${high} anni`;
+  }
+  if (offset >= 0.85) {
+    return `${clampY(baseYears + 1)} anni`;
+  }
+  if (offset >= 0.35) {
+    const low = clampY(baseYears);
+    const high = clampY(baseYears + 1);
+    return low === high ? `${low} anni` : `${low}–${high} anni`;
+  }
+  if (offset <= -0.6) {
+    const low = clampY(baseYears - 1);
+    const high = clampY(baseYears);
+    return low === high ? `${low} anni` : `${low}–${high} anni`;
+  }
+  return `${clampY(baseYears)} anni`;
+}
+
 /**
- * Computes proportional early subject unlocking whenever the child's learning metrics
- * (first-try accuracy, autonomy, and completed volume) are consistently high.
- * Allows gradual opening of enrichment & next-age-band subjects even before reaching that age!
+ * Computes the independent adaptive learning state for a single subject (Section 2.1, 2.2, 2.3):
+ * - Evaluates the sliding window of the last 10 significant exercises for that subject.
+ * - Factors in both normalized correctness and discrete autonomy (100, 75, 50, 25, 0) so
+ *   10 correct answers achieved via 7 hints are NEVER automatically promoted ("Mantieni e verifica").
+ * - Determines the independent Difficulty (1..5), Indicative Educational Age, and effective AgeBand.
+ */
+export function computeSingleSubjectAdaptiveProfile(
+  subjectId: GameCategory,
+  ageInfo: ChildAgeInfo,
+  subjectHistory: LevelPerformanceEntry[],
+  fallbackStat?: { correct: number; total: number; attempts?: number; assistedSuccesses?: number; hintsUsed?: number }
+): SubjectAdaptiveProfile {
+  const meta = SUBJECT_META[subjectId];
+  const baseBandIdx = AGE_BAND_ORDER.indexOf(ageInfo.ageBand);
+
+  // Build effective entries list (combining explicit levelHistory with any legacy aggregate stats)
+  const entries: LevelPerformanceEntry[] = [...subjectHistory];
+  if (entries.length === 0 && fallbackStat && fallbackStat.total > 0) {
+    const tot = Math.min(12, fallbackStat.total);
+    const autoCount = Math.max(0, Math.min(tot, fallbackStat.correct - (fallbackStat.assistedSuccesses || 0)));
+    for (let i = 0; i < tot; i++) {
+      const isAuto = i < autoCount;
+      entries.push({
+        level: i + 1,
+        tier: 2,
+        weight: 1.25,
+        category: subjectId,
+        firstTry: isAuto,
+        assistedSuccess: !isAuto,
+        attempts: isAuto ? 1 : 2,
+        hintsUsed: isAuto ? 0 : 1,
+        starsEarned: isAuto ? 3 : 2,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  const sampleCount = Math.max(entries.length, fallbackStat?.total || 0);
+  const window10 = entries.slice(-10);
+  const windowN = window10.length;
+
+  // Baseline starting difficulty calibrated on chronological age in months (Section 2.1)
+  const monthWithinYear = ageInfo.months;
+  const initialDifficulty: ExerciseDifficultyScore = monthWithinYear >= 7 ? 2 : 2;
+
+  if (windowN === 0) {
+    const spec = DIFFICULTY_LEVEL_SPECS[initialDifficulty];
+    return {
+      subjectId,
+      subjectTitle: meta.title,
+      chcArea: meta.chcArea,
+      ageInMonths: ageInfo.totalMonths,
+      chronologicalBand: ageInfo.ageBand,
+      effectiveBand: ageInfo.ageBand,
+      indicativeEducationalAgeLabel: `${ageInfo.years} anni`,
+      educationalAgeOffsetYears: 0,
+      targetDifficulty: initialDifficulty,
+      difficultyLabel: spec.shortLabel,
+      difficultyDescription: spec.description,
+      difficultyWeight: spec.weight,
+      effectiveTier: 1,
+      adaptiveStatus: 'standard',
+      supportLevel: ageInfo.years <= 3 ? 'guided' : 'balanced',
+      maxOptions: ageInfo.years <= 2 ? 2 : 3,
+      sampleCount: 0,
+      window10Count: 0,
+      window10EquivalentCorrect: 0,
+      window10AutonomousCount: 0,
+      window10AssistedCount: 0,
+      window10AutonomyScore: 0,
+      decisionCode: 'maintain_verify',
+      decisionLabel: 'Valutazione iniziale',
+      decisionExplanation: `Percorso iniziale calibrato sull'età anagrafica (${ageInfo.displayText}).`,
+    };
+  }
+
+  let sumCi = 0;
+  let sumAutonomy = 0;
+  let autonomousCount = 0;
+  let assistedCount = 0;
+
+  window10.forEach((e) => {
+    const ev = evaluateSingleTrialMetrics(e);
+    sumCi += ev.c_i;
+    sumAutonomy += ev.autonomyScore;
+    if (ev.isAutonomous) {
+      autonomousCount++;
+    } else {
+      assistedCount++;
+    }
+  });
+
+  // Normalized performance & autonomy across the sliding window of up to 10 exercises
+  const meanCi = sumCi / windowN;
+  const windowAutonomyScore = Math.round(sumAutonomy / windowN);
+  // Equivalent correct answers on a 10-exercise scale:
+  // Combines raw solved count with autonomy-adjusted c_i so hint-heavy answers do not count as full autonomous successes
+  const rawSuccessRateInWindow =
+    window10.filter((e) => evaluateSingleTrialMetrics(e).c_i > 0).length / windowN;
+  const effectiveSuccessRatio = rawSuccessRateInWindow * 0.45 + meanCi * 0.55;
+  const equivalentCorrectOutOf10 = Math.max(
+    0,
+    Math.min(10, Math.round(effectiveSuccessRatio * 10))
+  );
+
+  // Section 2.3: Mathematical decision table on the sliding window of 10 exercises
+  let decisionCode: AdaptiveWindowDecisionCode = 'maintain_verify';
+  let decisionLabel = 'Mantieni e verifica';
+  let decisionExplanation = '';
+  let targetDifficulty: ExerciseDifficultyScore = 2;
+  let educationalAgeOffsetYears = 0;
+  let adaptiveStatus: 'downgrade' | 'standard' | 'upgrade' = 'standard';
+
+  const hasEnoughForPromotion = windowN >= 3;
+
+  if (equivalentCorrectOutOf10 >= 9 && windowAutonomyScore >= 75 && hasEnoughForPromotion) {
+    decisionCode = 'increase_difficulty';
+    decisionLabel = 'Aumenta difficoltà';
+    adaptiveStatus = 'upgrade';
+    if (sampleCount >= 12 && windowAutonomyScore >= 88 && equivalentCorrectOutOf10 === 10) {
+      targetDifficulty = 5;
+      educationalAgeOffsetYears = 1.35;
+    } else if (sampleCount >= 6 && windowAutonomyScore >= 82) {
+      targetDifficulty = 4;
+      educationalAgeOffsetYears = 0.9;
+    } else {
+      targetDifficulty = 3;
+      educationalAgeOffsetYears = 0.45;
+    }
+    decisionExplanation = `${equivalentCorrectOutOf10}/10 equivalenti corretti con autonomia elevata (IA ${windowAutonomyScore}/100): aumento graduale della complessità cognitiva (Difficoltà ${targetDifficulty}/5).`;
+  } else if (equivalentCorrectOutOf10 >= 8 || (rawSuccessRateInWindow >= 0.85 && windowAutonomyScore < 75)) {
+    decisionCode = 'maintain_verify';
+    decisionLabel = 'Mantieni e verifica';
+    adaptiveStatus = 'standard';
+    targetDifficulty = windowAutonomyScore >= 72 && sampleCount >= 5 ? 3 : 2;
+    educationalAgeOffsetYears = windowAutonomyScore >= 75 ? 0.35 : 0;
+    decisionExplanation =
+      windowAutonomyScore < 75
+        ? `Risposte corrette ma con ricorso ai suggerimenti (IA ${windowAutonomyScore}/100, ${assistedCount} assistiti): nessuna promozione automatica finché l'autonomia non è consolidata.`
+        : `${equivalentCorrectOutOf10}/10 nella finestra mobile (IA ${windowAutonomyScore}/100): livello mantenuto con prove di verifica della stabilità.`;
+  } else if (equivalentCorrectOutOf10 >= 6) {
+    decisionCode = 'targeted_reinforcement';
+    decisionLabel = 'Mantieni, proponi rinforzo mirato';
+    adaptiveStatus = 'standard';
+    targetDifficulty = 2;
+    educationalAgeOffsetYears = 0;
+    decisionExplanation = `${equivalentCorrectOutOf10}/10 nella finestra mobile (IA ${windowAutonomyScore}/100): consolidamento con esercizi di rinforzo mirato sulla competenza attuale.`;
+  } else if (equivalentCorrectOutOf10 >= 4) {
+    decisionCode = 'reduce_slightly';
+    decisionLabel = 'Riduci leggermente';
+    adaptiveStatus = 'downgrade';
+    targetDifficulty = 2;
+    educationalAgeOffsetYears = -0.65;
+    decisionExplanation = `${equivalentCorrectOutOf10}/10 nella finestra mobile (IA ${windowAutonomyScore}/100): riduzione leggera della difficoltà con supporto guidato.`;
+  } else {
+    decisionCode = 'return_prerequisite';
+    decisionLabel = 'Torna a un prerequisito più semplice';
+    adaptiveStatus = 'downgrade';
+    targetDifficulty = 1;
+    educationalAgeOffsetYears = -1.0;
+    decisionExplanation = `${equivalentCorrectOutOf10}/10 nella finestra mobile (IA ${windowAutonomyScore}/100): ritorno automatico a un prerequisito più semplice (Difficoltà 1/5) per ricostruire sicurezza.`;
+  }
+
+  // Compute subject-specific effectiveBand:
+  // - Fundamental rule (Section 2.3): increasing difficulty primarily increases cognitive complexity (1..5) within the child's developmental stage.
+  // - When a subject reaches sustained Advanced/Expert mastery (targetDifficulty >= 4) and chronological age >= 5, allow +1 educational band for that specific subject (never pushing 2-3yo toddlers into reading/arithmetic!).
+  // - On downgrade/return_prerequisite, allow stepping back -1 band (down to toddler_2_3 / preschool_4_5) to reinforce prerequisites.
+  let bandShift = 0;
+  if (adaptiveStatus === 'upgrade' && targetDifficulty >= 4 && ageInfo.years >= 4) {
+    bandShift = ageInfo.years <= 3 ? 0 : 1;
+  } else if (decisionCode === 'return_prerequisite' && baseBandIdx > 0) {
+    bandShift = -1;
+  }
+  const effectiveBandIdx = Math.max(0, Math.min(AGE_BAND_ORDER.length - 1, baseBandIdx + bandShift));
+  const effectiveBand = AGE_BAND_ORDER[effectiveBandIdx];
+
+  const effectiveTier: 1 | 2 | 3 =
+    targetDifficulty >= 4 ? 3 : targetDifficulty === 3 ? 2 : 1;
+
+  const supportLevel: 'guided' | 'balanced' | 'independent' =
+    adaptiveStatus === 'downgrade' || targetDifficulty === 1 || ageInfo.years <= 3
+      ? 'guided'
+      : targetDifficulty >= 4
+      ? 'independent'
+      : 'balanced';
+
+  const maxOptions: 2 | 3 | 4 =
+    ageInfo.years <= 2 || (ageInfo.years <= 5 && adaptiveStatus === 'downgrade')
+      ? 2
+      : targetDifficulty >= 4 && ageInfo.years >= 6
+      ? 4
+      : 3;
+
+  const spec = DIFFICULTY_LEVEL_SPECS[targetDifficulty];
+
+  return {
+    subjectId,
+    subjectTitle: meta.title,
+    chcArea: meta.chcArea,
+    ageInMonths: ageInfo.totalMonths,
+    chronologicalBand: ageInfo.ageBand,
+    effectiveBand,
+    indicativeEducationalAgeLabel: formatIndicativeEducationalAge(
+      ageInfo.years,
+      educationalAgeOffsetYears
+    ),
+    educationalAgeOffsetYears,
+    targetDifficulty,
+    difficultyLabel: spec.shortLabel,
+    difficultyDescription: spec.description,
+    difficultyWeight: spec.weight,
+    effectiveTier,
+    adaptiveStatus,
+    supportLevel,
+    maxOptions,
+    sampleCount,
+    window10Count: windowN,
+    window10EquivalentCorrect: equivalentCorrectOutOf10,
+    window10AutonomousCount: autonomousCount,
+    window10AssistedCount: assistedCount,
+    window10AutonomyScore: windowAutonomyScore,
+    decisionCode,
+    decisionLabel,
+    decisionExplanation,
+  };
+}
+
+/**
+ * Bidirectional Adaptive Progression Engine with Independent Per-Subject Levels (Section 2 of PDF):
+ * - Computes an independent adaptive profile for each of the 6 subjects (`subjects[category]`).
+ * - Also provides global summary indicators for the header and general status badges.
  */
 export function computeAdaptiveMasteryProfile(progress?: UserProgress): AdaptiveMasteryProfile {
   const ageInfo = calculateChildAge(progress?.childProfile?.birthDate);
   const baseIdx = AGE_BAND_ORDER.indexOf(ageInfo.ageBand);
-  const solvedCount = Math.max(
-    progress?.totalPuzzlesSolved || 0,
-    (progress?.levelHistory || []).length
-  );
+  const rawHistory = progress?.levelHistory || [];
+  // Exclude adult/parent test taps detected by local telemetry so parent previews never distort child progression
+  const history = rawHistory.filter(isValidChildEntry);
+  const solvedCount =
+    history.length > 0
+      ? history.length
+      : Math.max(0, (progress?.totalPuzzlesSolved || 0) - (progress?.adultFilteredCount || 0));
 
-  // Measure real performance from recent history (up to last 20 exercises) using
-  // difficulty + mild recency weighting (aligned with the CHC cognitive engine)
-  const history = progress?.levelHistory || [];
-  const recent = history.slice(-20);
+  const allCategories: GameCategory[] = ['logic', 'numbers', 'shapes', 'letters', 'music', 'english'];
+  const subjects = {} as Record<GameCategory, SubjectAdaptiveProfile>;
+  allCategories.forEach((cat) => {
+    const catHistory = history.filter((h) => h.category === cat);
+    const catStat = progress?.categoryStats?.[cat];
+    subjects[cat] = computeSingleSubjectAdaptiveProfile(cat, ageInfo, catHistory, catStat);
+  });
+
+  const recent = history.slice(-15);
+  const recentLast5 = history.slice(-5);
 
   let accuracyPercent = 0;
   let autonomyPercent = 0;
+  let recentAccuracyPercent = 0;
+  let recentAutonomyPercent = 0;
+  let recentErrorCount = 0;
+  let consecutiveAutonomous = 0;
 
-  if (recent.length > 0) {
+  for (let i = history.length - 1; i >= 0; i--) {
+    const ev = evaluateSingleTrialMetrics(history[i]);
+    if (ev.isAutonomous) {
+      consecutiveAutonomous++;
+    } else {
+      break;
+    }
+  }
+
+  const computeWindowStats = (items: typeof history) => {
+    if (items.length === 0) return { acc: 0, auto: 0, errors: 0 };
     let wTotal = 0;
     let wCorrect = 0;
     let wAutonomy = 0;
-    const n = recent.length;
+    let errors = 0;
+    const n = items.length;
 
-    recent.forEach((h, idx) => {
-      const diffWeight = h.weight ?? (1 + Math.min(4, Math.floor((Math.max(1, h.level || 1) - 1) / 10)) * 0.25);
-      const recency = Math.pow(0.95, n - 1 - idx);
+    items.forEach((h, idx) => {
+      const diffWeight = h.weight ?? 1.25;
+      const recency = Math.pow(0.92, n - 1 - idx);
       const effW = diffWeight * recency;
-      const hints = h.hintsUsed || 0;
-      const attempts = Math.max(1, h.attempts || 1);
-      const isAutoCorrect = Boolean(h.firstTry) && hints === 0 && attempts === 1;
+      const ev = evaluateSingleTrialMetrics(h);
+      if (!ev.isAutonomous) errors++;
 
       wTotal += effW;
-      if (isAutoCorrect) wCorrect += effW;
-      const aScore =
-        attempts === 1 && hints === 0
-          ? 1
-          : attempts === 1 && hints > 0
-          ? 0.72
-          : attempts === 2
-          ? 0.45
-          : 0.2;
-      wAutonomy += effW * aScore;
+      wCorrect += effW * ev.c_i;
+      wAutonomy += effW * (ev.autonomyScore / 100);
     });
 
-    // Mild Empirical Bayes smoothing on very small samples (< 5 items)
-    const priorW = n < 5 ? 0.8 : 0;
-    accuracyPercent = Math.round(((wCorrect + priorW * 0.6) / (wTotal + priorW)) * 100);
-    autonomyPercent = Math.round(((wAutonomy + priorW * 0.65) / (wTotal + priorW)) * 100);
+    return {
+      acc: Math.round((wCorrect / Math.max(0.001, wTotal)) * 100),
+      auto: Math.round((wAutonomy / Math.max(0.001, wTotal)) * 100),
+      errors,
+    };
+  };
+
+  if (recent.length > 0) {
+    const overallStats = computeWindowStats(recent);
+    const last5Stats = computeWindowStats(recentLast5);
+    accuracyPercent = overallStats.acc;
+    autonomyPercent = overallStats.auto;
+    recentAccuracyPercent = last5Stats.acc;
+    recentAutonomyPercent = last5Stats.auto;
+    recentErrorCount = last5Stats.errors;
   } else if (progress?.categoryStats) {
     const cats = Object.values(progress.categoryStats).filter(Boolean);
     const total = cats.reduce((acc, c) => acc + (c?.total || 0), 0);
@@ -428,70 +909,104 @@ export function computeAdaptiveMasteryProfile(progress?: UserProgress): Adaptive
     if (total > 0) {
       accuracyPercent = Math.round((correct / total) * 100);
       autonomyPercent = accuracyPercent;
+      recentAccuracyPercent = accuracyPercent;
+      recentAutonomyPercent = accuracyPercent;
     }
   }
 
+  // Aggregate subject difficulties to determine global overview state
+  const activeSubjects = allCategories
+    .map((c) => subjects[c])
+    .filter((s) => s.sampleCount > 0);
+  const avgSubjectDifficulty =
+    activeSubjects.length > 0
+      ? Math.round(
+          activeSubjects.reduce((acc, s) => acc + s.targetDifficulty, 0) /
+            activeSubjects.length
+        )
+      : 2;
+  const targetDifficulty = Math.max(1, Math.min(5, avgSubjectDifficulty)) as ExerciseDifficultyScore;
+
+  const anyDowngrade = activeSubjects.some((s) => s.adaptiveStatus === 'downgrade');
+  const upgradeCount = activeSubjects.filter((s) => s.adaptiveStatus === 'upgrade').length;
+
+  let adaptiveStatus: 'downgrade' | 'standard' | 'upgrade' = 'standard';
   let boostLevel: 0 | 1 | 2 | 3 = 0;
-  let boostLabel = 'Calibrazione Standard per Età';
+  let effectiveTier: 1 | 2 | 3 = targetDifficulty >= 4 ? 3 : targetDifficulty === 3 ? 2 : 1;
+  let supportLevel: 'guided' | 'balanced' | 'independent' =
+    ageInfo.years <= 3 ? 'guided' : 'balanced';
   let earlyUnlockRatio = 0;
+  let boostLabel = `Personalizzato per Materia · ${ageInfo.shortAgeLabel}`;
+  let statusExplanation =
+    'Ogni materia evolve in modo indipendente secondo la finestra mobile degli ultimi 10 esercizi, bilanciando risposte corrette e autonomia.';
   let nextThresholdHint =
-    'Completa almeno 6 sfide con accuratezza ≥ 78% per sbloccare in anticipo le prime materie avanzate!';
+    'Ottieni 9–10 risposte corrette su 10 con autonomia elevata (IA ≥ 75) in una materia per aumentarne la difficoltà.';
   let progressPercentToNext = Math.min(
     99,
-    Math.round(((Math.min(solvedCount, 6) / 6) * 0.55 + (Math.min(accuracyPercent, 78) / 78) * 0.45) * 100)
+    Math.round(
+      ((Math.min(solvedCount, 10) / 10) * 0.45 +
+        (Math.min(accuracyPercent, 85) / 85) * 0.35 +
+        (Math.min(autonomyPercent, 80) / 80) * 0.2) *
+        100
+    )
   );
 
-  if (solvedCount >= 22 && accuracyPercent >= 90 && autonomyPercent >= 84) {
-    boostLevel = 3;
-    boostLabel = 'Eccellenza · Sblocco Avanzato (+2 Fasce)';
-    earlyUnlockRatio = 0.55;
+  if (anyDowngrade && upgradeCount === 0) {
+    adaptiveStatus = 'downgrade';
+    boostLevel = 0;
+    effectiveTier = 1;
+    supportLevel = 'guided';
+    boostLabel = 'Rinforzo Mirato per Materia · Supporto Attivo';
+    statusExplanation =
+      'Il motore adattivo ha ridotto gradualmente la difficoltà nelle materie con esitazioni o aiuti frequenti, mantenendo invariate le materie più forti.';
     nextThresholdHint =
-      'Massimo livello di sblocco attivo: tutte le materie avanzate e di ragionamento sono accessibili gradualmente!';
+      'Rispondi in autonomia senza suggerimenti nelle prossime prove della materia per risalire di difficoltà.';
+  } else if (upgradeCount >= 1) {
+    adaptiveStatus = 'upgrade';
+    boostLevel = targetDifficulty >= 4 ? 2 : 1;
+    effectiveTier = targetDifficulty >= 4 ? 3 : 2;
+    supportLevel = ageInfo.years <= 5 ? 'balanced' : 'independent';
+    earlyUnlockRatio = ageInfo.years <= 3 ? 0.2 : 0.35;
+    boostLabel = `Percorso Adattivo Personalizzato (${upgradeCount} ${upgradeCount === 1 ? 'materia avanzata' : 'materie avanzate'})`;
+    statusExplanation =
+      'Progressione differenziata attiva: il bambino affronta sfide di livello superiore nelle materie padroneggiate e consolidamento graduale nelle altre.';
     progressPercentToNext = 100;
-  } else if (solvedCount >= 12 && accuracyPercent >= 84 && autonomyPercent >= 78) {
-    boostLevel = 2;
-    boostLabel = 'Talento in Crescita · Materie +1 Fascia';
-    earlyUnlockRatio = 0.4;
-    nextThresholdHint =
-      'Raggiungi 22 prove con accuratezza ≥ 90% per aprire anche il livello Eccellenza (+2 fasce)!';
-    progressPercentToNext = Math.min(
-      99,
-      Math.round(((Math.min(solvedCount, 22) / 22) * 0.5 + (Math.min(accuracyPercent, 90) / 90) * 0.5) * 100)
-    );
-  } else if (solvedCount >= 6 && accuracyPercent >= 78) {
-    boostLevel = 1;
-    boostLabel = 'Esplorazione Anticipata (+1 Graduale)';
-    earlyUnlockRatio = 0.25;
-    nextThresholdHint =
-      'Raggiungi 12 prove con accuratezza ≥ 84% per aprire ancora più materie della fascia successiva!';
-    progressPercentToNext = Math.min(
-      99,
-      Math.round(((Math.min(solvedCount, 12) / 12) * 0.5 + (Math.min(accuracyPercent, 84) / 84) * 0.5) * 100)
-    );
   }
 
-  const bandShift = boostLevel === 3 ? 2 : boostLevel >= 1 ? 1 : 0;
+  const maxAllowedShift = ageInfo.years <= 7 ? 0 : boostLevel >= 2 ? 1 : 0;
+  const bandShift = adaptiveStatus === 'upgrade' ? Math.min(1, maxAllowedShift) : 0;
   const effectiveIdx = Math.min(AGE_BAND_ORDER.length - 1, baseIdx + bandShift);
   const effectiveBand = AGE_BAND_ORDER[effectiveIdx];
+
+  const maxOptions: 2 | 3 =
+    ageInfo.years <= 2 ||
+    (ageInfo.years <= 5 && adaptiveStatus === 'downgrade') ||
+    (ageInfo.years === 3 && solvedCount < 6)
+      ? 2
+      : 3;
 
   const baseBonus = BONUS_SUBJECTS_BY_STEP[ageInfo.ageBand] || [];
   const nextBandBonus =
     effectiveIdx > baseIdx ? BONUS_SUBJECTS_BY_STEP[effectiveBand] || [] : [];
 
   const unlockedBonusSubjects =
-    boostLevel === 0
+    adaptiveStatus !== 'upgrade' || boostLevel === 0
       ? []
       : boostLevel === 1
       ? baseBonus.slice(0, 2)
-      : boostLevel === 2
-      ? [...baseBonus]
       : Array.from(new Set([...baseBonus, ...nextBandBonus]));
 
   return {
     chronologicalBand: ageInfo.ageBand,
     effectiveBand,
+    adaptiveStatus,
+    effectiveTier,
+    targetDifficulty,
+    supportLevel,
+    maxOptions,
     boostLevel,
     boostLabel,
+    statusExplanation,
     earlyUnlockRatio,
     unlockedBonusSubjects,
     nextThresholdHint,
@@ -499,6 +1014,11 @@ export function computeAdaptiveMasteryProfile(progress?: UserProgress): Adaptive
     solvedCount,
     accuracyPercent,
     autonomyPercent,
+    recentAccuracyPercent,
+    recentAutonomyPercent,
+    consecutiveAutonomous,
+    recentErrorCount,
+    subjects,
   };
 }
 
@@ -597,3 +1117,345 @@ export function compressUploadedImage(
     reader.readAsDataURL(file);
   });
 }
+
+export interface BirthdayStatus {
+  hasBirthDate: boolean;
+  isBirthdayToday: boolean;
+  isBirthdayCountdownSoon: boolean;
+  daysUntilBirthday: number;
+  turningAgeYears: number;
+  birthDay: number;
+  birthMonth: number;
+  nextBirthdayFormatted: string;
+  todayBirthdayYearKey: string;
+}
+
+const ITALIAN_MONTH_NAMES = [
+  'Gennaio',
+  'Febbraio',
+  'Marzo',
+  'Aprile',
+  'Maggio',
+  'Giugno',
+  'Luglio',
+  'Agosto',
+  'Settembre',
+  'Ottobre',
+  'Novembre',
+  'Dicembre',
+];
+
+export function getBirthdayStatus(birthDate?: string): BirthdayStatus {
+  const normalized = normalizeBirthDateString(birthDate);
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const todayMonth = now.getMonth() + 1;
+  const todayDay = now.getDate();
+
+  if (!normalized) {
+    return {
+      hasBirthDate: false,
+      isBirthdayToday: false,
+      isBirthdayCountdownSoon: false,
+      daysUntilBirthday: 365,
+      turningAgeYears: 4,
+      birthDay: 1,
+      birthMonth: 1,
+      nextBirthdayFormatted: 'Da configurare',
+      todayBirthdayYearKey: `${currentYear}`,
+    };
+  }
+
+  const [bYearStr, bMonthStr, bDayStr] = normalized.split('-');
+  const bYear = parseInt(bYearStr, 10);
+  const bMonth = parseInt(bMonthStr, 10);
+  const bDay = parseInt(bDayStr, 10);
+
+  const isLeapYear = (y: number) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+  const effectiveBirthDayThisYear =
+    bMonth === 2 && bDay === 29 && !isLeapYear(currentYear) ? 28 : bDay;
+
+  const isBirthdayToday =
+    todayMonth === bMonth && todayDay === effectiveBirthDayThisYear;
+
+  const todayMidnight = new Date(currentYear, todayMonth - 1, todayDay).getTime();
+  let nextBdayDate = new Date(currentYear, bMonth - 1, effectiveBirthDayThisYear);
+  let nextBdayYear = currentYear;
+
+  if (nextBdayDate.getTime() < todayMidnight) {
+    nextBdayYear = currentYear + 1;
+    const nextYearDay =
+      bMonth === 2 && bDay === 29 && !isLeapYear(nextBdayYear) ? 28 : bDay;
+    nextBdayDate = new Date(nextBdayYear, bMonth - 1, nextYearDay);
+  }
+
+  const daysUntilBirthday = isBirthdayToday
+    ? 0
+    : Math.max(1, Math.round((nextBdayDate.getTime() - todayMidnight) / 86_400_000));
+
+  const turningAgeYears = Math.max(1, Math.min(18, nextBdayYear - bYear));
+  const monthLabel = ITALIAN_MONTH_NAMES[Math.max(0, Math.min(11, bMonth - 1))];
+
+  return {
+    hasBirthDate: true,
+    isBirthdayToday,
+    isBirthdayCountdownSoon: !isBirthdayToday && daysUntilBirthday <= 7,
+    daysUntilBirthday,
+    turningAgeYears,
+    birthDay: bDay,
+    birthMonth: bMonth,
+    nextBirthdayFormatted: `${bDay} ${monthLabel}`,
+    todayBirthdayYearKey: `${currentYear}-${String(bMonth).padStart(2, '0')}-${String(bDay).padStart(2, '0')}`,
+  };
+}
+
+export type AgeVisualStageId =
+  | 'early_childhood'   // 2-5 anni: Mondo Fiabesco
+  | 'primary_explorer'  // 6-8 anni: Accademia Esploratori
+  | 'preteen_campus'    // 9-11 anni: Campus Scienze & Logica
+  | 'teen_nextgen';     // 12-14 anni: NextGen Reasoning & STEM Lab
+
+export interface AgeVisualTheme {
+  stageId: AgeVisualStageId;
+  stageBadge: string;
+  stageSubtitle: string;
+  isMatureTheme: boolean;
+  showAnimalMascotGuides: boolean;
+  guideRolePrefix: string;
+  fontHeadingClass: string;
+  cardRadiusClass: string;
+  bgOverlayClass: string;
+  headerSurfaceClass: string;
+  headerTitleColorClass: string;
+  headerAccentColorClass: string;
+  primaryCtaGradientClass: string;
+  primaryCtaBorderClass: string;
+  primaryCtaTextClass: string;
+  secondaryCardClasses: {
+    chest: string;
+    svago: string;
+    studio: string;
+    zoo: string;
+  };
+  labels: {
+    worldPrefix: string;
+    playMainTitle: (level: number) => string;
+    playMainSub: string;
+    dailyMissionTitle: string;
+    chestTitle: string;
+    chestSub: string;
+    svagoTitle: string;
+    svagoSub: string;
+    studioTitle: string;
+    studioSub: string;
+    zooTitle: string;
+    zooSub: string;
+  };
+}
+
+/**
+ * Gradually evolves the app's visual graphic design, typography, palette, and terminology
+ * as the user grows from 2 to 14 years old — moving from a warm fairytale world (2-5)
+ * to an Explorer Academy (6-8), a STEM & Logic Campus (9-11), and a sleek NextGen Lab (12-14).
+ */
+export function getAgeVisualTheme(
+  ageYears: number,
+  childName?: string
+): AgeVisualTheme {
+  const cleanName = childName?.trim() || '';
+
+  // STAGE 4: 12-14 ANNI (Scuola Media / Ragazzi — Sleek NextGen Reasoning & STEM Lab)
+  if (ageYears >= 12) {
+    return {
+      stageId: 'teen_nextgen',
+      stageBadge: 'NextGen Lab · 12–14 Anni',
+      stageSubtitle: 'Reasoning, STEM & Cognitive Studio',
+      isMatureTheme: true,
+      showAnimalMascotGuides: false,
+      guideRolePrefix: 'Coach Didattico',
+      fontHeadingClass: 'font-fun tracking-tight',
+      cardRadiusClass: 'rounded-xl',
+      bgOverlayClass:
+        'bg-gradient-to-b from-slate-950/92 via-indigo-950/88 to-slate-950/95',
+      headerSurfaceClass:
+        'bg-slate-900/95 border border-indigo-400/35 shadow-[0_8px_30px_rgba(15,23,42,0.85)]',
+      headerTitleColorClass: 'text-slate-100',
+      headerAccentColorClass: 'text-cyan-400',
+      primaryCtaGradientClass:
+        'bg-gradient-to-r from-indigo-900 via-slate-900 to-cyan-950',
+      primaryCtaBorderClass:
+        'border-2 border-cyan-400/50 shadow-[0_8px_24px_rgba(6,182,212,0.22)]',
+      primaryCtaTextClass: 'text-white',
+      secondaryCardClasses: {
+        chest:
+          'bg-slate-900/95 border border-amber-400/40 text-slate-100 shadow-lg',
+        svago:
+          'bg-slate-900/95 border border-emerald-400/40 text-slate-100 shadow-lg',
+        studio:
+          'bg-slate-900/95 border border-indigo-400/40 text-slate-100 shadow-lg',
+        zoo:
+          'bg-slate-900/95 border border-cyan-400/40 text-slate-100 shadow-lg',
+      },
+      labels: {
+        worldPrefix: cleanName ? `Hub di ${cleanName}` : 'NextGen Learning Hub',
+        playMainTitle: (lvl) => `Sessione #${lvl}`,
+        playMainSub: 'Logica, Problem Solving & STEM',
+        dailyMissionTitle: 'Target Giornaliero (5 Moduli)',
+        chestTitle: 'Milestone & Badge',
+        chestSub: 'Traguardi & Riconoscimenti',
+        svagoTitle: 'Mind Games',
+        svagoSub: 'Labirinto, Differenze, Strategia',
+        studioTitle: 'Digital Sketchpad',
+        studioSub: 'Tavola Grafica & Design',
+        zooTitle: 'Bio-Acustica',
+        zooSub: 'Archivio Suoni & Natura',
+      },
+    };
+  }
+
+  // STAGE 3: 9-11 ANNI (Primaria Superiore / Pre-Teen — Campus Scienze & Logica)
+  if (ageYears >= 9) {
+    return {
+      stageId: 'preteen_campus',
+      stageBadge: 'Campus · 9–11 Anni',
+      stageSubtitle: 'Logica, Scienze & Lingue',
+      isMatureTheme: true,
+      showAnimalMascotGuides: false,
+      guideRolePrefix: 'Tutor del Campus',
+      fontHeadingClass: 'font-fun tracking-tight',
+      cardRadiusClass: 'rounded-2xl',
+      bgOverlayClass:
+        'bg-gradient-to-b from-slate-950/80 via-indigo-950/75 to-slate-950/90',
+      headerSurfaceClass:
+        'bg-slate-900/92 border-2 border-sky-400/45 shadow-[0_8px_24px_rgba(14,165,233,0.2)]',
+      headerTitleColorClass: 'text-white',
+      headerAccentColorClass: 'text-sky-300',
+      primaryCtaGradientClass:
+        'bg-gradient-to-r from-sky-900 via-indigo-900 to-violet-900',
+      primaryCtaBorderClass:
+        'border-2 border-sky-300/60 shadow-[0_6px_18px_rgba(56,189,248,0.25)]',
+      primaryCtaTextClass: 'text-white',
+      secondaryCardClasses: {
+        chest:
+          'bg-slate-900/90 border-2 border-amber-400/50 text-white shadow-md',
+        svago:
+          'bg-slate-900/90 border-2 border-emerald-400/50 text-white shadow-md',
+        studio:
+          'bg-slate-900/90 border-2 border-violet-400/50 text-white shadow-md',
+        zoo:
+          'bg-slate-900/90 border-2 border-sky-400/50 text-white shadow-md',
+      },
+      labels: {
+        worldPrefix: cleanName ? `Campus di ${cleanName}` : 'Campus Educativo',
+        playMainTitle: (lvl) => `Sfida #${lvl}`,
+        playMainSub: 'Ragionamento, Calcolo & Inglese',
+        dailyMissionTitle: 'Obiettivo del Giorno (5 Sfide)',
+        chestTitle: 'Collezione & Premi',
+        chestSub: 'Badge & Traguardi',
+        svagoTitle: 'Brain Games',
+        svagoSub: 'Labirinto, Differenze, Tris',
+        studioTitle: 'Studio Creativo',
+        studioSub: 'Illustrazione & Progetti',
+        zooTitle: 'Atlante Natura',
+        zooSub: 'Suoni & Curiosità Animali',
+      },
+    };
+  }
+
+  // STAGE 2: 6-8 ANNI (Scuola Primaria — Accademia degli Esploratori)
+  if (ageYears >= 6) {
+    return {
+      stageId: 'primary_explorer',
+      stageBadge: 'Accademia · 6–8 Anni',
+      stageSubtitle: 'Scuola Primaria & Avventura',
+      isMatureTheme: false,
+      showAnimalMascotGuides: true,
+      guideRolePrefix: 'Mentore Esploratore',
+      fontHeadingClass: 'font-fun',
+      cardRadiusClass: 'rounded-2xl',
+      bgOverlayClass:
+        'bg-gradient-to-b from-indigo-950/35 via-slate-900/25 to-slate-950/60',
+      headerSurfaceClass:
+        'bg-white/95 border-2 border-sky-400 shadow-[0_5px_0_#0284c7]',
+      headerTitleColorClass: 'text-slate-900',
+      headerAccentColorClass: 'text-sky-600',
+      primaryCtaGradientClass:
+        'bg-gradient-to-r from-sky-50 via-white to-emerald-50',
+      primaryCtaBorderClass:
+        'border-[3px] border-sky-400 shadow-[0_6px_0_#0284c7]',
+      primaryCtaTextClass: 'text-slate-900',
+      secondaryCardClasses: {
+        chest:
+          'bg-gradient-to-b from-amber-50 to-orange-100/95 border-[3px] border-amber-400 shadow-[0_5px_0_#d97706] text-slate-900',
+        svago:
+          'bg-gradient-to-b from-emerald-50 to-teal-100/95 border-[3px] border-emerald-400 shadow-[0_5px_0_#059669] text-slate-900',
+        studio:
+          'bg-gradient-to-b from-violet-50 to-indigo-100/95 border-[3px] border-violet-400 shadow-[0_5px_0_#7c3aed] text-slate-900',
+        zoo:
+          'bg-gradient-to-b from-sky-50 to-cyan-100/95 border-[3px] border-sky-400 shadow-[0_5px_0_#0284c7] text-slate-900',
+      },
+      labels: {
+        worldPrefix: cleanName ? `Il Mondo di ${cleanName}` : 'Il Mio Mondo',
+        playMainTitle: (lvl) => `Missione #${lvl}`,
+        playMainSub: 'Logica · Numeri · Parole · Inglese',
+        dailyMissionTitle: 'Missione Esploratore (5 Livelli)',
+        chestTitle: 'Scrigno & Album',
+        chestSub: 'Figurine & Tesori',
+        svagoTitle: 'Giochi & Sfide',
+        svagoSub: 'Labirinto, Differenze, Tris',
+        studioTitle: 'Laboratorio Arte',
+        studioSub: 'Disegna e Crea',
+        zooTitle: 'Mondo Animale',
+        zooSub: 'Voci e Suoni della Natura',
+      },
+    };
+  }
+
+  // STAGE 1: 2-5 ANNI (Prima Infanzia — Mondo Fiabesco)
+  return {
+    stageId: 'early_childhood',
+    stageBadge: 'Mondo Fiabesco · 2–5 Anni',
+    stageSubtitle: 'Scoperta Guidata & Gioco',
+    isMatureTheme: false,
+    showAnimalMascotGuides: true,
+    guideRolePrefix: 'Amico Guida',
+    fontHeadingClass: 'font-kids',
+    cardRadiusClass: 'rounded-[22px] sm:rounded-[28px]',
+    bgOverlayClass:
+      'bg-gradient-to-b from-sky-950/20 via-transparent to-slate-950/45',
+    headerSurfaceClass:
+      'bg-white/95 border-2 border-amber-300 shadow-[0_5px_0_#f59e0b]',
+    headerTitleColorClass: 'text-indigo-950',
+    headerAccentColorClass: 'text-pink-600',
+    primaryCtaGradientClass:
+      'bg-gradient-to-r from-amber-50 via-white to-pink-50',
+    primaryCtaBorderClass:
+      'border-[3px] border-amber-300 shadow-[0_6px_0_#d97706]',
+    primaryCtaTextClass: 'text-indigo-950',
+    secondaryCardClasses: {
+      chest:
+        'bg-gradient-to-b from-amber-50 to-orange-100/95 border-[3px] border-amber-300 shadow-[0_5px_0_#d97706] text-indigo-950',
+      svago:
+        'bg-gradient-to-b from-emerald-50 to-teal-100/95 border-[3px] border-emerald-300 shadow-[0_5px_0_#059669] text-emerald-950',
+      studio:
+        'bg-gradient-to-b from-fuchsia-50 to-pink-100/95 border-[3px] border-pink-300 shadow-[0_5px_0_#db2777] text-fuchsia-950',
+      zoo:
+        'bg-gradient-to-b from-orange-50 to-amber-100/95 border-[3px] border-orange-300 shadow-[0_5px_0_#ea580c] text-amber-950',
+    },
+    labels: {
+      worldPrefix: cleanName ? `Il Mondo di ${cleanName}` : 'Il Mio Mondo',
+      playMainTitle: (lvl) => `Gioca Livello ${lvl}`,
+      playMainSub: 'Logica · Numeri · Parole · Inglese',
+      dailyMissionTitle: 'Missione del Giorno: 5 Livelli',
+      chestTitle: 'Scrigno Magico',
+      chestSub: 'Figurine & Suoni',
+      svagoTitle: 'Giochi di Svago',
+      svagoSub: 'Labirinto, Differenze, Tris',
+      studioTitle: 'Colora & Disegna',
+      studioSub: 'Pennelli & Adesivi',
+      zooTitle: 'Zoo Parlante',
+      zooSub: 'Tocca e Ascolta i Versi!',
+    },
+  };
+}
+

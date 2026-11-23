@@ -12,14 +12,14 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg'],
+        includeAssets: ['favicon.ico', 'favicon-64x64.png', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png', 'pwa-maskable-512x512.png'],
         manifest: {
           id: '/',
-          name: 'Il Mio Mondo - Gioco Educativo',
+          name: 'Il Mio Mondo — Gioco Educativo (2–14 Anni)',
           short_name: 'Il Mio Mondo',
-          description: 'Un gioco educativo e personalizzabile per bambini e bambine adattato automaticamente alla loro età.',
+          description: 'Piattaforma educativa e di gioco adattiva per tutti i bambini e i ragazzi da 2 a 14 anni con matematica, logica, lettere, scienze, arte, musica, inglese, giochi di svago e Area Genitori.',
           theme_color: '#020617',
-          background_color: '#020617',
+          background_color: '#aeedfc',
           display: 'standalone',
           orientation: 'any',
           start_url: '/',
@@ -47,20 +47,8 @@ export default defineConfig(() => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
-          globIgnores: ['**/assets/aistudio/**', '**/pwa-512x512.png', '**/pwa-maskable-512x512.png'],
-          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+          maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
           runtimeCaching: [
-            {
-              urlPattern: /\/assets\/aistudio\/.*/i,
-              handler: 'StaleWhileRevalidate',
-              options: {
-                cacheName: 'aistudio-assets-cache',
-                expiration: {
-                  maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 30,
-                },
-              },
-            },
             {
               urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
               handler: 'CacheFirst',
@@ -97,6 +85,9 @@ export default defineConfig(() => {
         },
       }),
     ],
+    build: {
+      sourcemap: false,
+    },
     resolve: {
       alias: {
         '@': path.resolve(path.dirname(fileURLToPath(import.meta.url)), '.'),

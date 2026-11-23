@@ -405,7 +405,7 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col select-none overflow-hidden h-[100dvh] max-h-[100dvh] text-slate-900">
+    <div className="safe-viewport-pad fixed inset-0 z-50 flex flex-col select-none overflow-hidden h-[100dvh] max-h-[100dvh] text-slate-900">
       {/* SUNNY PIXAR 3D MEADOW BACKDROP */}
       <div className="absolute inset-0 pointer-events-none z-0">
         <img
@@ -421,7 +421,7 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
       {/* ============================================================== */}
       {/* 1. STORYBOOK 3D TOP BAR: HOME, WOODEN BADGE & ACTIONS          */}
       {/* ============================================================== */}
-      <div className="relative z-20 flex flex-wrap items-center justify-between px-2.5 sm:px-5 pt-2.5 pb-1.5 shrink-0 gap-2">
+      <div className="relative z-20 flex flex-wrap items-center justify-between px-2 sm:px-5 pt-2 pb-1.5 shrink-0 gap-1.5 sm:gap-2">
         {/* Back Home 3D Bubble */}
         <button
           onClick={() => {
@@ -429,14 +429,15 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
             soundManager.playPop();
             onClose();
           }}
-          className="px-3 py-1.5 sm:px-4 sm:py-2 bg-white hover:bg-amber-50 active:translate-y-0.5 text-amber-950 font-fun font-extrabold text-xs sm:text-sm rounded-full border-2 border-amber-200 shadow-[0_4px_0_#d97706,0_8px_16px_rgba(120,53,15,0.2)] flex items-center gap-1.5 cursor-pointer transition-all shrink-0 whitespace-nowrap"
+          aria-label="Torna alla Home"
+          className="px-2.5 min-[370px]:px-3 py-1.5 sm:px-4 sm:py-2 bg-white hover:bg-amber-50 active:translate-y-0.5 text-amber-950 font-fun font-extrabold text-xs sm:text-sm rounded-full border-2 border-amber-200 shadow-[0_4px_0_#d97706,0_8px_16px_rgba(120,53,15,0.2)] flex items-center gap-1.5 cursor-pointer transition-all shrink-0 whitespace-nowrap"
         >
           <Home className="w-4 h-4 text-orange-500" />
-          <span>Home</span>
+          <span className="hidden min-[370px]:inline">Home</span>
         </button>
 
         {/* Carved Wood Studio Title Plaque */}
-        <div className="home-wood-outer rounded-2xl p-[3px] shrink-0 hidden xs:inline-flex sm:inline-flex">
+        <div className="home-wood-outer rounded-2xl p-[3px] shrink-0 hidden sm:inline-flex">
           <div className="home-inner-purple rounded-[13px] px-3 sm:px-4 py-1 sm:py-1.5 flex items-center gap-1.5 text-white">
             <span className="text-base sm:text-lg leading-none" aria-hidden="true">🎨</span>
             <h2 className="relative z-10 font-kids font-bold text-xs sm:text-base text-white whitespace-nowrap drop-shadow-xs">
@@ -446,12 +447,12 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
         </div>
 
         {/* Top Action Buttons: Undo, Clear, Download, Save */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           <button
             onClick={handleUndo}
             disabled={undoStack.length <= 1}
             title="Annulla"
-            className="p-2 sm:px-3 sm:py-1.5 bg-white hover:bg-amber-50 disabled:opacity-45 active:translate-y-0.5 text-amber-950 font-fun font-extrabold text-xs sm:text-sm rounded-2xl border-2 border-amber-200 shadow-[0_3px_0_#d97706] flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap"
+            className="p-1.5 min-[370px]:p-2 sm:px-3 sm:py-1.5 bg-white hover:bg-amber-50 disabled:opacity-45 active:translate-y-0.5 text-amber-950 font-fun font-extrabold text-xs sm:text-sm rounded-2xl border-2 border-amber-200 shadow-[0_3px_0_#d97706] flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap"
           >
             <RotateCcw className="w-4 h-4 text-amber-600" />
             <span className="hidden md:inline">Annulla</span>
@@ -460,7 +461,7 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
           <button
             onClick={handleClear}
             title="Pulisci Tela"
-            className="p-2 sm:px-3 sm:py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 active:translate-y-0.5 font-fun font-extrabold text-xs sm:text-sm rounded-2xl border-2 border-rose-200 shadow-[0_3px_0_#fb7185] flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap"
+            className="p-1.5 min-[370px]:p-2 sm:px-3 sm:py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 active:translate-y-0.5 font-fun font-extrabold text-xs sm:text-sm rounded-2xl border-2 border-rose-200 shadow-[0_3px_0_#fb7185] flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap"
           >
             <Trash2 className="w-4 h-4 text-rose-500" />
             <span className="hidden md:inline">Pulisci</span>
@@ -469,7 +470,7 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
           <button
             onClick={handleDownload}
             title="Scarica Disegno"
-            className="p-2 sm:px-3 sm:py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-800 active:translate-y-0.5 font-fun font-extrabold text-xs sm:text-sm rounded-2xl border-2 border-sky-200 shadow-[0_3px_0_#38bdf8] flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap"
+            className="p-1.5 min-[370px]:p-2 sm:px-3 sm:py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-800 active:translate-y-0.5 font-fun font-extrabold text-xs sm:text-sm rounded-2xl border-2 border-sky-200 shadow-[0_3px_0_#38bdf8] flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap"
           >
             <Download className="w-4 h-4 text-sky-600" />
             <span className="hidden md:inline">Scarica</span>

@@ -1,0 +1,128 @@
+{
+  "entities": {
+    "UserProgressSync": {
+      "title": "UserProgressSync",
+      "description": "Cross-device synchronized learning progress and adaptive profile for a verified parent/child Google account.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the authenticated Google account owner.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "childName": {
+          "type": "string",
+          "description": "Configured child first name.",
+          "maxLength": 60
+        },
+        "childBirthDate": {
+          "type": "string",
+          "description": "Normalized ISO birth date YYYY-MM-DD.",
+          "maxLength": 16
+        },
+        "childGender": {
+          "type": "string",
+          "description": "Gender code m, f, or n.",
+          "enum": ["m", "f", "n"],
+          "maxLength": 4
+        },
+        "currentLevel": {
+          "type": "integer",
+          "description": "Current global progression level."
+        },
+        "highestLevelReached": {
+          "type": "integer",
+          "description": "Highest level unlocked across sessions."
+        },
+        "stars": {
+          "type": "integer",
+          "description": "Total stars earned."
+        },
+        "gems": {
+          "type": "integer",
+          "description": "Total gems earned."
+        },
+        "streakDays": {
+          "type": "integer",
+          "description": "Consecutive play days streak."
+        },
+        "totalPuzzlesSolved": {
+          "type": "integer",
+          "description": "Total genuine child puzzles solved."
+        },
+        "totalAttempts": {
+          "type": "integer",
+          "description": "Total puzzle attempts recorded."
+        },
+        "sessionsCount": {
+          "type": "integer",
+          "description": "Total distinct play sessions."
+        },
+        "lastPlayedDate": {
+          "type": "string",
+          "description": "Last played ISO date YYYY-MM-DD.",
+          "maxLength": 16
+        },
+        "unlockedStickerIds": {
+          "type": "array",
+          "description": "List of unlocked sticker IDs (max 40)."
+        },
+        "completedPuzzleIds": {
+          "type": "array",
+          "description": "List of recently completed puzzle IDs for non-repetition (max 500)."
+        },
+        "syncPayload": {
+          "type": "string",
+          "description": "Bounded serialized adaptive telemetry envelope (categoryStats, levelHistory, annualProgressRows, archivedReportOverviews).",
+          "maxLength": 250000
+        },
+        "deviceLabel": {
+          "type": "string",
+          "description": "Short label of the last device that synced progress.",
+          "maxLength": 80
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when cloud sync record was first created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when cloud sync record was last updated."
+        }
+      },
+      "required": [
+        "ownerId",
+        "childName",
+        "childBirthDate",
+        "childGender",
+        "currentLevel",
+        "highestLevelReached",
+        "stars",
+        "gems",
+        "streakDays",
+        "totalPuzzlesSolved",
+        "totalAttempts",
+        "sessionsCount",
+        "lastPlayedDate",
+        "unlockedStickerIds",
+        "completedPuzzleIds",
+        "syncPayload",
+        "deviceLabel",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/user_progress/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProgressSync"
+      },
+      "description": "Stores per-account synchronized educational progress isolated strictly to the authenticated Google user (userId == request.auth.uid)."
+    }
+  }
+}

@@ -1,0 +1,170 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Default-Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Global Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Standalone Validation Blueprint for UserProgressSync
+    function isValidUserProgress(data) {
+      return data.keys().hasAll([
+          'ownerId',
+          'childName',
+          'childBirthDate',
+          'childGender',
+          'currentLevel',
+          'highestLevelReached',
+          'stars',
+          'gems',
+          'streakDays',
+          'totalPuzzlesSolved',
+          'totalAttempts',
+          'sessionsCount',
+          'lastPlayedDate',
+          'unlockedStickerIds',
+          'completedPuzzleIds',
+          'syncPayload',
+          'deviceLabel',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'ownerId',
+          'childName',
+          'childBirthDate',
+          'childGender',
+          'currentLevel',
+          'highestLevelReached',
+          'stars',
+          'gems',
+          'streakDays',
+          'totalPuzzlesSolved',
+          'totalAttempts',
+          'sessionsCount',
+          'lastPlayedDate',
+          'unlockedStickerIds',
+          'completedPuzzleIds',
+          'syncPayload',
+          'deviceLabel',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidId(data.ownerId) &&
+        data.ownerId == request.auth.uid &&
+        data.childName is string &&
+        data.childName.size() <= 60 &&
+        data.childBirthDate is string &&
+        data.childBirthDate.size() <= 16 &&
+        data.childGender is string &&
+        data.childGender.size() <= 4 &&
+        (data.childGender == 'm' || data.childGender == 'f' || data.childGender == 'n') &&
+        data.currentLevel is int &&
+        data.currentLevel >= 1 &&
+        data.currentLevel <= 99999 &&
+        data.highestLevelReached is int &&
+        data.highestLevelReached >= 1 &&
+        data.highestLevelReached <= 99999 &&
+        data.stars is int &&
+        data.stars >= 0 &&
+        data.stars <= 999999 &&
+        data.gems is int &&
+        data.gems >= 0 &&
+        data.gems <= 999999 &&
+        data.streakDays is int &&
+        data.streakDays >= 1 &&
+        data.streakDays <= 3650 &&
+        data.totalPuzzlesSolved is int &&
+        data.totalPuzzlesSolved >= 0 &&
+        data.totalPuzzlesSolved <= 999999 &&
+        data.totalAttempts is int &&
+        data.totalAttempts >= 0 &&
+        data.totalAttempts <= 999999 &&
+        data.sessionsCount is int &&
+        data.sessionsCount >= 1 &&
+        data.sessionsCount <= 99999 &&
+        data.lastPlayedDate is string &&
+        data.lastPlayedDate.size() <= 16 &&
+        data.unlockedStickerIds is list &&
+        data.unlockedStickerIds.size() <= 40 &&
+        (data.unlockedStickerIds.size() == 0 || (data.unlockedStickerIds[0] is string && data.unlockedStickerIds[0].size() <= 40)) &&
+        data.completedPuzzleIds is list &&
+        data.completedPuzzleIds.size() <= 500 &&
+        (data.completedPuzzleIds.size() == 0 || (data.completedPuzzleIds[0] is string && data.completedPuzzleIds[0].size() <= 80)) &&
+        data.syncPayload is string &&
+        data.syncPayload.size() <= 250000 &&
+        data.deviceLabel is string &&
+        data.deviceLabel.size() <= 80 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    match /user_progress/{userId} {
+      allow get: if isSignedIn() && isVerifiedUser() && isValidId(userId) && userId == request.auth.uid;
+      allow list: if isSignedIn() && isVerifiedUser() && resource.data.ownerId == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+        isVerifiedUser() &&
+        isValidId(userId) &&
+        userId == request.auth.uid &&
+        isValidUserProgress(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isSignedIn() &&
+        isVerifiedUser() &&
+        isValidId(userId) &&
+        userId == request.auth.uid &&
+        isValidUserProgress(incoming()) &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          // Action: SyncProgressUpdate
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'childName',
+            'childBirthDate',
+            'childGender',
+            'currentLevel',
+            'highestLevelReached',
+            'stars',
+            'gems',
+            'streakDays',
+            'totalPuzzlesSolved',
+            'totalAttempts',
+            'sessionsCount',
+            'lastPlayedDate',
+            'unlockedStickerIds',
+            'completedPuzzleIds',
+            'syncPayload',
+            'deviceLabel',
+            'updatedAt'
+          ])
+        );
+
+      allow delete: if isSignedIn() && isVerifiedUser() && isValidId(userId) && userId == request.auth.uid;
+    }
+  }
+}

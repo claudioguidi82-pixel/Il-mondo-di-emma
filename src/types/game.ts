@@ -67,10 +67,24 @@ export interface EnglishWordHighlight {
   categoryLabel: string;
 }
 
+export type ExerciseDifficultyScore = 1 | 2 | 3 | 4 | 5;
+
+export interface ExerciseClassificationMeta {
+  learningObjective: string;                 // Obiettivo didattico
+  chcCompetency: 'Gf' | 'Gwm' | 'Gc' | 'Gv' | 'Gs'; // Competenza CHC
+  referenceAgeBand: AgeBandId;               // Fascia anagrafica di riferimento
+  difficultyScore: ExerciseDifficultyScore;  // Difficoltà (1..5)
+  reasoningType: string;                     // Tipologia di ragionamento
+  prerequisites: string;                     // Prerequisiti
+  responseMode: string;                      // Modalità di risposta
+  previousUsesCount: number;                 // Numero di utilizzi precedenti
+  selectionRole: 'new_exploration' | 'retention_check' | 'transfer_challenge';
+}
+
 export interface Puzzle {
   id: string;
   levelNumber?: number;
-  difficultyTier?: number; // 1 = 5yo base, 2 = 5.5yo, 3 = 6yo, etc.
+  difficultyTier?: number; // 1..5 (Difficoltà calibrata 1=Molto facile .. 5=Esperta)
   category: GameCategory;
   type: PuzzleType;
   title: string;
@@ -91,6 +105,7 @@ export interface Puzzle {
   additionParts?: { countA: number; countB: number; emoji: string; singular?: string; plural?: string; gender?: 'f' | 'm' };
   subtractionParts?: { total: number; minus: number; emoji: string; singular?: string; plural?: string; gender?: 'f' | 'm' };
   rhythmNotes?: RhythmNote[];
+  animalSoundId?: string;
   englishWord?: EnglishWordHighlight;
   iqParameterTag?: string;
   chcPrimary?: 'Gf' | 'Gwm' | 'Gc' | 'Gv' | 'Gs';
@@ -99,6 +114,9 @@ export interface Puzzle {
   subjectLabel?: string;
   difficultyLabel?: string;
   isMasteryUnlocked?: boolean;
+  adaptiveStatus?: 'downgrade' | 'standard' | 'upgrade';
+  guidedSupport?: boolean;
+  classificationMeta?: ExerciseClassificationMeta;
   rewardStars: number;
   rewardGems: number;
   funExplanation: string;
@@ -150,19 +168,25 @@ export interface CategoryPerformance {
 
 export interface LevelPerformanceEntry {
   level: number;
-  tier?: number;
-  weight?: number;
+  puzzleId?: string;
+  tier?: number;            // 1..5 difficulty score
+  weight?: number;          // 1.00 | 1.25 | 1.50 | 1.75 | 2.00
   category: GameCategory;
   puzzleType?: PuzzleType;
   chcPrimary?: 'Gf' | 'Gwm' | 'Gc' | 'Gv' | 'Gs';
   chcSecondary?: 'Gf' | 'Gwm' | 'Gc' | 'Gv' | 'Gs';
-  firstTry: boolean;        // c_i = 1 if solved on 1st try without hints, 0 otherwise
-  assistedSuccess?: boolean; // solved after hint or retry (tracked separately from autonomous c_i)
+  firstTry: boolean;        // true if solved on 1st try without hints
+  assistedSuccess?: boolean; // solved after hint or retry (tracked separately from autonomous)
   attempts: number;
   hintsUsed?: number;
   responseTimeMs?: number;
   starsEarned: number;
   timestamp: string;
+  // Silent local behavioral telemetry (anti-report contamination: separates parent test taps from child play)
+  suspectedAdult?: boolean;
+  adultConfidence?: number; // 0-100
+  adultReasons?: string[];
+  inputOrigin?: 'child' | 'adult_detected' | 'parent_preview';
 }
 
 export type CompetencyBandLabel =
@@ -290,6 +314,29 @@ export interface ChildProfile {
   isConfigured: boolean;
 }
 
+export interface ArchivedReportOverview {
+  id: string;
+  dateIso: string;             // YYYY-MM-DD (data di archiviazione per filtro cronologico)
+  dateFormatted: string;       // DD/MM/YYYY
+  timeFormatted: string;       // HH:mm
+  createdAtIso: string;        // ISO timestamp completo
+  levelNumber: number;
+  completedExercises: number;
+  ic: number;
+  ip: number;
+  ia: number;
+  ir: number;
+  it: number;
+  ieDelta: number;
+  assignedBandLabel: string;
+  title: string;
+  keyHighlights: string[];
+  transcript: string;
+  anonymized: boolean;
+  hasAudioBlob?: boolean;
+  mimeType?: string;
+}
+
 export interface UserProgress {
   childProfile: ChildProfile;
   currentLevel: number;        // Infinite level counter (starts at 1)
@@ -320,6 +367,7 @@ export interface UserProgress {
   completedPuzzleIds: string[];
   levelHistory?: LevelPerformanceEntry[];
   evaluationSnapshots?: EvaluationSnapshot[];
+  archivedReportOverviews?: ArchivedReportOverview[];
   sessionsCount?: number;
   sessionDates?: string[];
   annualProgressRows?: AnnualAgeProgressRow[];
@@ -330,6 +378,9 @@ export interface UserProgress {
   dailyMissionDate?: string;
   dailyMissionCount?: number;
   dailyChestClaimedDate?: string;
+  parentPreviewMode?: boolean;   // Explicit parent test mode (pauses report & adaptive scoring)
+  adultFilteredCount?: number;   // Count of suspected adult trials excluded from evaluation
+  lastBirthdayCelebratedYear?: string; // Tracks the birthday year key (YYYY-MM-DD) when the annual birthday celebration gift was claimed
 }
 
 
