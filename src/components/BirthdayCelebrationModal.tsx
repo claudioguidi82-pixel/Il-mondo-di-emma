@@ -4,6 +4,7 @@ import { ChildGender } from '../types/game';
 import { getAgeVisualTheme, getGenderedWord } from '../utils/childProfile';
 import { soundManager } from '../utils/audio';
 import { confetti } from '../utils/confetti';
+import { Emoji3D } from './Emoji3D';
 
 interface BirthdayCelebrationModalProps {
   childName: string;
@@ -108,13 +109,13 @@ export const BirthdayCelebrationModal: React.FC<BirthdayCelebrationModalProps> =
         {/* Floating animated celebratory particles */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-2 flex justify-around text-xl sm:text-2xl opacity-85 animate-bounce"
+          className="pointer-events-none absolute inset-x-0 top-2 flex justify-around opacity-90 animate-bounce"
         >
-          <span>{theme.isMatureTheme ? '✨' : '🎈'}</span>
-          <span>🎉</span>
-          <span>{theme.isMatureTheme ? '🚀' : '🎂'}</span>
-          <span>🎊</span>
-          <span>{theme.isMatureTheme ? '⚡' : '🎈'}</span>
+          <Emoji3D emoji={theme.isMatureTheme ? '✨' : '🎈'} className="w-6 h-6 sm:w-7 sm:h-7" />
+          <Emoji3D emoji="🎉" className="w-6 h-6 sm:w-7 sm:h-7" />
+          <Emoji3D emoji={theme.isMatureTheme ? '🚀' : '🎂'} className="w-6 h-6 sm:w-7 sm:h-7" />
+          <Emoji3D emoji="🎊" className="w-6 h-6 sm:w-7 sm:h-7" />
+          <Emoji3D emoji={theme.isMatureTheme ? '⚡' : '🎈'} className="w-6 h-6 sm:w-7 sm:h-7" />
         </div>
 
         <button
@@ -174,17 +175,27 @@ export const BirthdayCelebrationModal: React.FC<BirthdayCelebrationModalProps> =
           }`}
         >
           <p
-            className={`text-xs font-fun font-extrabold mb-3 ${
+            className={`text-xs font-fun font-extrabold mb-3 flex items-center justify-center gap-1.5 ${
               theme.isMatureTheme ? 'text-cyan-300' : 'text-indigo-900'
             }`}
           >
-            {allExtinguished
-              ? theme.isMatureTheme
-                ? '✨ Tutti i Cristalli Milestone sono stati attivati!'
-                : '🎉 Evviva! Tutte le candeline sono spente: desiderio espresso!'
-              : theme.isMatureTheme
-              ? 'Tocca tutti i Cristalli per attivare il tuo nuovo anno!'
-              : 'Tocca le candeline una per una (o soffia con il tasto) per spegnerle!'}
+            {allExtinguished ? (
+              theme.isMatureTheme ? (
+                <>
+                  <Emoji3D emoji="✨" className="w-4 h-4 shrink-0" />
+                  <span>Tutti i Cristalli Milestone sono stati attivati!</span>
+                </>
+              ) : (
+                <>
+                  <Emoji3D emoji="🎉" className="w-4 h-4 shrink-0" />
+                  <span>Evviva! Tutte le candeline sono spente: desiderio espresso!</span>
+                </>
+              )
+            ) : theme.isMatureTheme ? (
+              'Tocca tutti i Cristalli per attivare il tuo nuovo anno!'
+            ) : (
+              'Tocca le candeline una per una (o soffia con il tasto) per spegnerle!'
+            )}
           </p>
 
           {/* Interactive Candles / Milestone Nodes */}
@@ -216,11 +227,11 @@ export const BirthdayCelebrationModal: React.FC<BirthdayCelebrationModalProps> =
                 ) : (
                   <>
                     <span
-                      className={`text-xl sm:text-2xl leading-none transition-all ${
-                        isLit ? 'animate-bounce' : 'opacity-30 scale-75'
+                      className={`inline-flex items-center justify-center transition-all ${
+                        isLit ? 'animate-bounce' : 'opacity-40 scale-75'
                       }`}
                     >
-                      {isLit ? '🔥' : '💨'}
+                      <Emoji3D emoji={isLit ? '🔥' : '💨'} className="w-6 h-6 sm:w-7 sm:h-7" />
                     </span>
                     <div
                       className={`w-4 sm:w-5 h-10 sm:h-12 rounded-t-md border-2 ${
@@ -238,8 +249,10 @@ export const BirthdayCelebrationModal: React.FC<BirthdayCelebrationModalProps> =
           </div>
 
           {!theme.isMatureTheme && (
-            <div className="mx-auto max-w-[230px] h-10 rounded-b-2xl rounded-t-lg bg-gradient-to-r from-pink-400 via-amber-300 to-pink-400 border-2 border-pink-600 flex items-center justify-center font-kids font-black text-sm text-indigo-950 shadow-md">
-              🎂 {ageYears} ANNI DI {childName.toUpperCase()} 🎂
+            <div className="mx-auto max-w-[240px] h-10 px-2 rounded-b-2xl rounded-t-lg bg-gradient-to-r from-pink-400 via-amber-300 to-pink-400 border-2 border-pink-600 flex items-center justify-center gap-1.5 font-kids font-black text-sm text-indigo-950 shadow-md">
+              <Emoji3D emoji="🎂" className="w-5 h-5 shrink-0" />
+              <span className="truncate">{ageYears} ANNI DI {childName.toUpperCase()}</span>
+              <Emoji3D emoji="🎂" className="w-5 h-5 shrink-0" />
             </div>
           )}
 
@@ -247,15 +260,18 @@ export const BirthdayCelebrationModal: React.FC<BirthdayCelebrationModalProps> =
             <button
               type="button"
               onClick={handleBlowAllCandles}
-              className={`mt-3 px-4 py-2 rounded-xl font-fun font-extrabold text-xs transition cursor-pointer ${
+              className={`mt-3 px-4 py-2 rounded-xl font-fun font-extrabold text-xs transition cursor-pointer inline-flex items-center justify-center gap-1.5 ${
                 theme.isMatureTheme
                   ? 'bg-cyan-500/20 hover:bg-cyan-500/35 border border-cyan-400/50 text-cyan-200'
                   : 'bg-amber-400 hover:bg-amber-300 text-indigo-950 border-2 border-amber-600 shadow-sm'
               }`}
             >
-              {theme.isMatureTheme
-                ? '⚡ Attiva Tutti i Cristalli'
-                : '💨 Soffia Forte su Tutte le Candeline!'}
+              <Emoji3D emoji={theme.isMatureTheme ? '⚡' : '💨'} className="w-4 h-4 shrink-0" />
+              <span>
+                {theme.isMatureTheme
+                  ? 'Attiva Tutti i Cristalli'
+                  : 'Soffia Forte su Tutte le Candeline!'}
+              </span>
             </button>
           )}
         </div>
@@ -314,9 +330,10 @@ export const BirthdayCelebrationModal: React.FC<BirthdayCelebrationModalProps> =
             <button
               type="button"
               onClick={handleClaim}
-              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-fun font-black text-xs sm:text-sm shadow-md cursor-pointer shrink-0"
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-fun font-black text-xs sm:text-sm shadow-md cursor-pointer shrink-0 inline-flex items-center justify-center gap-1.5"
             >
-              🎁 Ritira Regalo!
+              <Emoji3D emoji="🎁" className="w-4 h-4 shrink-0" />
+              <span>Ritira Regalo!</span>
             </button>
           )}
         </div>

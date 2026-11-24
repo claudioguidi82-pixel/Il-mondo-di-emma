@@ -41,6 +41,7 @@ import {
   chooseBestTrisMove,
 } from '../utils/svagoGames';
 import { DiffSceneArtwork } from './DiffSceneArtwork';
+import { Emoji3D } from './Emoji3D';
 import arenaMeadowBackdrop from '../assets/images/arena_meadow_backdrop_1795268326885.jpg';
 
 interface SvagoArenaProps {
@@ -736,7 +737,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
                 {isMature ? (
                   tab.icon
                 ) : (
-                  <span className="text-sm sm:text-base leading-none shrink-0">{tab.emoji}</span>
+                  <Emoji3D emoji={tab.emoji} className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
                 )}
                 <span className="truncate hidden min-[380px]:inline">{tab.label}</span>
                 <span className="truncate min-[380px]:hidden">{tab.shortLabel}</span>
@@ -762,7 +763,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
               }`}
             >
               <div className="flex items-center gap-2 min-w-0">
-                <span className="text-lg sm:text-xl shrink-0">{mazePuzzle.theme.heroEmoji}</span>
+                <Emoji3D emoji={mazePuzzle.theme.heroEmoji} className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" />
                 <div className="min-w-0">
                   <p className="font-kids font-bold text-xs sm:text-sm truncate leading-tight">
                     {mazePuzzle.theme.title}
@@ -868,30 +869,28 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
                             <span className="w-2 h-2 rounded-full bg-white pointer-events-none" />
                           )}
                           {isGoal && !isPlayer && (
-                            <span
-                              className={`leading-none pointer-events-none ${
+                            <Emoji3D
+                              emoji={mazePuzzle.theme.goalEmoji}
+                              className={`pointer-events-none ${
                                 mazePuzzle.cols >= 10
-                                  ? 'text-xs sm:text-sm'
+                                  ? 'w-3.5 h-3.5 sm:w-4 sm:h-4'
                                   : mazePuzzle.cols >= 8
-                                  ? 'text-base sm:text-lg'
-                                  : 'text-2xl sm:text-3xl'
+                                  ? 'w-5 h-5 sm:w-6 sm:h-6'
+                                  : 'w-7 h-7 sm:w-8 sm:h-8'
                               }`}
-                            >
-                              {mazePuzzle.theme.goalEmoji}
-                            </span>
+                            />
                           )}
                           {isPlayer && (
-                            <span
-                              className={`leading-none pointer-events-none ${
+                            <Emoji3D
+                              emoji={mazeWon ? '🏆' : mazePuzzle.theme.heroEmoji}
+                              className={`pointer-events-none ${
                                 mazePuzzle.cols >= 10
-                                  ? 'text-xs sm:text-sm'
+                                  ? 'w-3.5 h-3.5 sm:w-4 sm:h-4'
                                   : mazePuzzle.cols >= 8
-                                  ? 'text-base sm:text-lg'
-                                  : 'text-2xl sm:text-3xl'
+                                  ? 'w-5 h-5 sm:w-6 sm:h-6'
+                                  : 'w-7 h-7 sm:w-8 sm:h-8'
                               }`}
-                            >
-                              {mazeWon ? '🏆' : mazePuzzle.theme.heroEmoji}
-                            </span>
+                            />
                           )}
                         </button>
                       );
@@ -905,9 +904,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
                       isMature ? 'bg-slate-950/92 text-white border border-white/15' : 'bg-white/92 text-slate-900'
                     }`}
                   >
-                    <span className="text-4xl sm:text-5xl mb-1.5">
-                      {mazePuzzle.theme.goalEmoji}
-                    </span>
+                    <Emoji3D emoji={mazePuzzle.theme.goalEmoji} className="w-12 h-12 sm:w-14 sm:h-14 mb-1.5" />
                     <h3 className={`font-kids font-bold text-lg sm:text-xl ${isMature ? gPalette.accentTextClass : 'text-emerald-700'}`}>
                       {isMature ? 'Percorso Completato' : 'Traguardo Raggiunto!'}
                     </h3>
@@ -964,13 +961,13 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
                   </button>
 
                   <div
-                    className={`maze-dpad-btn w-12 h-12 sm:w-13 sm:h-13 flex items-center justify-center text-xl ${
+                    className={`maze-dpad-btn w-12 h-12 sm:w-13 sm:h-13 flex items-center justify-center ${
                       isMature
                         ? `rounded-xl bg-slate-950 border ${gPalette.accentBorderClass}`
                         : 'rounded-2xl bg-amber-100/80 border-2 border-amber-300'
                     }`}
                   >
-                    {mazePuzzle.theme.heroEmoji}
+                    <Emoji3D emoji={mazePuzzle.theme.heroEmoji} className="w-6 h-6 sm:w-7 sm:h-7" />
                   </div>
 
                   <button
@@ -1026,7 +1023,7 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
               }`}
             >
               <div className="flex items-center gap-2 min-w-0">
-                <span className="text-lg shrink-0">{diffPuzzle.scene.emoji}</span>
+                <Emoji3D emoji={diffPuzzle.scene.emoji} className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" />
                 <div className="min-w-0">
                   <p className="font-kids font-bold text-xs sm:text-sm truncate leading-tight">
                     {adaptedDiffMeta.title}
@@ -1175,7 +1172,11 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
                       : 'bg-white/80 text-slate-700'
                   }`}
                 >
-                  <span className="text-lg sm:text-xl font-bold shrink-0">{trisProfile.playerSymbol}</span>
+                  {trisProfile.isGeometric ? (
+                    <span className="text-lg sm:text-xl font-bold shrink-0">{trisProfile.playerSymbol}</span>
+                  ) : (
+                    <Emoji3D emoji={trisProfile.playerSymbol} className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" />
+                  )}
                   <div className="min-w-0">
                     <p className="font-fun font-bold text-xs leading-tight truncate">{childName}</p>
                     <p className="text-[10px] opacity-85 truncate">Tu</p>
@@ -1213,7 +1214,11 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
                     </p>
                     <p className="text-[10px] opacity-85 truncate">{trisProfile.botSubtitle}</p>
                   </div>
-                  <span className="text-lg sm:text-xl font-bold shrink-0">{trisProfile.botSymbol}</span>
+                  {trisProfile.isGeometric ? (
+                    <span className="text-lg sm:text-xl font-bold shrink-0">{trisProfile.botSymbol}</span>
+                  ) : (
+                    <Emoji3D emoji={trisProfile.botSymbol} className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" />
+                  )}
                 </div>
               </div>
 
@@ -1273,8 +1278,8 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
                           {trisProfile.playerSymbol}
                         </span>
                       ) : (
-                        <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full ${gPalette.accentBgClass} border-2 border-white shadow-sm flex items-center justify-center text-2xl sm:text-3xl animate-pop-in`}>
-                          {trisProfile.playerSymbol}
+                        <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full ${gPalette.accentBgClass} border-2 border-white shadow-sm flex items-center justify-center animate-pop-in`}>
+                          <Emoji3D emoji={trisProfile.playerSymbol} className="w-7 h-7 sm:w-8 sm:h-8" />
                         </div>
                       )
                     )}
@@ -1284,8 +1289,8 @@ export const SvagoArena: React.FC<SvagoArenaProps> = ({
                           {trisProfile.botSymbol}
                         </span>
                       ) : (
-                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-b from-amber-300 to-orange-500 border-2 border-white shadow-sm flex items-center justify-center text-2xl sm:text-3xl animate-pop-in">
-                          {trisProfile.botSymbol}
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-b from-amber-300 to-orange-500 border-2 border-white shadow-sm flex items-center justify-center animate-pop-in">
+                          <Emoji3D emoji={trisProfile.botSymbol} className="w-7 h-7 sm:w-8 sm:h-8" />
                         </div>
                       )
                     )}

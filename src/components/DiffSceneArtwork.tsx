@@ -1,5 +1,6 @@
 import React from 'react';
 import { DiffSceneDefinition } from '../utils/svagoGames';
+import { getEmoji3DUrl } from '../utils/emoji3dDatabase';
 
 interface DiffSceneArtworkProps {
   scene: DiffSceneDefinition;
@@ -23,6 +24,22 @@ export const DiffSceneArtwork: React.FC<DiffSceneArtworkProps> = ({
 }) => {
   const diffActive = (spotId: string) => isVariant && activeSpotIds.includes(spotId);
   const uid = `${scene.id}-${isVariant ? 'b' : 'a'}`;
+
+  const renderEmoji3D = (emoji: string, cx: number, cy: number, size: number) => {
+    const url = getEmoji3DUrl(emoji);
+    if (!url) return null;
+    return (
+      <image
+        href={url}
+        x={cx - size / 2}
+        y={cy - size / 2}
+        width={size}
+        height={size}
+        preserveAspectRatio="xMidYMid meet"
+        className="pointer-events-none"
+      />
+    );
+  };
 
   const handleSvgClick = (e: React.MouseEvent<SVGSVGElement>) => {
     const svg = e.currentTarget;
@@ -82,70 +99,25 @@ export const DiffSceneArtwork: React.FC<DiffSceneArtworkProps> = ({
 
           {/* SPOT 1: sun_rays (52, 40) */}
           <g>
-            {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => (
-              <line
-                key={deg}
-                x1={52 + Math.cos((deg * Math.PI) / 180) * 20}
-                y1={40 + Math.sin((deg * Math.PI) / 180) * 20}
-                x2={52 + Math.cos((deg * Math.PI) / 180) * 27}
-                y2={40 + Math.sin((deg * Math.PI) / 180) * 27}
-                stroke={diffActive('sun_rays') ? '#f97316' : '#facc15'}
-                strokeWidth="3.2"
-                strokeLinecap="round"
-              />
-            ))}
             <circle
               cx="52"
               cy="40"
-              r="16"
-              fill={diffActive('sun_rays') ? '#fb923c' : '#fde047'}
-              stroke="#ffffff"
-              strokeWidth="2"
+              r="21"
+              fill={diffActive('sun_rays') ? 'rgba(251, 146, 60, 0.35)' : 'rgba(253, 224, 71, 0.32)'}
             />
-            {diffActive('sun_rays') ? (
-              /* Cool sunglasses on variant sun */
-              <g>
-                <rect x="42" y="34" width="9" height="6" rx="2" fill="#1e293b" />
-                <rect x="53" y="34" width="9" height="6" rx="2" fill="#1e293b" />
-                <line x1="51" y1="36" x2="53" y2="36" stroke="#1e293b" strokeWidth="2" />
-                <path d="M47 45 Q52 49 57 45" fill="none" stroke="#7c2d12" strokeWidth="2" strokeLinecap="round" />
-              </g>
-            ) : (
-              <g>
-                <circle cx="47" cy="38" r="2" fill="#78350f" />
-                <circle cx="57" cy="38" r="2" fill="#78350f" />
-                <path d="M47 44 Q52 48 57 44" fill="none" stroke="#78350f" strokeWidth="2" strokeLinecap="round" />
-              </g>
-            )}
+            {diffActive('sun_rays')
+              ? renderEmoji3D('😎', 52, 40, 38)
+              : renderEmoji3D('☀️', 52, 40, 44)}
           </g>
 
           {/* SPOT 7: cloud_bird (122, 36) */}
           <g>
-            <circle cx="110" cy="40" r="12" fill="#ffffff" />
-            <circle cx="124" cy="35" r="14" fill="#ffffff" />
-            <circle cx="138" cy="41" r="11" fill="#ffffff" />
-            <rect x="108" y="40" width="32" height="12" rx="6" fill="#ffffff" />
-            {diffActive('cloud_bird') && (
-              <g>
-                {/* Cute blue bird sitting on cloud */}
-                <ellipse cx="123" cy="24" rx="9" ry="7" fill="#2563eb" stroke="#ffffff" strokeWidth="1.5" />
-                <circle cx="129" cy="21" r="4.5" fill="#3b82f6" />
-                <polygon points="133,20 139,22 133,24" fill="#f59e0b" />
-                <circle cx="130" cy="20" r="1.2" fill="#ffffff" />
-              </g>
-            )}
+            {renderEmoji3D('☁️', 124, 40, 46)}
+            {diffActive('cloud_bird') && renderEmoji3D('🐦', 126, 22, 24)}
           </g>
 
           {/* SPOT 5: butterfly (204, 52) */}
-          {!diffActive('butterfly') && (
-            <g>
-              <ellipse cx="196" cy="48" rx="9" ry="7" fill="#f472b6" stroke="#ffffff" strokeWidth="1.5" />
-              <ellipse cx="212" cy="48" rx="9" ry="7" fill="#f472b6" stroke="#ffffff" strokeWidth="1.5" />
-              <ellipse cx="198" cy="57" rx="6" ry="5" fill="#fb7185" stroke="#ffffff" strokeWidth="1.2" />
-              <ellipse cx="210" cy="57" rx="6" ry="5" fill="#fb7185" stroke="#ffffff" strokeWidth="1.2" />
-              <rect x="202" y="43" width="4" height="17" rx="2" fill="#4c1d95" />
-            </g>
-          )}
+          {!diffActive('butterfly') && renderEmoji3D('🦋', 204, 52, 34)}
 
           {/* Cozy House */}
           <rect x="108" y="102" width="76" height="62" rx="6" fill="#fffbeb" stroke="#d97706" strokeWidth="2.5" />
@@ -194,46 +166,16 @@ export const DiffSceneArtwork: React.FC<DiffSceneArtworkProps> = ({
             { x: 260, y: 82 },
             { x: 268, y: 104 },
           ].map((f, i) => (
-            <circle
-              key={i}
-              cx={f.x}
-              cy={f.y}
-              r="6.5"
-              fill={diffActive('tree_fruit') ? '#facc15' : '#ef4444'}
-              stroke="#ffffff"
-              strokeWidth="1.4"
-            />
+            <g key={i}>
+              {renderEmoji3D(diffActive('tree_fruit') ? '🍏' : '🍎', f.x, f.y, 17)}
+            </g>
           ))}
 
           {/* SPOT 6: flower_left (66, 168) */}
           <g>
-            <line x1="66" y1="170" x2="66" y2="194" stroke="#15803d" strokeWidth="3.5" strokeLinecap="round" />
-            <ellipse cx="59" cy="184" rx="6" ry="3" fill="#22c55e" transform="rotate(-25 59 184)" />
-            {diffActive('flower_left') ? (
-              /* Yellow-orange tulip */
-              <path
-                d="M55 166 Q55 178 66 178 Q77 178 77 166 L72 158 L66 164 L60 158 Z"
-                fill="#facc15"
-                stroke="#ea580c"
-                strokeWidth="2"
-              />
-            ) : (
-              /* Pink daisy */
-              <g>
-                {[0, 60, 120, 180, 240, 300].map((deg) => (
-                  <circle
-                    key={deg}
-                    cx={66 + Math.cos((deg * Math.PI) / 180) * 9}
-                    cy={166 + Math.sin((deg * Math.PI) / 180) * 9}
-                    r="5.5"
-                    fill="#ec4899"
-                    stroke="#ffffff"
-                    strokeWidth="1"
-                  />
-                ))}
-                <circle cx="66" cy="166" r="6" fill="#fde047" />
-              </g>
-            )}
+            {diffActive('flower_left')
+              ? renderEmoji3D('🌷', 66, 174, 34)
+              : renderEmoji3D('🌸', 66, 174, 34)}
           </g>
         </g>
       )}
@@ -255,21 +197,10 @@ export const DiffSceneArtwork: React.FC<DiffSceneArtworkProps> = ({
 
           {/* SPOT 6: sun_glasses (50, 40) */}
           <g>
-            <circle cx="50" cy="40" r="18" fill="#fde047" stroke="#ffffff" strokeWidth="2" />
-            {diffActive('sun_glasses') ? (
-              <g>
-                <rect x="39" y="34" width="10" height="6" rx="2" fill="#0f172a" />
-                <rect x="51" y="34" width="10" height="6" rx="2" fill="#0f172a" />
-                <line x1="49" y1="36" x2="51" y2="36" stroke="#0f172a" strokeWidth="2" />
-                <path d="M44 45 Q50 50 56 45" fill="none" stroke="#b45309" strokeWidth="2" strokeLinecap="round" />
-              </g>
-            ) : (
-              <g>
-                <circle cx="44" cy="37" r="2.2" fill="#92400e" />
-                <circle cx="56" cy="37" r="2.2" fill="#92400e" />
-                <path d="M44 45 Q50 50 56 45" fill="none" stroke="#92400e" strokeWidth="2" strokeLinecap="round" />
-              </g>
-            )}
+            <circle cx="50" cy="40" r="20" fill="rgba(253, 224, 71, 0.34)" />
+            {diffActive('sun_glasses')
+              ? renderEmoji3D('😎', 50, 40, 36)
+              : renderEmoji3D('☀️', 50, 40, 42)}
           </g>
 
           {/* Sailboat */}
@@ -309,47 +240,15 @@ export const DiffSceneArtwork: React.FC<DiffSceneArtworkProps> = ({
           </g>
 
           {/* SPOT 4: jumping_fish (74, 156) */}
-          {!diffActive('jumping_fish') && (
-            <g>
-              <ellipse cx="74" cy="156" rx="14" ry="9" fill="#fb923c" stroke="#ffffff" strokeWidth="1.8" />
-              <polygon points="59,156 50,148 50,164" fill="#f97316" stroke="#ffffff" strokeWidth="1.4" />
-              <circle cx="81" cy="154" r="2.2" fill="#0f172a" />
-              <path d="M71 148 Q74 156 71 164" fill="none" stroke="#ffffff" strokeWidth="2.5" />
-            </g>
-          )}
+          {!diffActive('jumping_fish') && renderEmoji3D('🐠', 74, 156, 36)}
 
           {/* SPOT 5: starfish (246, 174) */}
-          {diffActive('starfish') ? (
-            /* Purple seashell */
-            <g>
-              <path d="M233 178 Q246 156 259 178 Z" fill="#a855f7" stroke="#ffffff" strokeWidth="2" />
-              <line x1="246" y1="164" x2="246" y2="178" stroke="#f3e8ff" strokeWidth="1.5" />
-              <line x1="239" y1="168" x2="242" y2="178" stroke="#f3e8ff" strokeWidth="1.5" />
-              <line x1="253" y1="168" x2="250" y2="178" stroke="#f3e8ff" strokeWidth="1.5" />
-            </g>
-          ) : (
-            /* Coral-pink starfish */
-            <polygon
-              points="246,160 250,170 261,170 252,177 256,187 246,181 236,187 240,177 231,170 242,170"
-              fill="#f43f5e"
-              stroke="#ffffff"
-              strokeWidth="1.6"
-              strokeLinejoin="round"
-            />
-          )}
+          {diffActive('starfish')
+            ? renderEmoji3D('🐚', 246, 174, 30)
+            : renderEmoji3D('⭐', 246, 174, 30)}
 
           {/* SPOT 7: crab (156, 178) */}
-          {diffActive('crab') && (
-            <g>
-              <ellipse cx="156" cy="180" rx="13" ry="9" fill="#ef4444" stroke="#ffffff" strokeWidth="1.6" />
-              <circle cx="151" cy="172" r="3" fill="#ffffff" />
-              <circle cx="161" cy="172" r="3" fill="#ffffff" />
-              <circle cx="151" cy="172" r="1.4" fill="#0f172a" />
-              <circle cx="161" cy="172" r="1.4" fill="#0f172a" />
-              <circle cx="141" cy="173" r="4.5" fill="#dc2626" />
-              <circle cx="171" cy="173" r="4.5" fill="#dc2626" />
-            </g>
-          )}
+          {diffActive('crab') && renderEmoji3D('🦀', 156, 178, 34)}
         </g>
       )}
 
@@ -363,30 +262,12 @@ export const DiffSceneArtwork: React.FC<DiffSceneArtworkProps> = ({
           <rect x="0" y="148" width="320" height="62" fill={`url(#${uid}-grass)`} />
 
           {/* SPOT 5: rainbow (162, 40) */}
-          {!diffActive('rainbow') && (
-            <g>
-              <path d="M122 66 A40 40 0 0 1 202 66" fill="none" stroke="#ef4444" strokeWidth="5.5" strokeLinecap="round" />
-              <path d="M128 66 A34 34 0 0 1 196 66" fill="none" stroke="#facc15" strokeWidth="5.5" strokeLinecap="round" />
-              <path d="M134 66 A28 28 0 0 1 190 66" fill="none" stroke="#38bdf8" strokeWidth="5.5" strokeLinecap="round" />
-            </g>
-          )}
+          {!diffActive('rainbow') && renderEmoji3D('🌈', 162, 42, 62)}
 
           {/* SPOT 7: cloud_extra (56, 38) */}
-          {diffActive('cloud_extra') ? (
-            <g>
-              <circle cx="56" cy="38" r="16" fill="#fde047" stroke="#ffffff" strokeWidth="2" />
-              <circle cx="51" cy="36" r="2" fill="#92400e" />
-              <circle cx="61" cy="36" r="2" fill="#92400e" />
-              <path d="M51 42 Q56 46 61 42" fill="none" stroke="#92400e" strokeWidth="2" strokeLinecap="round" />
-            </g>
-          ) : (
-            <g>
-              <circle cx="44" cy="40" r="11" fill="#ffffff" />
-              <circle cx="57" cy="34" r="14" fill="#ffffff" />
-              <circle cx="70" cy="41" r="11" fill="#ffffff" />
-              <rect x="42" y="40" width="30" height="12" rx="6" fill="#ffffff" />
-            </g>
-          )}
+          {diffActive('cloud_extra')
+            ? renderEmoji3D('☀️', 56, 38, 40)
+            : renderEmoji3D('☁️', 56, 38, 44)}
 
           {/* Red Barn + SPOT 1: barn_star (92, 86) */}
           <polygon points="56,102 92,66 128,102" fill="#b91c1c" stroke="#ffffff" strokeWidth="2.2" />
@@ -397,12 +278,7 @@ export const DiffSceneArtwork: React.FC<DiffSceneArtworkProps> = ({
           {diffActive('barn_star') ? (
             <circle cx="92" cy="88" r="9" fill="#e0f2fe" stroke="#ffffff" strokeWidth="2" />
           ) : (
-            <polygon
-              points="92,76 95,84 103,84 97,89 99,97 92,92 85,97 87,89 81,84 89,84"
-              fill="#fde047"
-              stroke="#ffffff"
-              strokeWidth="1.4"
-            />
+            renderEmoji3D('⭐', 92, 87, 22)
           )}
 
           {/* Wooden Fence on Left */}
@@ -412,18 +288,9 @@ export const DiffSceneArtwork: React.FC<DiffSceneArtworkProps> = ({
 
           {/* SPOT 6: fence_bird (48, 164) */}
           <g>
-            <line x1="48" y1="168" x2="48" y2="192" stroke="#15803d" strokeWidth="3.5" />
-            {diffActive('fence_bird') ? (
-              <g>
-                <circle cx="48" cy="164" r="11" fill="#ec4899" stroke="#ffffff" strokeWidth="1.8" />
-                <circle cx="48" cy="164" r="5" fill="#fde047" />
-              </g>
-            ) : (
-              <g>
-                <circle cx="48" cy="164" r="12" fill="#facc15" stroke="#ea580c" strokeWidth="1.8" />
-                <circle cx="48" cy="164" r="6" fill="#78350f" />
-              </g>
-            )}
+            {diffActive('fence_bird')
+              ? renderEmoji3D('🌺', 48, 168, 34)
+              : renderEmoji3D('🌻', 48, 168, 36)}
           </g>
 
           {/* Windmill + SPOT 4: windmill (256, 76) */}
@@ -474,14 +341,7 @@ export const DiffSceneArtwork: React.FC<DiffSceneArtworkProps> = ({
           </g>
 
           {/* SPOT 3: chick (144, 172) */}
-          {!diffActive('chick') && (
-            <g>
-              <circle cx="144" cy="175" r="10" fill="#fde047" stroke="#ffffff" strokeWidth="1.6" />
-              <circle cx="150" cy="165" r="7" fill="#fde047" stroke="#ffffff" strokeWidth="1.4" />
-              <polygon points="156,164 162,166 156,168" fill="#f97316" />
-              <circle cx="152" cy="164" r="1.5" fill="#0f172a" />
-            </g>
-          )}
+          {!diffActive('chick') && renderEmoji3D('🐥', 146, 172, 32)}
         </g>
       )}
 
@@ -500,23 +360,9 @@ export const DiffSceneArtwork: React.FC<DiffSceneArtworkProps> = ({
           ))}
 
           {/* SPOT 3: moon_face (56, 56) */}
-          {diffActive('moon_face') ? (
-            <g>
-              <circle cx="56" cy="56" r="18" fill="#bae6fd" stroke="#ffffff" strokeWidth="2" />
-              <circle cx="50" cy="50" r="4" fill="#7dd3fc" />
-              <circle cx="63" cy="60" r="5" fill="#7dd3fc" />
-              <circle cx="52" cy="64" r="2.5" fill="#7dd3fc" />
-            </g>
-          ) : (
-            <g>
-              <path
-                d="M64 40 A18 18 0 1 0 64 72 A14 14 0 1 1 64 40 Z"
-                fill="#fde047"
-                stroke="#ffffff"
-                strokeWidth="1.8"
-              />
-            </g>
-          )}
+          {diffActive('moon_face')
+            ? renderEmoji3D('🌕', 56, 56, 38)
+            : renderEmoji3D('🌙', 56, 56, 38)}
 
           {/* SPOT 6: planet_green (156, 36) */}
           <g>
@@ -586,54 +432,22 @@ export const DiffSceneArtwork: React.FC<DiffSceneArtworkProps> = ({
             />
             {/* Window */}
             {diffActive('rocket_window') ? (
-              <polygon
-                points="158,92 161,100 170,100 163,105 166,113 158,108 150,113 153,105 146,100 155,100"
-                fill="#facc15"
-                stroke="#0f172a"
-                strokeWidth="1.6"
-              />
+              renderEmoji3D('⭐', 158, 103, 22)
             ) : (
               <circle cx="158" cy="103" r="10" fill="#38bdf8" stroke="#1e293b" strokeWidth="2.5" />
             )}
           </g>
 
           {/* SPOT 5: comet (74, 156) */}
-          {!diffActive('comet') && (
-            <g>
-              <path d="M52 170 Q64 162 76 154" stroke="#fde047" strokeWidth="7" strokeLinecap="round" opacity="0.55" />
-              <path d="M56 168 Q66 160 76 154" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" />
-              <circle cx="80" cy="152" r="9" fill="#facc15" stroke="#ffffff" strokeWidth="2" />
-            </g>
-          )}
+          {!diffActive('comet') && renderEmoji3D('☄️', 74, 156, 36)}
 
           {/* SPOT 4: ufo (244, 154) */}
-          {!diffActive('ufo') && (
-            <g>
-              <path d="M232 152 Q244 134 256 152 Z" fill="#a7f3d0" stroke="#ffffff" strokeWidth="1.6" />
-              <ellipse cx="244" cy="154" rx="22" ry="8" fill="#10b981" stroke="#ffffff" strokeWidth="1.8" />
-              <circle cx="234" cy="154" r="2.5" fill="#fde047" />
-              <circle cx="244" cy="155" r="2.5" fill="#fde047" />
-              <circle cx="254" cy="154" r="2.5" fill="#fde047" />
-            </g>
-          )}
+          {!diffActive('ufo') && renderEmoji3D('🛸', 244, 154, 42)}
 
           {/* SPOT 7: big_star (158, 174) */}
-          {diffActive('big_star') ? (
-            <path
-              d="M158 186 C158 186 144 177 144 168 C144 163 148 160 153 160 C156 160 158 163 158 163 C158 163 160 160 163 160 C168 160 172 163 172 168 C172 177 158 186 158 186 Z"
-              fill="#ec4899"
-              stroke="#ffffff"
-              strokeWidth="2"
-            />
-          ) : (
-            <polygon
-              points="158,159 162,169 173,169 164,176 167,187 158,180 149,187 152,176 143,169 154,169"
-              fill="#fde047"
-              stroke="#ffffff"
-              strokeWidth="1.8"
-              strokeLinejoin="round"
-            />
-          )}
+          {diffActive('big_star')
+            ? renderEmoji3D('💖', 158, 174, 30)
+            : renderEmoji3D('⭐', 158, 174, 32)}
         </g>
       )}
 

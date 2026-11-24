@@ -8,6 +8,7 @@ import {
   isValidIsoDate,
 } from '../utils/childProfile';
 import welcomeIllustration from '../assets/images/welcome_children_world_1795263078552.jpg';
+import { Emoji3D } from './Emoji3D';
 import {
   Calendar,
   Camera,
@@ -159,8 +160,10 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
                     className="w-full h-full object-cover object-center"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-6xl">
-                    🎨🎵🔭
+                  <div className="w-full h-full flex items-center justify-center gap-3">
+                    <Emoji3D emoji="🎨" className="w-14 h-14" />
+                    <Emoji3D emoji="🎵" className="w-14 h-14" />
+                    <Emoji3D emoji="🔭" className="w-14 h-14" />
                   </div>
                 )}
                 <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-slate-900/50 via-slate-900/15 to-transparent pointer-events-none" />
@@ -371,7 +374,7 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
                               : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
                           }`}
                         >
-                          <span className="text-2xl leading-none shrink-0">{opt.emoji}</span>
+                          <Emoji3D emoji={opt.emoji} className="w-7 h-7 shrink-0" />
                           <span className="min-w-0 leading-tight">
                             <span className="block font-fun font-extrabold text-sm">
                               {opt.label}

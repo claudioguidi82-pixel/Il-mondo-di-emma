@@ -22,6 +22,12 @@ import {
   Shapes,
 } from 'lucide-react';
 import arenaMeadowBackdrop from '../assets/images/arena_meadow_backdrop_1795268326885.jpg';
+import { Emoji3D } from './Emoji3D';
+import {
+  getCachedEmoji3DImage,
+  isSingleEmoji,
+  preloadEmoji3DImage,
+} from '../utils/emoji3dDatabase';
 
 interface StudioDisegnoProps {
   onSaveDrawing: (drawing: SavedDrawing) => void;
@@ -88,6 +94,14 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
   const hueRef = useRef<number>(0);
   const sparkleSoundThrottleRef = useRef<number>(0);
   const [undoStack, setUndoStack] = useState<ImageData[]>([]);
+
+  useEffect(() => {
+    [...KIDS_STICKERS, ...MATURE_STICKERS, '✨', '⭐'].forEach((stk) => {
+      if (isSingleEmoji(stk)) {
+        void preloadEmoji3DImage(stk);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     soundManager.speakInstruction(
@@ -215,6 +229,21 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
     };
   };
 
+  const drawFallbackStickerText = (
+    ctx: CanvasRenderingContext2D,
+    sticker: string,
+    x: number,
+    y: number
+  ) => {
+    ctx.save();
+    ctx.fillStyle = selectedColor;
+    ctx.font = `${Math.max(24, brushSize * 2.5)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(sticker, x, y);
+    ctx.restore();
+  };
+
   const stampSticker = (x: number, y: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -224,14 +253,42 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
     soundManager.playTwinkle();
     if (!isMature) confetti.burst(undefined, undefined, 8);
 
-    ctx.save();
-    ctx.fillStyle = selectedColor;
-    ctx.font = `${Math.max(24, brushSize * 2.5)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(selectedSticker, x, y);
-    ctx.restore();
+    const sticker = selectedSticker;
+    const stampSize = Math.max(32, brushSize * 2.8);
 
+    if (isSingleEmoji(sticker)) {
+      const cached = getCachedEmoji3DImage(sticker);
+      if (cached) {
+        ctx.save();
+        ctx.drawImage(cached, x - stampSize / 2, y - stampSize / 2, stampSize, stampSize);
+        ctx.restore();
+        saveCanvasState();
+        return;
+      }
+
+      void preloadEmoji3DImage(sticker).then((loadedImg) => {
+        const currentCanvas = canvasRef.current;
+        const currentCtx = currentCanvas?.getContext('2d', { willReadFrequently: true });
+        if (!currentCanvas || !currentCtx) return;
+        if (loadedImg) {
+          currentCtx.save();
+          currentCtx.drawImage(
+            loadedImg,
+            x - stampSize / 2,
+            y - stampSize / 2,
+            stampSize,
+            stampSize
+          );
+          currentCtx.restore();
+        } else {
+          drawFallbackStickerText(currentCtx, sticker, x, y);
+        }
+        saveCanvasState();
+      });
+      return;
+    }
+
+    drawFallbackStickerText(ctx, sticker, x, y);
     saveCanvasState();
   };
 
@@ -276,14 +333,26 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
       ctx.lineTo(x, y);
       ctx.stroke();
 
-      const sparkles = ['✨', '⭐', '•'];
+      const sparkles = ['✨', '⭐'];
       const spark = sparkles[Math.floor(Math.random() * sparkles.length)];
-      ctx.font = `${brushSize * 0.9}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
       const offsetX = (Math.random() - 0.5) * brushSize * 2.1;
       const offsetY = (Math.random() - 0.5) * brushSize * 2.1;
-      ctx.fillText(spark, x + offsetX, y + offsetY);
+      const cachedSpark = getCachedEmoji3DImage(spark);
+      if (cachedSpark) {
+        const sSize = Math.max(12, brushSize * 0.95);
+        ctx.drawImage(
+          cachedSpark,
+          x + offsetX - sSize / 2,
+          y + offsetY - sSize / 2,
+          sSize,
+          sSize
+        );
+      } else {
+        ctx.font = `${brushSize * 0.9}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(spark, x + offsetX, y + offsetY);
+      }
 
       const now = Date.now();
       if (now - sparkleSoundThrottleRef.current > 200) {
@@ -567,13 +636,22 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
 
             {/* Subtle Active Tool Badge */}
             <div className="absolute top-3 left-3 px-2.5 py-1 bg-slate-900/85 text-white rounded-lg text-[11px] font-fun font-semibold pointer-events-none flex items-center gap-1.5 shadow-xs">
-              <span>
+              <span className="inline-flex items-center gap-1">
                 {brushMode === 'color' && 'Penna'}
                 {brushMode === 'rainbow' && 'Arcobaleno'}
                 {brushMode === 'glitter' && 'Glitter'}
                 {brushMode === 'neon' && 'Neon'}
                 {brushMode === 'eraser' && 'Gomma'}
-                {brushMode === 'sticker' && `Timbro ${selectedSticker}`}
+                {brushMode === 'sticker' && (
+                  <>
+                    <span>Timbro</span>
+                    {isSingleEmoji(selectedSticker) ? (
+                      <Emoji3D emoji={selectedSticker} className="w-3.5 h-3.5" />
+                    ) : (
+                      <span>{selectedSticker}</span>
+                    )}
+                  </>
+                )}
               </span>
               <span className="opacity-60 tabular-nums">· {brushSize}px</span>
             </div>
@@ -671,7 +749,7 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
-                  <span>✨</span>
+                  <Emoji3D emoji="✨" className="w-4 h-4 shrink-0" />
                   <span>Glitter</span>
                 </button>
               )}
@@ -793,7 +871,11 @@ export const StudioDisegno: React.FC<StudioDisegnoProps> = ({
                       : 'bg-white border border-slate-200 hover:bg-slate-100'
                   }`}
                 >
-                  {stk}
+                  {isSingleEmoji(stk) ? (
+                    <Emoji3D emoji={stk} className="w-6 h-6" />
+                  ) : (
+                    stk
+                  )}
                 </button>
               ))}
             </div>

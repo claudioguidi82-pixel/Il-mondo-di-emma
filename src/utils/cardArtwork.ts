@@ -3,29 +3,13 @@
 // habitat/context backdrop matching the answer itself (e.g., boat -> sea, airplane -> sky,
 // car -> road, rocket -> space, penguin -> arctic ice, cow/dog -> sunny meadow).
 
-import zooLion3d from '../assets/images/zoo_lion_3d_1795268326883.jpg';
-import zooGiraffe3d from '../assets/images/zoo_giraffe_3d_1795268326961.jpg';
-import zooElephant3d from '../assets/images/zoo_elephant_3d_1795268327303.jpg';
-import cardCamel3d from '../assets/images/card_camel_3d_1795268325780.jpg';
-import cardElephant3d from '../assets/images/card_elephant_3d_1795268326180.jpg';
-import cardZebra3d from '../assets/images/card_zebra_3d_1795268326180.jpg';
 import homeWorldDiorama from '../assets/images/home_world_diorama_1795267242665.jpg';
 import arenaMeadowBackdrop from '../assets/images/arena_meadow_backdrop_1795268326885.jpg';
-import treasureChest3d from '../assets/images/treasure_chest_3d_1795267243685.jpg';
-import trophyMedallion3d from '../assets/images/trophy_medallion_3d_1795267241130.jpg';
 import { GameCategory, PuzzleOption } from '../types/game';
 
 export const STORYBOOK_ASSETS = {
   arenaMeadowBackdrop,
-  zooLion3d,
-  zooGiraffe3d,
-  zooElephant3d,
-  cardCamel3d,
-  cardElephant3d,
-  cardZebra3d,
   homeWorldDiorama,
-  treasureChest3d,
-  trophyMedallion3d,
 };
 
 export type CardBackdropKind =
@@ -54,19 +38,6 @@ export interface CardVisualScene {
   swatchHex?: string;
   isDarkBackdrop?: boolean;
 }
-
-// Exact 3D animal illustration ONLY when the option's visual symbol is that exact animal
-const EXACT_ANIMAL_EMOJI_ARTWORK: Record<
-  string,
-  { imageSrc: string; imagePosition: string }
-> = {
-  '🐪': { imageSrc: cardCamel3d, imagePosition: 'center 35%' },
-  '🐫': { imageSrc: cardCamel3d, imagePosition: 'center 35%' },
-  '🐘': { imageSrc: cardElephant3d, imagePosition: 'center 35%' },
-  '🦓': { imageSrc: cardZebra3d, imagePosition: 'center 30%' },
-  '🦁': { imageSrc: zooLion3d, imagePosition: 'center 28%' },
-  '🦒': { imageSrc: zooGiraffe3d, imagePosition: 'center 22%' },
-};
 
 // Emoji & Italian/English keyword matchers for unmistakable visual habitats
 const SEA_EMOJI_RE = /[🚤🛥️⛵🚢⛴️🛳️⚓🐬🐳🐋🐟🐠🐡🦈🐙🦀🦞🐚🌊🏝️🏖️🏊🚣🧜🤿]/u;
@@ -167,20 +138,7 @@ export function resolveOptionArtwork(
   const label = (option.label || '').trim();
   const combined = `${emoji} ${label}`;
 
-  // 1. Exact bespoke 3D animal illustration fills the entire button edge-to-edge
-  if (emoji && EXACT_ANIMAL_EMOJI_ARTWORK[emoji]) {
-    const match = EXACT_ANIMAL_EMOJI_ARTWORK[emoji];
-    return {
-      ...basePalette,
-      backdropKind: 'savanna',
-      skyGradient: 'from-amber-300 via-orange-200 to-yellow-100',
-      hillGradient: 'from-amber-500 to-yellow-500',
-      imageSrc: match.imageSrc,
-      imagePosition: match.imagePosition,
-    };
-  }
-
-  // 2. Subject-correlated habitat backgrounds (Boat -> Sea, Airplane -> Sky, Car -> Road, etc.)
+  // 1. Subject-correlated habitat backgrounds (Boat -> Sea, Airplane -> Sky, Car -> Road, etc.)
   if (SEA_EMOJI_RE.test(emoji) || SEA_TEXT_RE.test(label)) {
     return {
       backdropKind: 'sea',

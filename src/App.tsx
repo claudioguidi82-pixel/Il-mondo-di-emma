@@ -78,8 +78,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import homeWorldDiorama from './assets/images/home_world_diorama_1795267242665.jpg';
-import treasureChest3d from './assets/images/treasure_chest_3d_1795267243685.jpg';
-import zooLion3d from './assets/images/zoo_lion_3d_1795268326883.jpg';
+import { Emoji3D } from './components/Emoji3D';
 
 export default function App() {
   const [progress, setProgress] = useState<UserProgress>(() =>
@@ -916,69 +915,28 @@ export default function App() {
             <div className="home-wood-plaque inline-flex flex-col items-center px-3 sm:px-7 pt-2 sm:pt-3 pb-1.5 sm:pb-2.5 max-w-full">
               {ageTheme.stageId === 'early_childhood' && (
                 <>
-                  {/* Left 3D Golden Star Cluster */}
-                  <svg
-                    viewBox="0 0 40 40"
-                    className="w-6 h-6 sm:w-8 sm:h-8 absolute -left-3 top-2.5 drop-shadow-[0_3px_4px_rgba(92,40,6,0.55)] pointer-events-none"
-                    aria-hidden="true"
-                  >
-                    <defs>
-                      <linearGradient id="homeStarL" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#fff7a8" />
-                        <stop offset="50%" stopColor="#facc15" />
-                        <stop offset="100%" stopColor="#ea580c" />
-                      </linearGradient>
-                    </defs>
-                    <path
-                      d="M20 3 L24.8 13.2 L36 14.7 L27.8 22.5 L29.8 33.6 L20 28.2 L10.2 33.6 L12.2 22.5 L4 14.7 L15.2 13.2 Z"
-                      fill="url(#homeStarL)"
-                      stroke="#9a3412"
-                      strokeWidth="1.6"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
+                  {/* Left 3D Golden Star Illustration */}
                   <span
                     aria-hidden="true"
-                    className="absolute left-1.5 bottom-3.5 text-[9px] sm:text-[10px] text-amber-200 drop-shadow-xs pointer-events-none"
+                    className="absolute -left-3.5 top-2 pointer-events-none"
                   >
-                    ★
+                    <Emoji3D emoji="⭐" className="w-6 h-6 sm:w-8 sm:h-8 drop-shadow-[0_3px_5px_rgba(92,40,6,0.5)]" />
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className="absolute left-1 bottom-2.5 pointer-events-none"
+                  >
+                    <Emoji3D emoji="✨" className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </span>
 
                   {/* Right 3D Golden Star Cluster */}
-                  <svg
-                    viewBox="0 0 56 48"
-                    className="w-9 h-8 sm:w-13 sm:h-11 absolute -right-3 -top-3 drop-shadow-[0_3px_5px_rgba(92,40,6,0.55)] pointer-events-none"
+                  <span
                     aria-hidden="true"
+                    className="absolute -right-3.5 -top-3 flex items-center pointer-events-none"
                   >
-                    <defs>
-                      <linearGradient id="homeStarR" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#fff7a8" />
-                        <stop offset="50%" stopColor="#facc15" />
-                        <stop offset="100%" stopColor="#ea580c" />
-                      </linearGradient>
-                    </defs>
-                    <path
-                      d="M12 2 L14.4 7.2 L20 8 L15.9 11.9 L16.9 17.5 L12 14.8 L7.1 17.5 L8.1 11.9 L4 8 L9.6 7.2 Z"
-                      fill="url(#homeStarR)"
-                      stroke="#9a3412"
-                      strokeWidth="1.2"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M34 4 L39.2 14.8 L51 16.4 L42.4 24.7 L44.5 36.4 L34 30.8 L23.5 36.4 L25.6 24.7 L17 16.4 L28.8 14.8 Z"
-                      fill="url(#homeStarR)"
-                      stroke="#9a3412"
-                      strokeWidth="1.8"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M47 30 L49 34.2 L53.6 34.8 L50.2 38 L51 42.5 L47 40.3 L43 42.5 L43.8 38 L40.4 34.8 L45 34.2 Z"
-                      fill="url(#homeStarR)"
-                      stroke="#9a3412"
-                      strokeWidth="1.2"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
+                    <Emoji3D emoji="✨" className="w-5 h-5 sm:w-6 sm:h-6 -mr-1.5 -mt-2" />
+                    <Emoji3D emoji="🌟" className="w-8 h-8 sm:w-10 sm:h-10 drop-shadow-[0_3px_6px_rgba(92,40,6,0.5)]" />
+                  </span>
                 </>
               )}
 
@@ -1011,9 +969,13 @@ export default function App() {
               <div className="home-stat-line mt-1.5 sm:mt-2 home-wood-stat-inset inline-flex flex-wrap items-center justify-center gap-1.5 sm:gap-2.5 px-3 sm:px-4 py-0.5 rounded-full text-[11px] sm:text-xs font-fun font-extrabold text-white tabular-nums">
                 <span>Liv. {progress.currentLevel}</span>
                 <span className="opacity-45" aria-hidden="true">·</span>
-                <span>⭐ {progress.stars}</span>
+                <span className="inline-flex items-center gap-1">
+                  <Emoji3D emoji="⭐" className="w-3.5 h-3.5" /> {progress.stars}
+                </span>
                 <span className="opacity-45" aria-hidden="true">·</span>
-                <span>💎 {progress.gems}</span>
+                <span className="inline-flex items-center gap-1">
+                  <Emoji3D emoji="💎" className="w-3.5 h-3.5" /> {progress.gems}
+                </span>
                 <span className="opacity-45" aria-hidden="true">·</span>
                 <span>{ageInfo.shortAgeLabel}</span>
                 {cloudSyncState.uid && (
@@ -1089,11 +1051,11 @@ export default function App() {
                   className="px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 text-slate-950 font-fun font-extrabold text-xs border-2 border-amber-100 shadow-lg flex items-center gap-1.5 cursor-pointer hover:brightness-105 active:translate-y-0.5 transition-all animate-bounce"
                   title="Apri la Festa di Compleanno interattiva!"
                 >
-                  <Cake className="w-4 h-4 text-slate-950 shrink-0" />
+                  <Emoji3D emoji="🎂" className="w-4.5 h-4.5 shrink-0" />
                   <span>
                     {birthdayStatus.isBirthdayToday
-                      ? `🎂 Buon Compleanno ${childName}! (${birthdayStatus.turningAgeYears} Anni)`
-                      : `🎂 Compleanno tra ${birthdayStatus.daysUntilBirthday}g (${birthdayStatus.nextBirthdayFormatted})`}
+                      ? `Buon Compleanno ${childName}! (${birthdayStatus.turningAgeYears} Anni)`
+                      : `Compleanno tra ${birthdayStatus.daysUntilBirthday}g (${birthdayStatus.nextBirthdayFormatted})`}
                   </span>
                 </button>
               )}
@@ -1145,20 +1107,14 @@ export default function App() {
                 ageTheme.stageId === 'early_childhood' ? 'pt-6 sm:pt-7' : 'pt-0'
               }`}
             >
-              {/* Glossy 3D Rainbow Arch strictly for Early Childhood (2-5) — positioned cleanly above buttons */}
+              {/* 3D Rainbow Illustration strictly for Early Childhood (2-5) */}
               {ageTheme.stageId === 'early_childhood' && (
-                <svg
-                  viewBox="0 0 180 78"
-                  className="home-rainbow-arch absolute -top-2 left-1/2 -translate-x-1/2 w-[112px] sm:w-[130px] h-[46px] sm:h-[54px] pointer-events-none z-20 drop-shadow-[0_4px_6px_rgba(15,23,42,0.35)]"
-                  fill="none"
+                <span
                   aria-hidden="true"
+                  className="home-rainbow-arch absolute -top-2.5 left-1/2 -translate-x-1/2 pointer-events-none z-20"
                 >
-                  <path d="M 32 62 A 58 48 0 0 1 148 62" stroke="#ff4d6d" strokeWidth="7" strokeLinecap="round" />
-                  <path d="M 38 62 A 52 42 0 0 1 142 62" stroke="#ff9f1c" strokeWidth="6.5" strokeLinecap="round" />
-                  <path d="M 44 62 A 46 36 0 0 1 136 62" stroke="#ffe033" strokeWidth="6.5" strokeLinecap="round" />
-                  <path d="M 50 62 A 40 30 0 0 1 130 62" stroke="#34d399" strokeWidth="6.5" strokeLinecap="round" />
-                  <path d="M 56 62 A 34 24 0 0 1 124 62" stroke="#38bdf8" strokeWidth="6.5" strokeLinecap="round" />
-                </svg>
+                  <Emoji3D emoji="🌈" className="w-14 h-14 sm:w-16 sm:h-16 drop-shadow-[0_4px_8px_rgba(15,23,42,0.35)]" />
+                </span>
               )}
 
               {/* LEFT BUTTON: PLAY / CHALLENGE */}
@@ -1230,8 +1186,8 @@ export default function App() {
                   </>
                 ) : (
                   <div className="home-inner-purple home-action-inner rounded-[16px] px-2.5 sm:px-3.5 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-2.5 h-full">
-                    <span className="home-action-icon relative z-10 w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/18 border border-white/30 flex items-center justify-center shrink-0 text-xl sm:text-2xl">
-                      🎨
+                    <span className="home-action-icon relative z-10 w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/18 border border-white/30 flex items-center justify-center shrink-0">
+                      <Emoji3D emoji="🎨" className="w-7 h-7 sm:w-8 sm:h-8" />
                     </span>
                     <div className="relative z-10 min-w-0 leading-tight">
                       <span className="home-action-title block font-kids font-bold text-[14px] sm:text-[16px] text-white truncate">
@@ -1279,13 +1235,8 @@ export default function App() {
                   ) : (
                     <div className="home-inner-orange home-action-inner rounded-[14px] flex items-center justify-between gap-2 py-2 px-2.5 text-white min-h-[54px] h-full">
                       <span className="relative z-10 inline-flex items-center gap-2 min-w-0">
-                        <span className="home-action-icon w-9 h-9 rounded-xl overflow-hidden border-2 border-amber-100 bg-amber-100 flex items-center justify-center shrink-0">
-                          <img
-                            src={zooLion3d}
-                            alt="Natura e Animali"
-                            referrerPolicy="no-referrer"
-                            className="w-full h-full object-cover"
-                          />
+                        <span className="home-action-icon w-9 h-9 rounded-xl border-2 border-amber-100/90 bg-gradient-to-b from-amber-50 to-amber-200 flex items-center justify-center shrink-0 shadow-xs">
+                          <Emoji3D emoji="🦁" alt="Natura e Animali" decorative={false} className="w-7 h-7" />
                         </span>
                         <span className="min-w-0 leading-tight">
                           <span className="home-action-title block font-kids font-bold text-[13px] sm:text-[15px] text-white truncate">
@@ -1331,8 +1282,8 @@ export default function App() {
                   ) : (
                     <div className="home-inner-teal home-action-inner rounded-[14px] flex items-center justify-between gap-2 py-2 px-2.5 text-white min-h-[54px] h-full">
                       <span className="relative z-10 inline-flex items-center gap-2 min-w-0">
-                        <span className="home-action-icon w-9 h-9 rounded-xl border-2 border-cyan-100/80 bg-cyan-950/35 flex items-center justify-center shrink-0">
-                          <Gamepad2 className="w-5 h-5 text-amber-200" />
+                        <span className="home-action-icon w-9 h-9 rounded-xl border-2 border-cyan-100/80 bg-cyan-950/30 flex items-center justify-center shrink-0">
+                          <Emoji3D emoji="🎮" alt="Giochi di Svago" decorative={false} className="w-7 h-7" />
                         </span>
                         <span className="min-w-0 leading-tight">
                           <span className="home-action-title block font-kids font-bold text-[13px] sm:text-[15px] text-white truncate">
@@ -1369,10 +1320,16 @@ export default function App() {
                       <span className={`w-8 h-8 rounded-lg ${ageTheme.genderPalette.accentSoftBgClass} border flex items-center justify-center shrink-0`}>
                         <Gift className="w-4 h-4" />
                       </span>
-                      <span className="font-fun font-semibold text-xs sm:text-sm text-slate-100 truncate">
-                        {dailyMission.isDailyChestReady
-                          ? `${ageTheme.labels.chestTitle} · Ricompensa Pronta (+3 💎)`
-                          : `${ageTheme.labels.chestTitle} · Target ${dailyMission.inCurrentCycle}/${DAILY_MISSION_TARGET}`}
+                      <span className="font-fun font-semibold text-xs sm:text-sm text-slate-100 truncate inline-flex items-center gap-1">
+                        {dailyMission.isDailyChestReady ? (
+                          <>
+                            <span>{ageTheme.labels.chestTitle} · Ricompensa Pronta (+3</span>
+                            <Emoji3D emoji="💎" className="w-3.5 h-3.5" />
+                            <span>)</span>
+                          </>
+                        ) : (
+                          `${ageTheme.labels.chestTitle} · Target ${dailyMission.inCurrentCycle}/${DAILY_MISSION_TARGET}`
+                        )}
                       </span>
                     </span>
                     <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-fun font-bold tabular-nums shrink-0 ${ageTheme.genderPalette.badgeClass}`}>
@@ -1382,18 +1339,19 @@ export default function App() {
                 ) : (
                   <div className="home-inner-gold rounded-[14px] flex items-center justify-between gap-2 py-2 px-3 text-[#422006] min-h-[48px]">
                     <span className="relative z-10 inline-flex items-center gap-2.5 min-w-0">
-                      <span className="home-action-icon w-9 h-9 rounded-xl overflow-hidden border-2 border-amber-100 bg-amber-100 flex items-center justify-center shrink-0">
-                        <img
-                          src={treasureChest3d}
-                          alt="Scrigno e Traguardi"
-                          referrerPolicy="no-referrer"
-                          className="w-full h-full object-cover"
-                        />
+                      <span className="home-action-icon w-9 h-9 rounded-xl border-2 border-amber-100 bg-gradient-to-b from-amber-50 to-amber-200 flex items-center justify-center shrink-0 shadow-xs">
+                        <Emoji3D emoji="🎁" alt="Scrigno e Traguardi" decorative={false} className="w-7 h-7" />
                       </span>
-                      <span className="font-kids font-bold text-[12.5px] sm:text-[15px] leading-tight text-left text-[#422006] min-w-0 truncate">
-                        {dailyMission.isDailyChestReady
-                          ? `${ageTheme.labels.chestTitle} Pronto · Apri (+3 💎)`
-                          : `${ageTheme.labels.chestTitle} · Missione ${dailyMission.inCurrentCycle}/${DAILY_MISSION_TARGET}`}
+                      <span className="font-kids font-bold text-[12.5px] sm:text-[15px] leading-tight text-left text-[#422006] min-w-0 truncate inline-flex items-center gap-1">
+                        {dailyMission.isDailyChestReady ? (
+                          <>
+                            <span>{ageTheme.labels.chestTitle} Pronto · Apri (+3</span>
+                            <Emoji3D emoji="💎" className="w-4 h-4" />
+                            <span>)</span>
+                          </>
+                        ) : (
+                          `${ageTheme.labels.chestTitle} · Missione ${dailyMission.inCurrentCycle}/${DAILY_MISSION_TARGET}`
+                        )}
                       </span>
                     </span>
                     <span className="relative z-10 inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-50/92 border border-amber-200 text-xs sm:text-sm font-fun font-extrabold text-amber-950 whitespace-nowrap shrink-0 tabular-nums">
@@ -1627,10 +1585,13 @@ export default function App() {
                       <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                       <span>Grafica Evolutiva: {ageTheme.stageBadge}</span>
                     </span>
-                    <span className="block text-[11px] font-medium text-amber-900/85 mt-0.5">
-                      {birthdayStatus.isBirthdayToday
-                        ? `🎂 Oggi è il compleanno di ${childName}!`
-                        : `🎂 Compleanno: ${birthdayStatus.nextBirthdayFormatted} (-${birthdayStatus.daysUntilBirthday} giorni)`}
+                    <span className="flex items-center gap-1 text-[11px] font-medium text-amber-900/85 mt-0.5">
+                      <Emoji3D emoji="🎂" className="w-3.5 h-3.5 shrink-0" />
+                      <span>
+                        {birthdayStatus.isBirthdayToday
+                          ? `Oggi è il compleanno di ${childName}!`
+                          : `Compleanno: ${birthdayStatus.nextBirthdayFormatted} (-${birthdayStatus.daysUntilBirthday} giorni)`}
+                      </span>
                     </span>
                   </div>
                   <button
@@ -1746,7 +1707,7 @@ export default function App() {
                         : 'bg-slate-100 border-slate-300 text-slate-500'
                     }`}
                   >
-                    <span className="text-base leading-none" aria-hidden="true">🗣️</span>
+                    <Emoji3D emoji="🗣️" className="w-5 h-5" />
                     <span>Voce {progress.voiceEnabled ? 'ON' : 'OFF'}</span>
                   </button>
 

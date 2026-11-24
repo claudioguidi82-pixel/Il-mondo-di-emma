@@ -42,6 +42,7 @@ import {
   LogOut,
   Cake,
 } from 'lucide-react';
+import { Emoji3D } from './Emoji3D';
 import {
   UserProgress,
   GameCategory,
@@ -3234,8 +3235,9 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                     >
                       <div className="min-w-0">
                         <div className="flex items-center justify-between gap-2 text-[10.5px] font-bold text-amber-300">
-                          <span className="truncate">
-                            📅 {item.dateFormatted} · ore {item.timeFormatted}
+                          <span className="truncate inline-flex items-center gap-1">
+                            <Emoji3D emoji="📅" className="w-3.5 h-3.5 shrink-0" />
+                            <span className="truncate">{item.dateFormatted} · ore {item.timeFormatted}</span>
                           </span>
                           <span className="px-1.5 py-0.5 rounded bg-white/10 text-white shrink-0 tabular-nums">
                             IC {item.ic}/100
@@ -3320,7 +3322,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                 <div>
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-kids font-bold text-xs text-white flex items-center gap-1.5 truncate">
-                      <span>{m.emoji}</span>
+                      <Emoji3D emoji={m.emoji} className="w-4 h-4 shrink-0" />
                       <span className="truncate">{m.shortLabel}</span>
                     </span>
                     <span className="text-[10.5px] font-extrabold px-2 py-0.5 rounded-md bg-indigo-500/25 border border-indigo-400/40 text-amber-200 shrink-0">
@@ -3372,14 +3374,16 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                     <span className="font-fun font-extrabold text-xs tabular-nums">
                       {stage.ageRangeLabel}
                     </span>
-                    <span className="text-[10px] font-bold">
-                      {isChronological
-                        ? 'Attuale'
-                        : isBoostedTarget
-                        ? '★ Merito'
-                        : isAlreadyUnlocked
-                        ? '✓'
-                        : '🔒'}
+                    <span className="text-[10px] font-bold inline-flex items-center">
+                      {isChronological ? (
+                        'Attuale'
+                      ) : isBoostedTarget ? (
+                        '★ Merito'
+                      ) : isAlreadyUnlocked ? (
+                        '✓'
+                      ) : (
+                        <Emoji3D emoji="🔒" className="w-3.5 h-3.5" />
+                      )}
                     </span>
                   </div>
                   <p className="text-[10px] text-white/75 truncate mt-0.5">
@@ -3471,7 +3475,8 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                 }
                 className="px-3.5 py-2 rounded-xl bg-white/8 hover:bg-white/15 border border-white/15 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <span>🗣️ Voce {progress.voiceEnabled ? 'ON' : 'OFF'}</span>
+                <Emoji3D emoji="🗣️" className="w-4 h-4 shrink-0" />
+                <span>Voce {progress.voiceEnabled ? 'ON' : 'OFF'}</span>
               </button>
             </div>
           </div>
@@ -3847,8 +3852,9 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                 </p>
               </div>
               <div className="bg-amber-950/45 border border-amber-400/35 rounded-xl p-3">
-                <span className="text-[10px] font-black uppercase tracking-wider text-amber-300 block">
-                  ⚖ Competenza da Consolidare
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-300 inline-flex items-center gap-1">
+                  <Emoji3D emoji="⚖️" className="w-3.5 h-3.5 shrink-0" />
+                  <span>Competenza da Consolidare</span>
                 </span>
                 <p className="font-kids font-bold text-sm text-white mt-1">
                   {evalReport.nextLearningPlan.toConsolidateTitle}
@@ -3858,8 +3864,9 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                 </p>
               </div>
               <div className="bg-indigo-950/60 border border-indigo-400/35 rounded-xl p-3">
-                <span className="text-[10px] font-black uppercase tracking-wider text-indigo-300 block">
-                  🚀 Prossima Sfida Consigliata
+                <span className="text-[10px] font-black uppercase tracking-wider text-indigo-300 inline-flex items-center gap-1">
+                  <Emoji3D emoji="🚀" className="w-3.5 h-3.5 shrink-0" />
+                  <span>Prossima Sfida Consigliata</span>
                 </span>
                 <p className="font-kids font-bold text-sm text-white mt-1">
                   {evalReport.nextLearningPlan.nextChallengeTitle}
@@ -4140,8 +4147,9 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                     className="bg-slate-950/75 rounded-xl px-3 py-2 border border-white/10 flex items-center justify-between text-xs"
                   >
                     <div>
-                      <span className="font-bold text-amber-300 block">
-                        🗓️ {cp.monthLabel}
+                      <span className="font-bold text-amber-300 inline-flex items-center gap-1">
+                        <Emoji3D emoji="🗓️" className="w-3.5 h-3.5 shrink-0" />
+                        <span>{cp.monthLabel}</span>
                       </span>
                       <span className="text-[10px] text-white/60">
                         Livello {cp.levelReached} · IP {cp.ip}/100 · IA {cp.ia}
@@ -4370,7 +4378,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                 <div key={m.id} className="space-y-1 min-w-0">
                   <div className="flex items-center justify-between gap-2 text-xs">
                     <span className="font-bold text-white flex items-center gap-1.5 min-w-0 truncate">
-                      <span className="shrink-0">{m.emoji}</span>
+                      <Emoji3D emoji={m.emoji} className="w-4 h-4 shrink-0" />
                       <span className="truncate">{m.title}</span>
                     </span>
                     <span className="font-black text-amber-300 shrink-0 tabular-nums">
@@ -4413,7 +4421,7 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                 <div className="min-w-0">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex items-start gap-2 min-w-0">
-                      <span className="text-2xl shrink-0">{m.emoji}</span>
+                      <Emoji3D emoji={m.emoji} className="w-7 h-7 shrink-0" />
                       <div className="min-w-0">
                         <h4 className="font-kids font-bold text-sm text-white leading-tight break-words">
                           {m.clinicalName}
@@ -4521,8 +4529,15 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                     {subj.competencies}
                   </p>
                 </div>
-                <span className="text-[10px] text-emerald-300 font-bold mt-2 block">
-                  {subj.isUnlockedForChild ? `✓ ${subj.statusLabel}` : `🔒 ${subj.statusLabel}`}
+                <span className="text-[10px] text-emerald-300 font-bold mt-2 inline-flex items-center gap-1">
+                  {subj.isUnlockedForChild ? (
+                    `✓ ${subj.statusLabel}`
+                  ) : (
+                    <>
+                      <Emoji3D emoji="🔒" className="w-3 h-3 shrink-0" />
+                      <span>{subj.statusLabel}</span>
+                    </>
+                  )}
                 </span>
               </div>
             ))}
@@ -4584,8 +4599,9 @@ export const ParentModal: React.FC<ParentModalProps> = ({
               </div>
             </div>
             {cloudSyncState?.deviceLabel && (
-              <span className="text-[11px] font-bold px-2.5 py-1 rounded-xl bg-sky-500/15 border border-sky-400/30 text-sky-200 shrink-0 self-start sm:self-center">
-                📱 Dispositivo attivo: {cloudSyncState.deviceLabel}
+              <span className="text-[11px] font-bold px-2.5 py-1 rounded-xl bg-sky-500/15 border border-sky-400/30 text-sky-200 shrink-0 self-start sm:self-center inline-flex items-center gap-1.5">
+                <Emoji3D emoji="📱" className="w-3.5 h-3.5 shrink-0" />
+                <span>Dispositivo attivo: {cloudSyncState.deviceLabel}</span>
               </span>
             )}
           </div>
@@ -4690,8 +4706,9 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                   <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-400/30">
                     STILE ATTIVO: {ageTheme.stageBadge}
                   </span>
-                  <span className="text-[11px] font-bold text-amber-300">
-                    🎂 {birthdayStatus.nextBirthdayFormatted}
+                  <span className="text-[11px] font-bold text-amber-300 inline-flex items-center gap-1">
+                    <Emoji3D emoji="🎂" className="w-3.5 h-3.5 shrink-0" />
+                    <span>{birthdayStatus.nextBirthdayFormatted}</span>
                   </span>
                 </div>
                 <h4 className="font-kids font-bold text-sm text-white">
@@ -4700,17 +4717,26 @@ export const ParentModal: React.FC<ParentModalProps> = ({
                 <p className="text-xs text-slate-300 leading-relaxed mt-1">
                   {ageTheme.stageSubtitle} — L&apos;interfaccia si evolve progressivamente dai 2 ai 14 anni (Mondo Fiabesco → Accademia → Campus → NextGen Lab).
                 </p>
-                <p className="text-xs text-amber-200/95 font-semibold mt-1.5">
-                  {birthdayStatus.isBirthdayToday
-                    ? `🎉 Oggi è il compleanno di ${childName} (${birthdayStatus.turningAgeYears} anni)!`
-                    : `Prossimo compleanno (${birthdayStatus.turningAgeYears} anni): tra ${birthdayStatus.daysUntilBirthday} giorni (${birthdayStatus.nextBirthdayFormatted}).`}
+                <p className="text-xs text-amber-200/95 font-semibold mt-1.5 flex items-center gap-1.5">
+                  {birthdayStatus.isBirthdayToday ? (
+                    <>
+                      <Emoji3D emoji="🎉" className="w-4 h-4 shrink-0" />
+                      <span>Oggi è il compleanno di {childName} ({birthdayStatus.turningAgeYears} anni)!</span>
+                    </>
+                  ) : (
+                    `Prossimo compleanno (${birthdayStatus.turningAgeYears} anni): tra ${birthdayStatus.daysUntilBirthday} giorni (${birthdayStatus.nextBirthdayFormatted}).`
+                  )}
                 </p>
               </div>
 
               {onOpenBirthdayCelebration && (
                 <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/10">
-                  <span className="text-[11px] text-slate-300">
-                    Animazione interattiva + Regalo (+50 💎 e +25 ⭐)
+                  <span className="text-[11px] text-slate-300 inline-flex items-center gap-1 flex-wrap">
+                    <span>Animazione interattiva + Regalo (+50</span>
+                    <Emoji3D emoji="💎" className="w-3.5 h-3.5" />
+                    <span>e +25</span>
+                    <Emoji3D emoji="⭐" className="w-3.5 h-3.5" />
+                    <span>)</span>
                   </span>
                   <button
                     type="button"

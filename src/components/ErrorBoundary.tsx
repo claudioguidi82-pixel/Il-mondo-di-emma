@@ -1,4 +1,5 @@
 import React from 'react';
+import { Emoji3D } from './Emoji3D';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -31,7 +32,9 @@ export class ErrorBoundary extends React.Component<
       return (
         <div className="min-h-[100dvh] w-full flex items-center justify-center bg-slate-950 text-white p-6">
           <div className="max-w-md w-full rounded-3xl bg-slate-900 border border-amber-400/40 p-6 text-center shadow-2xl space-y-4">
-            <div className="text-4xl" aria-hidden="true">🛠️</div>
+            <div className="flex justify-center" aria-hidden="true">
+              <Emoji3D emoji="🛠️" className="w-12 h-12" />
+            </div>
             <h1 className="font-kids text-2xl font-bold text-amber-300">
               Piccolo intoppo tecnico
             </h1>

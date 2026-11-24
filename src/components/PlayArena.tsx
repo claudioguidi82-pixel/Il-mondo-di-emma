@@ -46,12 +46,9 @@ import {
   STORYBOOK_ASSETS,
   resolveOptionArtwork,
 } from '../utils/cardArtwork';
+import { Emoji3D, Emoji3DStage, RichEmoji3DText } from './Emoji3D';
 
-const {
-  arenaMeadowBackdrop,
-  treasureChest3d,
-  trophyMedallion3d,
-} = STORYBOOK_ASSETS;
+const { arenaMeadowBackdrop } = STORYBOOK_ASSETS;
 
 const CardHabitatBackdrop: React.FC<{
   kind: CardBackdropKind;
@@ -968,7 +965,9 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
         <div
           className={`glossy-bubble-btn bg-gradient-to-b ${theme.badgeGradient} px-2 sm:px-4 py-1 sm:py-1.5 rounded-full border-2 border-white/80 flex items-center gap-1 sm:gap-2 min-w-0 flex-1 sm:flex-initial justify-center overflow-hidden`}
         >
-          <span className="text-sm sm:text-xl shrink-0 drop-shadow-xs hidden min-[340px]:inline">{theme.emoji}</span>
+          <span className="shrink-0 hidden min-[340px]:inline-flex items-center">
+            <Emoji3D emoji={theme.emoji} className="w-5 h-5 sm:w-6 sm:h-6" />
+          </span>
           <div className="text-left leading-[1.12] min-w-0 flex-1 sm:flex-initial">
             <p className="text-[9.5px] sm:text-xs font-bold text-white/95 leading-tight truncate">
               {puzzle.subjectLabel || theme.title}
@@ -1065,10 +1064,13 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
             className="storybook-footer-pill rounded-2xl px-3 py-2.5 shrink-0 animate-pop-in"
           >
             <div className="flex items-center justify-between gap-2 mb-2 px-0.5">
-              <span className="font-fun font-extrabold text-xs sm:text-sm text-amber-950">
-                {allowNameThisLevel
-                  ? `🧭 Cosa vuoi esplorare adesso, ${childName}?`
-                  : '🧭 Cosa vuoi esplorare adesso?'}
+              <span className="font-fun font-extrabold text-xs sm:text-sm text-amber-950 inline-flex items-center gap-1.5">
+                <Emoji3D emoji="🧭" className="w-4 h-4 shrink-0" />
+                <span>
+                  {allowNameThisLevel
+                    ? `Cosa vuoi esplorare adesso, ${childName}?`
+                    : 'Cosa vuoi esplorare adesso?'}
+                </span>
               </span>
               <button
                 type="button"
@@ -1096,7 +1098,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                         : 'bg-white text-slate-800 border-amber-200 hover:bg-amber-50'
                     }`}
                   >
-                    <span>{subj.emoji}</span>
+                    <Emoji3D emoji={subj.emoji} className="w-4.5 h-4.5 shrink-0" />
                     <span>{subj.label}</span>
                   </button>
                 );
@@ -1130,17 +1132,25 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                   <span
                     className={
                       puzzle.adaptiveStatus === 'downgrade'
-                        ? 'text-sky-700 font-extrabold'
+                        ? 'text-sky-700 font-extrabold inline-flex items-center gap-1'
                         : puzzle.isMasteryUnlocked
-                        ? 'text-amber-700 font-extrabold'
+                        ? 'text-amber-700 font-extrabold inline-flex items-center gap-1'
                         : 'text-emerald-700 font-extrabold'
                     }
                   >
-                    {puzzle.adaptiveStatus === 'downgrade'
-                      ? `🤝 ${puzzle.difficultyLabel}`
-                      : puzzle.isMasteryUnlocked
-                      ? `★ ${puzzle.difficultyLabel}`
-                      : puzzle.difficultyLabel}
+                    {puzzle.adaptiveStatus === 'downgrade' ? (
+                      <>
+                        <Emoji3D emoji="🤝" className="w-3.5 h-3.5" />
+                        <span>{puzzle.difficultyLabel}</span>
+                      </>
+                    ) : puzzle.isMasteryUnlocked ? (
+                      <>
+                        <Emoji3D emoji="⭐" className="w-3.5 h-3.5" />
+                        <span>{puzzle.difficultyLabel}</span>
+                      </>
+                    ) : (
+                      puzzle.difficultyLabel
+                    )}
                   </span>
                 </>
               )}
@@ -1148,14 +1158,14 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
 
             {puzzle.iqParameterTag && (
               <p className="relative z-10 text-[11px] sm:text-xs font-extrabold text-indigo-700 mb-1.5 leading-snug">
-                {puzzle.iqParameterTag}
+                <RichEmoji3DText text={puzzle.iqParameterTag} />
               </p>
             )}
 
             {/* Main Question Text */}
             <div className="relative z-10 flex flex-col items-center justify-center gap-2 w-full max-w-2xl">
               <h2 className="font-fun font-extrabold text-base sm:text-2xl lg:text-[26px] text-slate-900 leading-snug w-full text-center">
-                {puzzle.prompt}
+                <RichEmoji3DText text={puzzle.prompt} />
               </h2>
 
               {puzzle.animalSoundId && (
@@ -1187,8 +1197,9 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
             {(canUseMagicHint || magicHintMessage) && (
               <div className="mt-2.5 flex flex-wrap items-center justify-center gap-2">
                 {magicHintMessage && (
-                  <span className="text-xs sm:text-sm font-semibold text-indigo-700">
-                    💡 {magicHintMessage}
+                  <span className="text-xs sm:text-sm font-semibold text-indigo-700 inline-flex items-center gap-1">
+                    <Emoji3D emoji="💡" className="w-4 h-4 shrink-0" />
+                    <span>{magicHintMessage}</span>
                   </span>
                 )}
                 {canUseMagicHint && (
@@ -1231,9 +1242,10 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                             : 'sphere-3d-counter animate-float-3d hover:scale-105'
                         }`}
                       >
-                        <span className="text-4xl sm:text-5xl lg:text-6xl leading-none drop-shadow-[0_4px_4px_rgba(15,23,42,0.2)]">
-                          {puzzle.itemEmoji || '🦋'}
-                        </span>
+                        <Emoji3D
+                          emoji={puzzle.itemEmoji || '🦋'}
+                          className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 drop-shadow-[0_4px_6px_rgba(15,23,42,0.24)]"
+                        />
                         {isTapped ? (
                           <span className="absolute -top-1.5 -right-1.5 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-b from-amber-300 to-orange-500 text-amber-950 font-kids font-bold text-sm sm:text-base border-2 border-white flex items-center justify-center shadow-md animate-pop-in tabular-nums">
                             {orderNumber}
@@ -1260,9 +1272,11 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
               <div className="relative z-10 mt-3 storybook-tray-3d flex items-center justify-center gap-2 sm:gap-3 flex-wrap px-3.5 sm:px-5 py-3 rounded-3xl">
                 <div className="flex items-center gap-1.5 bg-gradient-to-b from-rose-50 to-pink-100 px-3 py-2 rounded-2xl border-2 border-pink-300 shadow-[0_3px_0_#ec4899] flex-wrap justify-center">
                   {Array.from({ length: puzzle.additionParts.countA }).map((_, i) => (
-                    <span key={i} className="text-2xl sm:text-3xl lg:text-4xl animate-float-3d drop-shadow-xs">
-                      {puzzle.additionParts!.emoji}
-                    </span>
+                    <Emoji3D
+                      key={i}
+                      emoji={puzzle.additionParts!.emoji}
+                      className="w-8 h-8 sm:w-10 sm:h-10 lg:w-11 lg:h-11 animate-float-3d"
+                    />
                   ))}
                 </div>
                 <span className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-b from-rose-400 to-pink-600 border-2 border-white shadow-md flex items-center justify-center font-kids font-bold text-xl sm:text-2xl text-white">
@@ -1270,9 +1284,11 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                 </span>
                 <div className="flex items-center gap-1.5 bg-gradient-to-b from-sky-50 to-cyan-100 px-3 py-2 rounded-2xl border-2 border-sky-300 shadow-[0_3px_0_#0284c7] flex-wrap justify-center">
                   {Array.from({ length: puzzle.additionParts.countB }).map((_, i) => (
-                    <span key={i} className="text-2xl sm:text-3xl lg:text-4xl animate-float-3d drop-shadow-xs">
-                      {puzzle.additionParts!.emoji}
-                    </span>
+                    <Emoji3D
+                      key={i}
+                      emoji={puzzle.additionParts!.emoji}
+                      className="w-8 h-8 sm:w-10 sm:h-10 lg:w-11 lg:h-11 animate-float-3d"
+                    />
                   ))}
                 </div>
                 <span className="px-3 py-1.5 rounded-2xl bg-gradient-to-b from-amber-300 to-amber-500 border-2 border-white shadow-[0_3px_0_#b45309] font-kids font-bold text-lg sm:text-2xl text-amber-950">
@@ -1296,11 +1312,14 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                           : 'bg-gradient-to-b from-white to-emerald-50 border-emerald-400 shadow-[0_4px_0_#16a34a] animate-float-3d'
                       }`}
                     >
-                      <span className="text-2xl sm:text-3xl drop-shadow-xs">
-                        {puzzle.subtractionParts!.emoji}
-                      </span>
+                      <Emoji3D
+                        emoji={puzzle.subtractionParts!.emoji}
+                        className="w-8 h-8 sm:w-10 sm:h-10"
+                      />
                       {isRemoved && (
-                        <span className="absolute text-rose-600 font-black text-2xl drop-shadow-xs">✖</span>
+                        <span className="absolute inset-0 flex items-center justify-center">
+                          <Emoji3D emoji="✖️" className="w-6 h-6 opacity-90" />
+                        </span>
                       )}
                     </div>
                   );
@@ -1329,7 +1348,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                         }`}
                       >
                         <span className="w-2 h-2 rounded-full bg-white/80 shadow-inner mb-0.5" aria-hidden="true" />
-                        <span className="text-xl sm:text-2xl drop-shadow-xs">{note.emoji}</span>
+                        <Emoji3D emoji={note.emoji} className="w-6 h-6 sm:w-7 sm:h-7" />
                         <span className="text-[11px] sm:text-xs drop-shadow-[0_1px_1px_rgba(0,0,0,0.3)]">
                           {note.label}
                         </span>
@@ -1353,12 +1372,13 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
             {/* 5. ENGLISH WORD 3D STORYBOOK FLASHCARD (`english_words`) */}
             {puzzle.englishWord && (
               <div className="relative z-10 mt-3 storybook-tray-3d flex items-center gap-3 px-4 py-2.5 rounded-3xl">
-                <div className="orb-3d-pedestal w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-3xl sm:text-4xl animate-float-3d shrink-0">
-                  {puzzle.englishWord.emoji}
+                <div className="orb-3d-pedestal w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center animate-float-3d shrink-0">
+                  <Emoji3D emoji={puzzle.englishWord.emoji} className="w-10 h-10 sm:w-12 sm:h-12" />
                 </div>
                 <div className="text-left min-w-0">
-                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-sky-700 block leading-tight">
-                    🇬🇧 {puzzle.englishWord.categoryLabel}
+                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-sky-700 inline-flex items-center gap-1 leading-tight">
+                    <Emoji3D emoji="🇬🇧" className="w-3.5 h-3.5" />
+                    <span>{puzzle.englishWord.categoryLabel}</span>
                   </span>
                   <p className="font-kids font-bold text-lg sm:text-2xl text-slate-900 leading-tight">
                     "{puzzle.englishWord.en}"
@@ -1406,7 +1426,14 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                           : 'orb-3d-pedestal text-slate-900 font-kids font-extrabold text-xl sm:text-3xl lg:text-4xl animate-float-3d'
                       }`}
                     >
-                      {item}
+                      {isMystery ? (
+                        <Emoji3D emoji="❓" className="w-6 h-6 sm:w-8 sm:h-8" />
+                      ) : (
+                        <RichEmoji3DText
+                          text={item}
+                          emojiClassName="w-7 h-7 sm:w-10 sm:h-10"
+                        />
+                      )}
                     </div>
                   );
                 })}
@@ -1437,12 +1464,6 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                 const visualScene = resolveOptionArtwork(option, puzzle.category);
                 const isLastOfThree = optionsList.length === 3 && idx === 2;
                 const emojiText = (option.emoji || '⭐').trim();
-                const isPlainSymbolTile = /^[A-Za-z0-9√πφ×÷±=+\-?!]{1,3}$/.test(
-                  emojiText
-                );
-                // Detect multi-symbol / repeated-emoji groups (e.g. "🍎🍎🍎🍎") so they scale cleanly without clipping
-                const emojiGlyphCount = Array.from(emojiText.replace(/\uFE0F|\u200D/g, '')).length;
-                const isMultiEmojiGroup = !isPlainSymbolTile && emojiGlyphCount > 2;
 
                 const isFinalRemainingOption =
                   !isSolved &&
@@ -1483,46 +1504,25 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                         : 'hover:scale-[1.015] active:scale-[0.985]'
                     }`}
                   >
-                    {/* FULL-BUTTON SCENIC HABITAT STAGE + OVERSIZED VISUAL ICON */}
+                    {/* FULL-BUTTON SCENIC HABITAT STAGE + UNIFIED 3D EMOJI ILLUSTRATION */}
                     <div
                       className={`option-card-stage relative w-full min-h-[146px] sm:min-h-[190px] lg:min-h-[208px] flex-1 rounded-[20px] overflow-hidden bg-gradient-to-b ${visualScene.skyGradient} flex flex-col items-center justify-center`}
                     >
-                      {visualScene.imageSrc ? (
-                        <img
-                          src={visualScene.imageSrc}
-                          alt={option.label}
-                          referrerPolicy="no-referrer"
-                          style={{ objectPosition: visualScene.imagePosition || 'center center' }}
-                          className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        />
-                      ) : (
-                        <>
-                          <CardHabitatBackdrop
-                            kind={visualScene.backdropKind}
-                            hillGradient={visualScene.hillGradient}
-                            swatchHex={visualScene.swatchHex}
-                          />
+                      <CardHabitatBackdrop
+                        kind={visualScene.backdropKind}
+                        hillGradient={visualScene.hillGradient}
+                        swatchHex={visualScene.swatchHex}
+                      />
 
-                          {/* Giant Full-Button Icon (occupies the full visual button area for instant recognition by non-readers) */}
-                          <div className="relative z-10 w-full flex-1 flex items-center justify-center px-2 pt-2 pb-9 sm:pb-11">
-                            <span
-                              className={`leading-none text-center select-none ${
-                                isPlainSymbolTile
-                                  ? `font-kids font-black text-[54px] sm:text-[78px] lg:text-[88px] ${
-                                      visualScene.isDarkBackdrop
-                                        ? 'text-white drop-shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
-                                        : 'text-indigo-950 drop-shadow-[0_4px_0_rgba(255,255,255,0.85)]'
-                                    }`
-                                  : isMultiEmojiGroup
-                                  ? 'text-[32px] sm:text-[44px] lg:text-[50px] tracking-tight break-words max-w-full drop-shadow-[0_6px_8px_rgba(15,23,42,0.28)]'
-                                  : 'option-emoji-giant text-[72px] sm:text-[94px] lg:text-[106px] drop-shadow-[0_8px_10px_rgba(15,23,42,0.32)]'
-                              } ${!isWrong ? 'animate-float-3d' : ''}`}
-                            >
-                              {emojiText}
-                            </span>
-                          </div>
-                        </>
-                      )}
+                      {/* Giant Full-Stage 3D Illustration */}
+                      <div className="relative z-10 w-full flex-1 flex items-center justify-center px-2 pt-2 pb-9 sm:pb-11">
+                        <Emoji3DStage
+                          value={emojiText}
+                          label={option.label}
+                          isDarkBackdrop={visualScene.isDarkBackdrop}
+                          isAnimated={!isWrong}
+                        />
+                      </div>
 
                       {/* Top-Right Tappable Audio Read-Aloud Speaker for Non-Readers */}
                       <button
@@ -1545,11 +1545,11 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                       {/* Compact High-Contrast Bottom Scrim Caption (never steals space from the full-bleed icon) */}
                       <div className="absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-slate-950/90 via-slate-950/65 to-transparent px-2.5 sm:px-3 pt-5 pb-2 sm:pb-2.5 text-center">
                         <span className="font-kids font-bold text-[13.5px] sm:text-[17px] text-white drop-shadow-[0_1.5px_3px_rgba(0,0,0,0.65)] block leading-tight break-words">
-                          {option.label}
+                          <RichEmoji3DText text={option.label} />
                         </span>
-                        {showSublabel && (
+                        {showSublabel && option.sublabel && (
                           <span className="font-semibold text-[10.5px] sm:text-xs text-amber-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] block leading-tight mt-0.5 break-words animate-pop-in">
-                            {option.sublabel}
+                            <RichEmoji3DText text={option.sublabel} />
                           </span>
                         )}
                       </div>
@@ -1566,7 +1566,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
       <footer className="landscape-footer-compact app-shell-container relative z-10 px-2.5 sm:px-5 lg:px-8 pb-2 sm:pb-3 w-full shrink-0">
         <div className="storybook-footer-pill rounded-2xl px-3 sm:px-4 py-2 flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <span className="text-base sm:text-lg shrink-0" aria-hidden="true">🪄</span>
+            <Emoji3D emoji="🪄" className="w-5 h-5 shrink-0" />
             <div className="leading-snug min-w-0">
               <p className="text-[11px] sm:text-xs font-fun font-extrabold text-slate-900 tabular-nums">
                 Missione: {dailyMission.inCurrentCycle}/{DAILY_MISSION_TARGET}
@@ -1605,10 +1605,15 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
               title="Apri l'Album dei Tesori e le Curiosità del giorno"
             >
               <Gift className="w-3.5 h-3.5 text-amber-900 shrink-0" />
-              <span>
-                {dailyMission.isDailyChestReady
-                  ? 'Scrigno!'
-                  : `💎 ${progress.gems}`}
+              <span className="inline-flex items-center gap-1">
+                {dailyMission.isDailyChestReady ? (
+                  'Scrigno!'
+                ) : (
+                  <>
+                    <Emoji3D emoji="💎" className="w-3.5 h-3.5" />
+                    <span>{progress.gems}</span>
+                  </>
+                )}
               </span>
             </button>
           </div>
@@ -1621,12 +1626,12 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
       {isSolved && (
         <div className="safe-modal-overlay fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-md flex items-start sm:items-center justify-center overflow-y-auto">
           <div className="storybook-parchment-board relative w-full max-w-md my-auto rounded-[30px] p-5 sm:p-6 text-center animate-pop-in mt-10 sm:mt-auto">
-            <div className="medallion-3d-frame mx-auto -mt-14 w-24 h-24 rounded-3xl overflow-hidden border-4 border-white bg-amber-50 flex items-center justify-center mb-3">
-              <img
-                src={willCompleteMission ? treasureChest3d : trophyMedallion3d}
+            <div className="medallion-3d-frame mx-auto -mt-14 w-24 h-24 rounded-3xl border-4 border-white bg-gradient-to-b from-amber-50 via-yellow-50 to-orange-100 flex items-center justify-center mb-3 shadow-lg">
+              <Emoji3D
+                emoji={willCompleteMission ? '🎁' : '🏆'}
                 alt={willCompleteMission ? 'Scrigno della Missione 3D' : 'Trofeo Vittoria 3D'}
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover"
+                decorative={false}
+                className="w-16 h-16 drop-shadow-[0_6px_10px_rgba(180,83,9,0.3)]"
               />
             </div>
 
@@ -1639,13 +1644,16 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                   {getPersonalizedBreakGreeting(childName, childGender)}
                 </h3>
                 <p className="text-xs sm:text-sm font-medium text-slate-600 mt-1.5 leading-relaxed">
-                  {puzzle.funExplanation}
+                  <RichEmoji3DText text={puzzle.funExplanation} />
                 </p>
 
                 {/* Mission Bonus Reward Strip */}
                 <div className="mt-3.5 rounded-2xl bg-amber-50 border border-amber-200/90 p-3 flex items-center justify-center gap-3 text-left">
-                  <div className="w-12 h-12 rounded-2xl bg-white border border-amber-200 flex items-center justify-center text-3xl shrink-0 shadow-2xs">
-                    {missionBonusSticker ? missionBonusSticker.emoji : '💎'}
+                  <div className="w-12 h-12 rounded-2xl bg-white border border-amber-200 flex items-center justify-center shrink-0 shadow-2xs">
+                    <Emoji3D
+                      emoji={missionBonusSticker ? missionBonusSticker.emoji : '💎'}
+                      className="w-9 h-9"
+                    />
                   </div>
                   <div className="min-w-0">
                     <p className="font-fun font-extrabold text-sm text-amber-950 flex items-center gap-1.5 tabular-nums">
@@ -1663,7 +1671,7 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                 {/* Gentle Anti-Fatigue Mindful Brain-Break Tip */}
                 <div className="mt-3 rounded-2xl bg-emerald-50/80 border border-emerald-200/80 p-3.5 text-left">
                   <div className="flex items-start gap-2.5">
-                    <span className="text-2xl leading-none shrink-0">{mindfulBreak.emoji}</span>
+                    <Emoji3D emoji={mindfulBreak.emoji} className="w-7 h-7 shrink-0 mt-0.5" />
                     <div className="min-w-0">
                       <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                         Pausa Ricarica Mente · 15 Secondi
@@ -1718,13 +1726,16 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
               </>
             ) : (
               <>
-                <h3 className="font-fun font-extrabold text-2xl sm:text-3xl text-slate-900">
-                  {allowNameThisLevel
-                    ? `${getGenderedWord(childGender, 'Bravissima', 'Bravissimo', 'Fantastico')} ${childName}! 🎉`
-                    : `${getGenderedWord(childGender, 'Bravissima', 'Bravissimo', 'Fantastico')}! 🎉`}
+                <h3 className="font-fun font-extrabold text-2xl sm:text-3xl text-slate-900 inline-flex items-center justify-center gap-1.5 flex-wrap">
+                  <span>
+                    {allowNameThisLevel
+                      ? `${getGenderedWord(childGender, 'Bravissima', 'Bravissimo', 'Fantastico')} ${childName}!`
+                      : `${getGenderedWord(childGender, 'Bravissima', 'Bravissimo', 'Fantastico')}!`}
+                  </span>
+                  <Emoji3D emoji="🎉" className="w-7 h-7 sm:w-8 sm:h-8" />
                 </h3>
                 <p className="text-sm sm:text-base font-medium text-slate-600 mt-1.5 leading-relaxed">
-                  {puzzle.funExplanation}
+                  <RichEmoji3DText text={puzzle.funExplanation} />
                 </p>
 
                 <div className="flex items-center justify-center gap-3 my-3.5 bg-amber-50/70 py-2.5 px-4 rounded-2xl border border-amber-200/80">
@@ -1756,13 +1767,14 @@ export const PlayArena: React.FC<PlayArenaProps> = ({
                             soundManager.playPop();
                             setPreferredCategory(subj.id);
                           }}
-                          className={`px-2.5 py-1.5 rounded-xl text-xs font-fun font-bold cursor-pointer transition-colors border min-h-[34px] ${
+                          className={`px-2.5 py-1.5 rounded-xl text-xs font-fun font-bold cursor-pointer transition-colors border min-h-[34px] inline-flex items-center gap-1 ${
                             active
                               ? 'bg-indigo-600 text-white border-indigo-500'
                               : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-indigo-50'
                           }`}
                         >
-                          {subj.emoji} {subj.label}
+                          <Emoji3D emoji={subj.emoji} className="w-4 h-4 shrink-0" />
+                          <span>{subj.label}</span>
                         </button>
                       );
                     })}

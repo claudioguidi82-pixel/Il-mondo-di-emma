@@ -24,11 +24,7 @@ import {
   getGenderedWord,
 } from '../utils/childProfile';
 import arenaMeadowBackdrop from '../assets/images/arena_meadow_backdrop_1795268326885.jpg';
-import zooLion3d from '../assets/images/zoo_lion_3d_1795268326883.jpg';
-import zooGiraffe3d from '../assets/images/zoo_giraffe_3d_1795268326961.jpg';
-import zooElephant3d from '../assets/images/zoo_elephant_3d_1795268327303.jpg';
-import cardCamel3d from '../assets/images/card_camel_3d_1795268325780.jpg';
-import cardZebra3d from '../assets/images/card_zebra_3d_1795268326180.jpg';
+import { Emoji3D } from './Emoji3D';
 
 interface ZooParlanteStudioProps {
   childProfile?: ChildProfile;
@@ -66,7 +62,6 @@ interface TalkingAnimal {
   emoji: string;
   soundLabel: string;
   habitat: string;
-  portraitSrc?: string;
   stageSkyGradient: string;
   stageHillColor: string;
   cardGradient: string;
@@ -385,7 +380,6 @@ const TALKING_ANIMALS: TalkingAnimal[] = [
     emoji: '🦁',
     soundLabel: 'ROAAAR!',
     habitat: 'Savana dorata',
-    portraitSrc: zooLion3d,
     stageSkyGradient: 'from-amber-200 via-orange-100 to-yellow-200',
     stageHillColor: '#d97706',
     cardGradient: 'from-[#ffbe3b] via-[#fb923c] to-[#ea580c]',
@@ -422,7 +416,6 @@ const TALKING_ANIMALS: TalkingAnimal[] = [
     emoji: '🐘',
     soundLabel: 'PA-UUUH!',
     habitat: 'Oasi d’acqua fresca',
-    portraitSrc: zooElephant3d,
     stageSkyGradient: 'from-sky-200 via-cyan-100 to-blue-200',
     stageHillColor: '#0284c7',
     cardGradient: 'from-[#38bdf8] via-[#2563eb] to-[#1d4ed8]',
@@ -459,7 +452,6 @@ const TALKING_ANIMALS: TalkingAnimal[] = [
     emoji: '🦒',
     soundLabel: 'GNAM GNAM!',
     habitat: 'Alberi di acacia',
-    portraitSrc: zooGiraffe3d,
     stageSkyGradient: 'from-lime-100 via-amber-50 to-emerald-200',
     stageHillColor: '#16a34a',
     cardGradient: 'from-[#84cc16] via-[#22c55e] to-[#15803d]',
@@ -496,7 +488,6 @@ const TALKING_ANIMALS: TalkingAnimal[] = [
     emoji: '🦓',
     soundLabel: 'HIII-HA!',
     habitat: 'Prati della savana',
-    portraitSrc: cardZebra3d,
     stageSkyGradient: 'from-violet-100 via-fuchsia-50 to-indigo-200',
     stageHillColor: '#7c3aed',
     cardGradient: 'from-[#a855f7] via-[#7c3aed] to-[#5b21b6]',
@@ -533,7 +524,6 @@ const TALKING_ANIMALS: TalkingAnimal[] = [
     emoji: '🐪',
     soundLabel: 'BRRR-HUU!',
     habitat: 'Dune del deserto',
-    portraitSrc: cardCamel3d,
     stageSkyGradient: 'from-amber-100 via-orange-100 to-rose-100',
     stageHillColor: '#ea580c',
     cardGradient: 'from-[#f472b6] via-[#ec4899] to-[#be185d]',
@@ -610,31 +600,19 @@ const AnimalPortraitVisual: React.FC<{
   isPlaying?: boolean;
   isMature?: boolean;
 }> = ({ animal, size = 'card', isPlaying = false, isMature = false }) => {
-  if (animal.portraitSrc) {
-    return (
-      <img
-        src={animal.portraitSrc}
-        alt={isMature ? animal.speciesName : animal.name}
-        referrerPolicy="no-referrer"
-        className={`w-full h-full object-cover object-top transition-transform duration-300 ${
-          isPlaying ? 'scale-105' : ''
-        }`}
-      />
-    );
-  }
-
   if (isMature) {
     return (
       <div className="relative w-full h-full bg-gradient-to-b from-slate-800 via-slate-900 to-slate-950 flex items-center justify-center overflow-hidden">
-        <span
-          className={`relative z-10 leading-none select-none transition-transform duration-200 ${
+        <Emoji3D
+          emoji={animal.emoji}
+          alt={animal.speciesName}
+          decorative={false}
+          className={`relative z-10 select-none transition-transform duration-200 drop-shadow-[0_6px_12px_rgba(0,0,0,0.45)] ${
             size === 'spotlight'
-              ? 'text-[56px] sm:text-[72px]'
-              : 'text-[38px] sm:text-[46px]'
+              ? 'w-16 h-16 sm:w-20 sm:h-20'
+              : 'w-12 h-12 sm:w-14 sm:h-14'
           } ${isPlaying ? 'scale-110' : ''}`}
-        >
-          {animal.emoji}
-        </span>
+        />
       </div>
     );
   }
@@ -654,15 +632,16 @@ const AnimalPortraitVisual: React.FC<{
         className="pointer-events-none absolute -bottom-5 -left-4 w-[130%] h-12 rounded-[100%] opacity-80"
         style={{ backgroundColor: animal.stageHillColor }}
       />
-      <span
-        className={`relative z-10 leading-none select-none drop-shadow-[0_4px_6px_rgba(15,23,42,0.28)] transition-transform duration-200 ${
+      <Emoji3D
+        emoji={animal.emoji}
+        alt={animal.name}
+        decorative={false}
+        className={`relative z-10 select-none drop-shadow-[0_6px_10px_rgba(15,23,42,0.3)] transition-transform duration-200 ${
           size === 'spotlight'
-            ? 'text-[64px] sm:text-[78px]'
-            : 'text-[44px] sm:text-[52px]'
+            ? 'w-20 h-20 sm:w-24 sm:h-24'
+            : 'w-14 h-14 sm:w-16 sm:h-16'
         } ${isPlaying ? 'scale-110 -rotate-2' : ''}`}
-      >
-        {animal.emoji}
-      </span>
+      />
     </div>
   );
 };
@@ -1037,7 +1016,7 @@ export const ZooParlanteStudio: React.FC<ZooParlanteStudioProps> = ({
             {isMature ? (
               <AudioLines className={`w-4 h-4 shrink-0 ${gPalette.accentTextClass}`} />
             ) : (
-              <span className="text-sm sm:text-base leading-none shrink-0">🐾</span>
+              <Emoji3D emoji="🐾" className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
             )}
             <span className="font-kids font-bold text-xs sm:text-sm tracking-tight truncate">
               {studioHeaderTitle}
@@ -1120,7 +1099,7 @@ export const ZooParlanteStudio: React.FC<ZooParlanteStudioProps> = ({
                 : 'bg-amber-950/35 text-amber-50 hover:bg-amber-950/45 rounded-xl'
             }`}
           >
-            {isMature ? <Compass className="w-4 h-4 shrink-0" /> : <span className="shrink-0">🐾</span>}
+            {isMature ? <Compass className="w-4 h-4 shrink-0" /> : <Emoji3D emoji="🐾" className="w-4 h-4 shrink-0" />}
             <span className="truncate">
               {isMature ? 'Archivio Specie (14)' : 'Esplora Versi (14)'}
             </span>
@@ -1201,12 +1180,14 @@ export const ZooParlanteStudio: React.FC<ZooParlanteStudioProps> = ({
               <div className="flex-1 min-w-0 text-center sm:text-left w-full">
                 <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
                   <h2
-                    className={`font-kids font-bold text-lg sm:text-2xl leading-tight ${
+                    className={`font-kids font-bold text-lg sm:text-2xl leading-tight inline-flex items-center gap-1.5 ${
                       isMature ? 'text-white' : 'text-slate-900'
                     }`}
                   >
-                    {!isMature && `${selectedAnimal.emoji} `}
-                    {getDisplayAnimalName(selectedAnimal)}
+                    {!isMature && (
+                      <Emoji3D emoji={selectedAnimal.emoji} className="w-6 h-6 sm:w-7 sm:h-7 shrink-0" />
+                    )}
+                    <span>{getDisplayAnimalName(selectedAnimal)}</span>
                   </h2>
                   {isMature ? (
                     <span className="text-xs sm:text-sm italic text-slate-400 font-medium">
@@ -1324,7 +1305,7 @@ export const ZooParlanteStudio: React.FC<ZooParlanteStudioProps> = ({
                     : 'rounded-2xl bg-white/85 text-slate-800 border-2 border-slate-200 hover:bg-white'
                 }`}
               >
-                {!isMature && <span className="shrink-0">🏡</span>}
+                {!isMature && <Emoji3D emoji="🏡" className="w-4 h-4 shrink-0" />}
                 <span className="truncate">
                   {isMature ? 'Fauna Domestica & Stagni (8)' : 'Fattoria & Bosco (8)'}
                 </span>
@@ -1343,7 +1324,7 @@ export const ZooParlanteStudio: React.FC<ZooParlanteStudioProps> = ({
                     : 'rounded-2xl bg-white/85 text-slate-800 border-2 border-slate-200 hover:bg-white'
                 }`}
               >
-                {!isMature && <span className="shrink-0">🦁</span>}
+                {!isMature && <Emoji3D emoji="🦁" className="w-4 h-4 shrink-0" />}
                 <span className="truncate">
                   {isMature ? 'Fauna Selvatica & Ecosistemi (6)' : 'Savana & Natura (6)'}
                 </span>
@@ -1462,9 +1443,14 @@ export const ZooParlanteStudio: React.FC<ZooParlanteStudioProps> = ({
                   isMature ? gPalette.accentTextClass : 'text-indigo-700'
                 }`}
               >
-                {isMature
-                  ? `${quizPromptType === 'ethology' ? 'Indizio Etologico' : 'Riconoscimento Acustico'} · Serie: ${quizStreak}`
-                  : `Gioco di Svago · Serie: ${quizStreak} ⭐`}
+                {isMature ? (
+                  `${quizPromptType === 'ethology' ? 'Indizio Etologico' : 'Riconoscimento Acustico'} · Serie: ${quizStreak}`
+                ) : (
+                  <span className="inline-flex items-center justify-center gap-1">
+                    <span>Gioco di Svago · Serie: {quizStreak}</span>
+                    <Emoji3D emoji="⭐" className="w-3.5 h-3.5" />
+                  </span>
+                )}
               </p>
 
               <h2
@@ -1637,8 +1623,9 @@ export const ZooParlanteStudio: React.FC<ZooParlanteStudioProps> = ({
               : 'Tocca gli animali per ascoltare i versi della fattoria e della savana'}
           </span>
           {!isMature && cuddleHearts > 0 && (
-            <span className={`px-2.5 py-0.5 rounded-full font-fun font-bold text-xs whitespace-nowrap shrink-0 ${gPalette.badgeClass}`}>
-              ♥ {cuddleHearts}
+            <span className={`px-2.5 py-0.5 rounded-full font-fun font-bold text-xs whitespace-nowrap shrink-0 inline-flex items-center gap-1 ${gPalette.badgeClass}`}>
+              <Emoji3D emoji="❤️" className="w-3.5 h-3.5" />
+              <span>{cuddleHearts}</span>
             </span>
           )}
         </div>
